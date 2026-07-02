@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Control de Tarjeta | Ledger Personal</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 32'%3E%3Crect x='2' y='4' width='40' height='24' rx='4' fill='%23c9a24b'/%3E%3Crect x='6' y='11' width='10' height='7' rx='1.5' fill='%2314171f'/%3E%3C/svg%3E">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#14171f; --bg-2:#1b2029; --card:#1b2029; --card-hover:#20263a;
+    --line:#2a3040; --line-soft:#242a38;
+    --brass:#c9a24b; --brass-soft:rgba(201,162,75,.12);
+    --rose:#e2536b; --rose-soft:rgba(226,83,107,.12);
+    --mint:#4fd1ae; --mint-soft:rgba(79,209,174,.12);
+    --amber:#e2a53e; --amber-soft:rgba(226,165,62,.12);
+    --text:#eef0f4; --text-mid:#9aa1b0; --text-dim:#5c6272;
+    --r-sm:8px; --r-md:14px; --r-lg:20px;
+  }
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+  body{
+    background:
+      radial-gradient(circle at 15% 0%, rgba(201,162,75,.06), transparent 40%),
+      radial-gradient(circle at 85% 10%, rgba(79,209,174,.04), transparent 35%),
+      var(--bg);
+    color:var(--text); font-family:'Inter',sans-serif; line-height:1.5;
+    -webkit-font-smoothing:antialiased; min-height:100vh; padding-bottom:60px;
+  }
+  h1,h2,h3{font-family:'Space Grotesk',sans-serif;}
+  .figures{font-family:'JetBrains Mono',monospace;}
+
+  #loading-overlay{
+    position:fixed; inset:0; background:var(--bg); display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:14px; z-index:9999; transition:opacity .4s;
+  }
+  #loading-overlay.fade-out{opacity:0; pointer-events:none;}
+  .spinner{width:38px; height:38px; border:2.5px solid rgba(201,162,75,.2); border-top-color:var(--brass); border-radius:50%; animation:spin .8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .loading-msg{font-size:11px; color:var(--text-dim); letter-spacing:.1em; text-transform:uppercase;}
+  #sheet-error{
+    display:none; max-width:480px; text-align:center; color:var(--rose); font-size:13px;
+    background:var(--rose-soft); border:1px solid var(--rose); border-radius:12px; padding:18px 22px; line-height:1.6;
+  }
+
+  header{
+    border-bottom:1px solid var(--line); padding:22px 40px;
+    display:flex; align-items:center; justify-content:space-between;
+    position:sticky; top:0; z-index:50; background:rgba(20,23,31,.9); backdrop-filter:blur(10px);
+  }
+  .brand{display:flex; align-items:center; gap:14px;}
+  .brand-mark{width:38px; height:26px; border-radius:6px; background:linear-gradient(135deg,var(--brass),#8a6f2e); position:relative; flex-shrink:0; box-shadow:0 2px 8px rgba(201,162,75,.25);}
+  .brand-mark::after{content:''; position:absolute; left:5px; top:8px; width:14px; height:10px; border-radius:2px; background:rgba(20,23,31,.5);}
+  .brand-name{font-size:15px; font-weight:700; letter-spacing:.02em;}
+  .brand-sub{font-size:10.5px; color:var(--text-dim); letter-spacing:.08em; text-transform:uppercase; margin-top:2px;}
+  .header-right{display:flex; gap:10px; align-items:center;}
+  .pill{font-size:11px; padding:6px 13px; border-radius:30px; border:1px solid var(--line); color:var(--text-mid); display:flex; align-items:center; gap:6px;}
+  .dot-live{width:6px;height:6px;border-radius:50%;background:var(--mint); animation:pulse 1.6s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:.4} 50%{opacity:1}}
+  .btn-refresh{
+    display:flex; align-items:center; gap:7px; background:var(--brass-soft); border:1px solid rgba(201,162,75,.3);
+    border-radius:var(--r-sm); color:var(--brass); font-size:11px; font-weight:600; padding:7px 15px; cursor:pointer;
+    transition:.2s; font-family:inherit; text-transform:uppercase; letter-spacing:.05em;
+  }
+  .btn-refresh:hover{background:rgba(201,162,75,.2); transform:translateY(-1px);}
+  .btn-refresh svg{transition:transform .5s;}
+  .btn-refresh.spin svg{transform:rotate(360deg);}
+
+  main{max-width:1240px; margin:0 auto; padding:34px 40px;}
+
+  .hero{display:grid; grid-template-columns:340px 1fr; gap:28px; margin-bottom:28px;}
+  @media(max-width:860px){ .hero{grid-template-columns:1fr;} }
+  .card-visual{
+    aspect-ratio:1.586/1; border-radius:18px; position:relative; overflow:hidden;
+    background:radial-gradient(circle at 80% 0%, rgba(255,255,255,.08), transparent 55%), linear-gradient(135deg,#20263a 0%, #171b26 60%, #12151d 100%);
+    border:1px solid var(--line); padding:22px 24px; display:flex; flex-direction:column; justify-content:space-between;
+    box-shadow:0 20px 50px -20px rgba(0,0,0,.6);
+  }
+  .card-visual::before{content:''; position:absolute; inset:0; background:repeating-linear-gradient(115deg, rgba(255,255,255,.02) 0 2px, transparent 2px 40px); pointer-events:none;}
+  .chip{width:38px;height:28px;border-radius:5px;background:linear-gradient(135deg,var(--brass),#8a6f2e);}
+  .card-top{display:flex; justify-content:space-between; align-items:flex-start;}
+  .card-issuer{font-size:11px; letter-spacing:.12em; color:var(--text-mid); text-transform:uppercase;}
+  .card-number{font-family:'JetBrains Mono',monospace; font-size:17px; letter-spacing:.14em; color:rgba(255,255,255,.75); margin-top:14px;}
+  .card-bottom{display:flex; justify-content:space-between; align-items:flex-end;}
+  .card-label{font-size:9px; color:var(--text-dim); letter-spacing:.1em; text-transform:uppercase; margin-bottom:3px;}
+  .card-value{font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--text);}
+  .card-brandmark{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:15px; font-style:italic; color:var(--brass);}
+
+  .hero-right{display:flex; flex-direction:column; gap:16px;}
+  .countdown-card{background:var(--card); border:1px solid var(--line); border-radius:var(--r-lg); padding:20px 24px; display:flex; align-items:center; gap:24px; flex:1;}
+  .ring-wrap{position:relative; width:96px; height:96px; flex-shrink:0;}
+  .ring-wrap svg{transform:rotate(-90deg);}
+  .ring-num{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;}
+  .ring-num .n{font-size:24px; font-weight:700;}
+  .ring-num .u{font-size:9px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.08em;}
+  .countdown-text .k{font-size:12px; color:var(--text-mid); margin-bottom:6px;}
+  .countdown-text .v{font-size:18px; font-weight:600;}
+  .countdown-text .status{display:inline-flex; align-items:center; gap:6px; margin-top:10px; font-size:11.5px; padding:5px 12px; border-radius:20px; font-weight:600;}
+
+  .dates-row{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  .date-edit{background:var(--card); border:1px solid var(--line); border-radius:var(--r-md); padding:14px 18px;}
+  .date-edit label{font-size:10.5px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.08em; display:flex; justify-content:space-between; margin-bottom:8px;}
+  .date-edit .src{font-size:9px; padding:2px 7px; border-radius:10px; background:var(--mint-soft); color:var(--mint);}
+  .date-edit .src.local{background:var(--amber-soft); color:var(--amber);}
+  .date-edit input{background:var(--bg-2); border:1px solid var(--line); border-radius:8px; color:var(--text); font-family:'JetBrains Mono',monospace; font-size:14px; padding:8px 10px; width:100%; color-scheme:dark;}
+  .date-edit input:focus{outline:none; border-color:var(--brass);}
+
+  /* ── KPIs ── */
+  .kpi-row{display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:28px;}
+  @media(max-width:860px){ .kpi-row{grid-template-columns:1fr 1fr;} }
+  .kpi{background:var(--card); border:1px solid var(--line); border-radius:var(--r-md); padding:18px 20px; position:relative; overflow:hidden;}
+  .kpi::before{content:''; position:absolute; left:0; top:0; bottom:0; width:3px;}
+  .kpi.k1::before{background:var(--brass);} .kpi.k2::before{background:var(--mint);}
+  .kpi.k3::before{background:var(--amber);} .kpi.k4::before{background:var(--rose);}
+  .kpi .lbl{font-size:11px; color:var(--text-mid); text-transform:uppercase; letter-spacing:.06em; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;}
+  .kpi .lbl input{
+    width:56px; background:var(--bg-2); border:1px solid var(--line); border-radius:6px; color:var(--brass);
+    font-family:'JetBrains Mono',monospace; font-size:11px; padding:2px 5px; text-align:right;
+  }
+  .kpi .val{font-size:24px; font-weight:700; font-family:'Space Grotesk',sans-serif;}
+  .kpi .sub{font-size:11px; color:var(--text-dim); margin-top:4px;}
+  .bar-track{height:5px; background:var(--bg-2); border-radius:10px; margin-top:10px; overflow:hidden;}
+  .bar-fill{height:100%; border-radius:10px; transition:width .5s ease;}
+
+  .section-title{display:flex; align-items:center; gap:10px; margin:0 0 16px; font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:var(--text-mid);}
+  .section-title::after{content:''; flex:1; height:1px; background:var(--line);}
+
+  .panel{background:var(--card); border:1px solid var(--line); border-radius:var(--r-lg); padding:22px 24px;}
+
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  thead th{text-align:left; font-size:10.5px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.06em; font-weight:600; padding:0 10px 10px; border-bottom:1px solid var(--line);}
+  tbody td{padding:11px 10px; border-bottom:1px solid var(--line-soft); vertical-align:middle;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover td{background:rgba(255,255,255,.015);}
+  .amt{font-family:'JetBrains Mono',monospace; font-weight:600; text-align:right;}
+  .empty-row td{text-align:center; color:var(--text-dim); padding:24px;}
+
+  /* ── Recordatorio ── */
+  .reminder{background:linear-gradient(135deg, var(--bg-2), var(--card)); border:1px solid var(--line); border-radius:var(--r-lg); padding:22px 24px; display:flex; gap:18px; align-items:flex-start; margin-bottom:20px;}
+  .reminder-icon{width:42px; height:42px; border-radius:12px; background:var(--brass-soft); display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+  .reminder h3{font-size:14.5px; margin-bottom:6px;}
+  .reminder p{font-size:12.5px; color:var(--text-mid); line-height:1.6;}
+  .reminder .steps{margin-top:10px; display:flex; flex-wrap:wrap; gap:8px;}
+  .step-chip{font-size:11px; padding:5px 11px; border-radius:8px; background:var(--bg-2); border:1px solid var(--line); color:var(--text-mid); font-family:'JetBrains Mono',monospace;}
+
+  /* ── Modal ── */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(10,11,15,.75); backdrop-filter:blur(4px);
+    display:none; align-items:center; justify-content:center; z-index:500; padding:20px;
+  }
+  .modal-overlay.show{display:flex;}
+  .modal{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--r-lg); padding:30px 32px;
+    max-width:420px; width:100%; box-shadow:0 30px 70px -20px rgba(0,0,0,.7);
+    animation:modalIn .25s ease;
+  }
+  @keyframes modalIn{from{opacity:0; transform:translateY(12px) scale(.97);} to{opacity:1; transform:translateY(0) scale(1);}}
+  .modal-icon{width:46px; height:46px; border-radius:12px; background:var(--rose-soft); display:flex; align-items:center; justify-content:center; margin-bottom:16px;}
+  .modal h3{font-size:17px; margin-bottom:8px;}
+  .modal p{font-size:13.5px; color:var(--text-mid); line-height:1.6; margin-bottom:22px;}
+  .modal p .figures{color:var(--text); font-weight:700;}
+  .modal-actions{display:flex; gap:12px;}
+  .btn{border:none; border-radius:9px; font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:13.5px; padding:11px 20px; cursor:pointer; transition:transform .15s, background .2s; flex:1;}
+  .btn-yes{background:var(--mint); color:#0a1a15;}
+  .btn-yes:hover{background:#68e0c0; transform:translateY(-1px);}
+  .btn-no{background:var(--rose); color:#2a0a0f;}
+  .btn-no:hover{background:#ea6f83; transform:translateY(-1px);}
+
+  .verdict-banner{
+    display:none; align-items:center; gap:14px; padding:14px 20px; border-radius:var(--r-md);
+    margin-bottom:20px; font-size:13px;
+  }
+  .verdict-banner.show{display:flex;}
+  .verdict-banner.yes{background:var(--mint-soft); border:1px solid rgba(79,209,174,.35); color:var(--mint);}
+  .verdict-banner.no{background:var(--rose-soft); border:1px solid rgba(226,83,107,.35); color:var(--rose);}
+  .verdict-banner b{color:var(--text);}
+  .verdict-banner button{margin-left:auto; background:none; border:1px solid currentColor; color:inherit; border-radius:7px; padding:5px 12px; font-size:11.5px; cursor:pointer; font-family:inherit;}
+
+  .btn-ghost{background:transparent; border:1px solid var(--line); color:var(--text); border-radius:9px; font-size:12.5px; padding:9px 16px; cursor:pointer; font-family:'Space Grotesk',sans-serif; font-weight:600;}
+  .btn-ghost:hover{background:var(--card-hover); border-color:var(--text-dim);}
+
+  .toast{position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 20px; font-size:13px; opacity:0; pointer-events:none; transition:all .3s; z-index:600; box-shadow:0 10px 30px rgba(0,0,0,.4);}
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+
+  footer{text-align:center; padding:30px; color:var(--text-dim); font-size:11.5px;}
+</style>
+</head>
+<body>
+
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <div class="loading-msg" id="loading-msg">Conectando con Google Sheets…</div>
+  <div id="sheet-error"></div>
+</div>
+
+<header>
+  <div class="brand">
+    <div class="brand-mark"></div>
+    <div>
+      <div class="brand-name">CONTROL DE TARJETA</div>
+      <div class="brand-sub">Ledger personal · Tarjeta Cuscatlán</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="pill"><span class="dot-live"></span> <span id="last-update">—</span></div>
+    <button class="btn-refresh" id="btn-refresh" onclick="manualRefresh()">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      Actualizar
+    </button>
+  </div>
+</header>
+
+<main>
+
+  <div class="verdict-banner" id="verdict-banner">
+    <span id="verdict-icon">✅</span>
+    <span id="verdict-text"></span>
+    <button onclick="resetVerdict()">Volver a preguntar</button>
+  </div>
+
+  <!-- ── HERO ── -->
+  <div class="hero">
+    <div class="card-visual">
+      <div class="card-top">
+        <div class="card-issuer">Banco Cuscatlán</div>
+        <div class="chip"></div>
+      </div>
+      <div class="card-number">*****</div>
+      <div class="card-bottom">
+        <div><div class="card-label">Corte</div><div class="card-value" id="card-corte-val">—</div></div>
+        <div><div class="card-label">Pago</div><div class="card-value" id="card-pago-val">—</div></div>
+        <div class="card-brandmark">tarjeta</div>
+      </div>
+    </div>
+
+    <div class="hero-right">
+      <div class="countdown-card">
+        <div class="ring-wrap">
+          <svg width="96" height="96" viewBox="0 0 104 104">
+            <circle cx="52" cy="52" r="46" fill="none" stroke="#242a38" stroke-width="8"/>
+            <circle id="ring-progress" cx="52" cy="52" r="46" fill="none" stroke="var(--brass)" stroke-width="8" stroke-linecap="round" stroke-dasharray="289" stroke-dashoffset="289"/>
+          </svg>
+          <div class="ring-num"><div class="n" id="days-left">—</div><div class="u">días</div></div>
+        </div>
+        <div class="countdown-text">
+          <div class="k">Para la fecha de pago</div>
+          <div class="v" id="countdown-msg">Sin fecha de pago aún</div>
+          <div class="status" id="status-badge" style="background:var(--bg-2); color:var(--text-mid);">Sin definir</div>
+        </div>
+      </div>
+
+      <div class="dates-row">
+        <div class="date-edit">
+          <label>Fecha de corte <span class="src" id="src-corte">Sheet</span></label>
+          <input type="date" id="input-corte">
+        </div>
+        <div class="date-edit">
+          <label>Fecha de pago <span class="src" id="src-pago">Sheet</span></label>
+          <input type="date" id="input-pago">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── KPIs ── -->
+  <div class="kpi-row">
+    <div class="kpi k1">
+      <div class="lbl">Total gastado (col. C)</div>
+      <div class="val figures" id="kpi-total">$0.00</div>
+      <div class="sub" id="kpi-total-sub">— movimientos</div>
+    </div>
+    <div class="kpi k4">
+      <div class="lbl">Mi límite de pago <input type="number" id="input-limite" value="200"></div>
+      <div class="val figures" id="kpi-limite">$0 / $200</div>
+      <div class="bar-track"><div class="bar-fill" id="bar-limite" style="width:0%; background:var(--mint);"></div></div>
+    </div>
+    <div class="kpi k3">
+      <div class="lbl">Límite de tarjeta (banco)</div>
+      <div class="val figures" id="kpi-banco">$0 / $0</div>
+      <div class="bar-track"><div class="bar-fill" id="bar-banco" style="width:0%; background:var(--amber);"></div></div>
+    </div>
+    <div class="kpi k2">
+      <div class="lbl">Gasto promedio</div>
+      <div class="val figures" id="kpi-avg">$0.00</div>
+      <div class="sub" id="kpi-max-sub">mayor: —</div>
+    </div>
+  </div>
+
+  <!-- ── Recordatorio ── -->
+  <div class="reminder">
+    <div class="reminder-icon">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c9a24b" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+    </div>
+    <div>
+      <h3>Recordatorio automático — pendiente de fecha de pago</h3>
+      <p>Cuando la hoja tenga la fecha de pago, avísame en el chat y creo el evento en tu Google Calendar con recordatorio 3 días antes (aviso + correo), y te confirmo por Gmail.</p>
+      <div class="steps">
+        <span class="step-chip">1. Sheet define fecha de pago</span>
+        <span class="step-chip">2. Me la confirmas</span>
+        <span class="step-chip">3. Creo evento + recordatorio 3 días antes</span>
+        <span class="step-chip">4. Correo de confirmación</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Tabla ── -->
+  <div class="panel" style="margin-bottom:28px;">
+    <div class="section-title">Movimientos del ciclo (en vivo desde Sheets)</div>
+    <table>
+      <thead><tr><th>Fecha</th><th>Gasto</th><th style="text-align:right">Monto</th></tr></thead>
+      <tbody id="tbl-body"><tr class="empty-row"><td colspan="3">Cargando…</td></tr></tbody>
+    </table>
+  </div>
+
+</main>
+
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#e2536b" stroke-width="2"><path d="M12 9v4M12 17h.01M10.29 3.86l-8.18 14.18A2 2 0 0 0 3.82 21h16.36a2 2 0 0 0 1.71-2.96L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+    </div>
+    <h3>Superaste tu límite de pago</h3>
+    <p>Este ciclo llevas <span class="figures" id="modal-total">$0.00</span>, por encima de tu límite mensual de <span class="figures" id="modal-limite">$200.00</span>. ¿Podrás pagar este monto completo?</p>
+    <div class="modal-actions">
+      <button class="btn btn-no" onclick="answerVerdict(false)">No, cuidado</button>
+      <button class="btn btn-yes" onclick="answerVerdict(true)">Sí, puedo pagarlo</button>
+    </div>
+  </div>
+</div>
+
+<footer>Datos en vivo desde Google Sheets · hoja "TARJETA" · Actualiza automáticamente cada 2 minutos</footer>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ─────────────────────────────────────────────────────────
+   CONFIG — Actualizar SHEET_ID / SHEET_NAME si cambia la fuente.
+───────────────────────────────────────────────────────────── */
+const SHEET_ID   = '1lTFi6NWYgzn_olV4usP4y2aWol_AnN096knpQ2rZ7Hk';
+const SHEET_NAME = 'TARJETA';
+const REFRESH_MS = 120000; // 2 minutos
+
+let EXPENSES = [];
+let META = { corte:null, pago:null, limiteBanco:null };
+
+const fmt = n => '$' + (n||0).toLocaleString('en-US',{minimumFractionDigits:2, maximumFractionDigits:2});
+const fmtDate = iso => { if(!iso) return '—'; const [y,m,d]=iso.split('-'); const meses=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC']; return `${d} ${meses[+m-1]} ${y.slice(2)}`; };
+const fmtDateShort = iso => { if(!iso) return '—'; const [y,m,d]=iso.split('-'); const meses=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']; return `${d} ${meses[+m-1]}`; };
+
+function parseDMY(str){
+  if(!str) return null;
+  const m = String(str).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(!m) return null;
+  const [,d,mo,y] = m;
+  return `${y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`;
+}
+
+function parseMoney(v){
+  if(v === null || v === undefined) return null;
+  if(typeof v === 'number') return v;
+  const cleaned = String(v).replace(/[^0-9.\-]/g,'');
+  const n = parseFloat(cleaned);
+  return isNaN(n) ? null : n;
+}
+
+/* ── Fetch en vivo desde Google Sheets (API gviz pública) ──
+   Columnas actuales A–F: FECHA, GASTOS, $, Fecha de Corte, Fecha de Pago, Total de permitido de Tarjeta
+───────────────────────────────────────────────────────────── */
+async function fetchSheet(){
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(SHEET_NAME)}&headers=1&_=${Date.now()}`;
+  const res = await fetch(url);
+  if(!res.ok) throw new Error('No se pudo leer la hoja (¿está compartida como "Cualquiera con el enlace"?)');
+  const text = await res.text();
+  const jsonStr = text.substring(text.indexOf('{'), text.lastIndexOf('}')+1);
+  const json = JSON.parse(jsonStr);
+  const rows = json.table.rows || [];
+
+  const expenses = [];
+  let corte = null, pago = null, limiteBanco = null;
+
+  rows.forEach(row => {
+    const c = row.c || [];
+    const get = i => c[i] ? (c[i].f ?? c[i].v ?? null) : null;
+
+    const fecha = parseDMY(get(0));
+    const gasto = get(1);
+    const monto = parseMoney(get(2));
+    if(!corte)       corte       = parseDMY(get(3));
+    if(!pago)        pago        = parseDMY(get(4));
+    if(!limiteBanco) limiteBanco = parseMoney(get(5));
+
+    if(fecha && gasto && monto !== null){
+      expenses.push({ fecha, gasto: String(gasto).trim(), monto });
+    }
+  });
+
+  expenses.sort((a,b)=> a.fecha.localeCompare(b.fecha));
+  return { expenses, corte, pago, limiteBanco };
+}
+
+/* ── Render ── */
+function renderTable(){
+  const body = document.getElementById('tbl-body');
+  if(EXPENSES.length === 0){
+    body.innerHTML = `<tr class="empty-row"><td colspan="3">Sin movimientos registrados en este ciclo</td></tr>`;
+    return;
+  }
+  body.innerHTML = EXPENSES.map(e => `
+    <tr>
+      <td class="figures">${fmtDateShort(e.fecha)}</td>
+      <td>${e.gasto}</td>
+      <td class="amt">${fmt(e.monto)}</td>
+    </tr>`).join('');
+}
+
+function totalTarjeta(){ return EXPENSES.reduce((s,e)=>s+e.monto,0); }
+
+function renderKpis(){
+  const total = totalTarjeta();
+  const limite = parseFloat(document.getElementById('input-limite').value) || 200;
+
+  document.getElementById('kpi-total').textContent = fmt(total);
+  document.getElementById('kpi-total-sub').textContent = `${EXPENSES.length} movimientos`;
+
+  document.getElementById('kpi-limite').textContent = `${fmt(total)} / ${fmt(limite)}`;
+  const pctLim = Math.min((total/limite)*100, 100);
+  const barLim = document.getElementById('bar-limite');
+  barLim.style.width = pctLim + '%';
+  barLim.style.background = total > limite ? 'var(--rose)' : pctLim > 75 ? 'var(--amber)' : 'var(--mint)';
+
+  const limiteBanco = META.limiteBanco || 0;
+  document.getElementById('kpi-banco').textContent = `${fmt(total)} / ${fmt(limiteBanco)}`;
+  const pctBanco = limiteBanco ? Math.min((total/limiteBanco)*100,100) : 0;
+  document.getElementById('bar-banco').style.width = pctBanco + '%';
+
+  if(EXPENSES.length){
+    document.getElementById('kpi-avg').textContent = fmt(total/EXPENSES.length);
+    const max = EXPENSES.reduce((a,b)=> b.monto > a.monto ? b : a);
+    document.getElementById('kpi-max-sub').textContent = 'mayor: ' + max.gasto;
+  } else {
+    document.getElementById('kpi-avg').textContent = fmt(0);
+    document.getElementById('kpi-max-sub').textContent = 'mayor: —';
+  }
+}
+
+function daysBetween(a,b){
+  const d1 = new Date(a+'T00:00:00'), d2 = new Date(b+'T00:00:00');
+  return Math.round((d2-d1)/86400000);
+}
+
+function updateCountdown(){
+  const corte = document.getElementById('input-corte').value;
+  const pago  = document.getElementById('input-pago').value;
+
+  document.getElementById('card-corte-val').textContent = corte ? fmtDate(corte) : '— — —';
+  document.getElementById('card-pago-val').textContent  = pago  ? fmtDate(pago)  : '— — —';
+
+  const ring = document.getElementById('ring-progress');
+  const daysLeftEl = document.getElementById('days-left');
+  const msgEl = document.getElementById('countdown-msg');
+  const badge = document.getElementById('status-badge');
+
+  if(!pago){
+    daysLeftEl.textContent = '—';
+    msgEl.textContent = 'Sin fecha de pago aún';
+    badge.textContent = 'Sin definir';
+    badge.style.background = 'var(--bg-2)'; badge.style.color = 'var(--text-mid)';
+    ring.style.strokeDashoffset = 289;
+    return;
+  }
+
+  const today = new Date().toISOString().slice(0,10);
+  const diff = daysBetween(today, pago);
+  daysLeftEl.textContent = diff >= 0 ? diff : '0';
+
+  const cicloTotal = corte ? Math.max(daysBetween(corte,pago),1) : 30;
+  const pct = Math.min(Math.max(diff/cicloTotal,0),1);
+  ring.style.strokeDashoffset = 289 - (289*pct);
+
+  if(diff < 0){
+    msgEl.textContent = 'Fecha de pago vencida';
+    badge.textContent = '⚠ Vencido'; badge.style.background='var(--rose-soft)'; badge.style.color='var(--rose)'; ring.style.stroke='var(--rose)';
+  } else if(diff <= 3){
+    msgEl.textContent = `Vence el ${fmtDate(pago)}`;
+    badge.textContent = '🔴 Pago próximo'; badge.style.background='var(--rose-soft)'; badge.style.color='var(--rose)'; ring.style.stroke='var(--rose)';
+  } else if(diff <= 7){
+    msgEl.textContent = `Vence el ${fmtDate(pago)}`;
+    badge.textContent = '🟡 Se acerca'; badge.style.background='var(--amber-soft)'; badge.style.color='var(--amber)'; ring.style.stroke='var(--amber)';
+  } else {
+    msgEl.textContent = `Vence el ${fmtDate(pago)}`;
+    badge.textContent = '🟢 Al día'; badge.style.background='var(--mint-soft)'; badge.style.color='var(--mint)'; ring.style.stroke='var(--mint)';
+  }
+}
+
+/* ── Modal ¿podrás pagar? ── */
+let VERDICT = null; // { total, answer }
+async function loadVerdict(){
+  try{
+    const saved = await window.storage.get('tarjeta:veredicto');
+    VERDICT = saved && saved.value ? JSON.parse(saved.value) : null;
+  }catch(e){ VERDICT = null; }
+}
+async function saveVerdict(v){
+  VERDICT = v;
+  try{ await window.storage.set('tarjeta:veredicto', JSON.stringify(v)); }catch(e){}
+}
+function checkLimitAndPrompt(){
+  const total = totalTarjeta();
+  const limite = parseFloat(document.getElementById('input-limite').value) || 200;
+  const banner = document.getElementById('verdict-banner');
+
+  if(total <= limite){
+    banner.classList.remove('show');
+    document.getElementById('modal-overlay').classList.remove('show');
+    return;
+  }
+
+  // Ya respondió para este mismo total exacto -> solo mostrar banner
+  if(VERDICT && Math.abs(VERDICT.total - total) < 0.01){
+    showVerdictBanner(VERDICT.answer, total, limite);
+    return;
+  }
+
+  // Nuevo exceso -> preguntar
+  document.getElementById('modal-total').textContent = fmt(total);
+  document.getElementById('modal-limite').textContent = fmt(limite);
+  document.getElementById('modal-overlay').classList.add('show');
+}
+function answerVerdict(canPay){
+  const total = totalTarjeta();
+  saveVerdict({ total, answer: canPay });
+  document.getElementById('modal-overlay').classList.remove('show');
+  const limite = parseFloat(document.getElementById('input-limite').value) || 200;
+  showVerdictBanner(canPay, total, limite);
+  if(!canPay) showToast('💡 Revisa tus gastos del mes para cuadrar el pago');
+}
+function showVerdictBanner(canPay, total, limite){
+  const banner = document.getElementById('verdict-banner');
+  const icon = document.getElementById('verdict-icon');
+  const text = document.getElementById('verdict-text');
+  banner.classList.add('show', canPay ? 'yes' : 'no');
+  banner.classList.remove(canPay ? 'no' : 'yes');
+  icon.textContent = canPay ? '✅' : '⚠️';
+  text.innerHTML = canPay
+    ? `Confirmaste que <b>sí puedes pagar</b> los ${fmt(total)} de este ciclo (límite: ${fmt(limite)}).`
+    : `Marcaste que <b>no podrás pagar</b> los ${fmt(total)} completos este ciclo. Ajusta tus gastos de este mes para cubrir la diferencia.`;
+}
+function resetVerdict(){
+  saveVerdict(null);
+  document.getElementById('verdict-banner').classList.remove('show');
+  checkLimitAndPrompt();
+}
+
+/* ── Fechas: prioriza el Sheet, cae a lo guardado localmente ── */
+async function resolveDates(){
+  let localCorte = null, localPago = null;
+  try{
+    const saved = await window.storage.get('tarjeta:fechas-manual');
+    if(saved && saved.value){ const d = JSON.parse(saved.value); localCorte = d.corte; localPago = d.pago; }
+  }catch(e){}
+
+  const corte = META.corte || localCorte;
+  const pago  = META.pago  || localPago;
+
+  document.getElementById('input-corte').value = corte || '';
+  document.getElementById('input-pago').value  = pago  || '';
+  document.getElementById('src-corte').textContent = META.corte ? 'Sheet' : 'Manual';
+  document.getElementById('src-corte').className = 'src' + (META.corte ? '' : ' local');
+  document.getElementById('src-pago').textContent  = META.pago  ? 'Sheet' : 'Manual';
+  document.getElementById('src-pago').className  = 'src' + (META.pago ? '' : ' local');
+}
+async function saveManualDates(){
+  const corte = document.getElementById('input-corte').value;
+  const pago  = document.getElementById('input-pago').value;
+  try{ await window.storage.set('tarjeta:fechas-manual', JSON.stringify({ corte, pago })); }catch(e){}
+  updateCountdown();
+  showToast('💾 Fecha guardada localmente');
+}
+document.getElementById('input-corte').addEventListener('change', saveManualDates);
+document.getElementById('input-pago').addEventListener('change', saveManualDates);
+document.getElementById('input-limite').addEventListener('change', () => { renderKpis(); checkLimitAndPrompt(); });
+
+/* ── Carga principal ── */
+async function loadData(showSpinner){
+  const btn = document.getElementById('btn-refresh');
+  if(showSpinner) btn.classList.add('spin');
+  try{
+    const { expenses, corte, pago, limiteBanco } = await fetchSheet();
+    EXPENSES = expenses;
+    META = { corte, pago, limiteBanco };
+    renderTable();
+    renderKpis();
+    await resolveDates();
+    updateCountdown();
+    checkLimitAndPrompt();
+    document.getElementById('last-update').textContent =
+      'Actualizado ' + new Date().toLocaleTimeString('es-SV',{hour:'2-digit',minute:'2-digit'});
+  }catch(err){
+    console.error(err);
+    document.getElementById('last-update').textContent = 'Error de conexión';
+    showToast('⚠️ No se pudo leer el Sheet — revisa que esté compartido como "Cualquiera con el enlace"');
+    throw err;
+  }finally{
+    if(showSpinner) setTimeout(()=>btn.classList.remove('spin'), 500);
+  }
+}
+function manualRefresh(){ loadData(true).then(()=>showToast('🔄 Datos actualizados')); }
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 3200);
+}
+
+window.addEventListener('DOMContentLoaded', async () => {
+  await loadVerdict();
+  try{
+    await loadData(false);
+  }catch(err){
+    document.getElementById('sheet-error').style.display = 'block';
+    document.getElementById('sheet-error').textContent =
+      'No se pudo conectar con la hoja "TARJETA". Verifica que el archivo de Google Sheets esté compartido como "Cualquiera con el enlace — Lector".';
+    document.getElementById('loading-msg').style.display = 'none';
+  }finally{
+    const overlay = document.getElementById('loading-overlay');
+    overlay.classList.add('fade-out');
+    setTimeout(()=>overlay.remove(), 500);
+  }
+  setInterval(() => loadData(false).catch(()=>{}), REFRESH_MS);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "name": "control-tarjeta-automation",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Chequeo diario del límite de gasto de la tarjeta y alerta por correo cuando se supera cerca de la fecha de pago.",
+  "main": "check-limite.js",
+  "scripts": {
+    "check": "node check-limite.js"
+  },
+  "dependencies": {
+    "nodemailer": "^6.9.14"
+  }
+}

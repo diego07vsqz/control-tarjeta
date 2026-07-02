@@ -3,7 +3,12 @@ name: Alerta de límite de tarjeta
 on:
   schedule:
     - cron: '0 14 * * *'   # 8:00 AM El Salvador (UTC-6) todos los días
-  workflow_dispatch: {}     # permite correrlo manualmente desde la pestaña "Actions" para probar
+  workflow_dispatch:
+    inputs:
+      test_mode:
+        description: 'Forzar correo de prueba (ignora las condiciones reales, no toca el estado del ciclo)'
+        type: boolean
+        default: false
 
 permissions:
   contents: write            # necesario para poder guardar el estado (último ciclo ya alertado)
@@ -30,6 +35,7 @@ jobs:
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           ALERT_EMAIL_TO: ${{ secrets.ALERT_EMAIL_TO }}
+          TEST_MODE: ${{ inputs.test_mode }}
         run: node check-limite.js
 
       - name: Guardar estado si cambió (evita correos duplicados)
@@ -39,3 +45,4 @@ jobs:
           git add automation/state/last-alert.json
           git diff --staged --quiet || git commit -m "chore: actualizar estado de alerta de tarjeta"
           git push
+

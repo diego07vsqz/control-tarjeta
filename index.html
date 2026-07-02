@@ -1,27 +1,45 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Control de Tarjeta 🐰 | Ledger Personal</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cellipse cx='32' cy='40' rx='20' ry='16' fill='%23ff5fae'/%3E%3Cellipse cx='16' cy='44' rx='8' ry='9' fill='%23ff5fae'/%3E%3Cpath d='M20 20 C14 4 22 2 24 8 C26 16 24 26 20 28 Z' fill='%23ff5fae'/%3E%3Cpath d='M32 20 C34 4 44 4 42 12 C40 20 36 26 32 28 Z' fill='%23ff5fae'/%3E%3Ccircle cx='13' cy='42' r='2' fill='%2314171f'/%3E%3C/svg%3E">
+<title>Control de Tarjeta | Ledger Personal</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 32'%3E%3Crect x='2' y='4' width='40' height='24' rx='4' fill='%23c9a24b'/%3E%3Crect x='6' y='11' width='10' height='7' rx='1.5' fill='%2314171f'/%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#fff3f9; --bg-2:#ffffff; --card:#ffffff; --card-hover:#ffe6f2;
-    --line:#ffd3e8; --line-soft:#ffe9f3;
-    --pink:#ff4fa8; --pink-soft:rgba(255,79,168,.12);
-    --rose:#ef4d75; --rose-soft:rgba(239,77,117,.12);
-    --mint:#3dc98f; --mint-soft:rgba(61,201,143,.12);
+    --bg:#14171f; --bg-2:#1b2029; --card:#1b2029; --card-hover:#20263a;
+    --line:#2a3040; --line-soft:#242a38;
+    --brass:#c9a24b; --brass-soft:rgba(201,162,75,.12);
+    --rose:#e2536b; --rose-soft:rgba(226,83,107,.12);
+    --mint:#4fd1ae; --mint-soft:rgba(79,209,174,.12);
     --amber:#e2a53e; --amber-soft:rgba(226,165,62,.12);
-    --text:#4a2140; --text-mid:#8c6b82; --text-dim:#c199b6;
+    --text:#eef0f4; --text-mid:#9aa1b0; --text-dim:#5c6272;
     --r-sm:8px; --r-md:14px; --r-lg:20px;
   }
+  /* ── Tema claro — el header y la tarjeta visual se mantienen oscuros
+     a propósito (identidad de marca), solo cambia el cuerpo del dashboard. */
+  [data-theme="light"]{
+    --bg:#f5f3ee; --bg-2:#ffffff; --card:#ffffff; --card-hover:#f0ede4;
+    --line:#e3ded2; --line-soft:#ece7db;
+    --text:#1c1b18; --text-mid:#635d51; --text-dim:#948d7d;
+  }
+  [data-theme="light"] body{
+    background:
+      radial-gradient(circle at 15% 0%, rgba(201,162,75,.05), transparent 40%),
+      radial-gradient(circle at 85% 10%, rgba(79,209,174,.04), transparent 35%),
+      var(--bg);
+  }
+  [data-theme="light"] .date-edit input{ color-scheme:light; }
+  [data-theme="light"] tbody tr:hover td{ background:rgba(0,0,0,.02); }
+  body{ transition:background-color .25s ease, color .25s ease; }
+  .kpi, .panel, .countdown-card, .date-edit, .modal, .toast{ transition:background-color .25s ease, border-color .25s ease; }
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   body{
     background:
-      radial-gradient(circle at 15% 0%, rgba(255,79,168,.09), transparent 40%),
-      radial-gradient(circle at 85% 10%, rgba(255,154,61,.07), transparent 35%),
+      radial-gradient(circle at 15% 0%, rgba(201,162,75,.06), transparent 40%),
+      radial-gradient(circle at 85% 10%, rgba(79,209,174,.04), transparent 35%),
       var(--bg);
     color:var(--text); font-family:'Inter',sans-serif; line-height:1.5;
     -webkit-font-smoothing:antialiased; min-height:100vh; padding-bottom:60px;
@@ -34,7 +52,7 @@
     align-items:center; justify-content:center; gap:14px; z-index:9999; transition:opacity .4s;
   }
   #loading-overlay.fade-out{opacity:0; pointer-events:none;}
-  .spinner{width:38px; height:38px; border:2.5px solid rgba(255,95,174,.2); border-top-color:var(--pink); border-radius:50%; animation:spin .8s linear infinite;}
+  .spinner{width:38px; height:38px; border:2.5px solid rgba(201,162,75,.2); border-top-color:var(--brass); border-radius:50%; animation:spin .8s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg);}}
   .loading-msg{font-size:11px; color:var(--text-dim); letter-spacing:.1em; text-transform:uppercase;}
   #sheet-error{
@@ -45,24 +63,33 @@
   header{
     border-bottom:1px solid var(--line); padding:22px 40px;
     display:flex; align-items:center; justify-content:space-between;
-    position:sticky; top:0; z-index:50; background:rgba(255,243,249,.85); backdrop-filter:blur(10px);
+    position:sticky; top:0; z-index:50; background:rgba(20,23,31,.9); backdrop-filter:blur(10px);
   }
   .brand{display:flex; align-items:center; gap:14px;}
-  .brand-mark{width:34px; height:34px; border-radius:50%; background:radial-gradient(circle at 35% 30%, rgba(255,255,255,.15), transparent 60%), linear-gradient(135deg,var(--pink),#c22d7e); position:relative; flex-shrink:0; box-shadow:0 2px 10px rgba(255,95,174,.35); display:flex; align-items:center; justify-content:center;}
-  .brand-mark svg{filter:drop-shadow(0 0 3px rgba(255,255,255,.5));}
+  .brand-mark{width:38px; height:26px; border-radius:6px; background:linear-gradient(135deg,var(--brass),#8a6f2e); position:relative; flex-shrink:0; box-shadow:0 2px 8px rgba(201,162,75,.25);}
+  .brand-mark::after{content:''; position:absolute; left:5px; top:8px; width:14px; height:10px; border-radius:2px; background:rgba(20,23,31,.5);}
   .brand-name{font-size:15px; font-weight:700; letter-spacing:.02em;}
+  .brand-sub{font-size:10.5px; color:var(--text-dim); letter-spacing:.08em; text-transform:uppercase; margin-top:2px;}
   .header-right{display:flex; gap:10px; align-items:center;}
   .pill{font-size:11px; padding:6px 13px; border-radius:30px; border:1px solid var(--line); color:var(--text-mid); display:flex; align-items:center; gap:6px;}
   .dot-live{width:6px;height:6px;border-radius:50%;background:var(--mint); animation:pulse 1.6s ease-in-out infinite;}
   @keyframes pulse{0%,100%{opacity:.4} 50%{opacity:1}}
   .btn-refresh{
-    display:flex; align-items:center; gap:7px; background:var(--pink-soft); border:1px solid rgba(255,95,174,.3);
-    border-radius:var(--r-sm); color:var(--pink); font-size:11px; font-weight:600; padding:7px 15px; cursor:pointer;
+    display:flex; align-items:center; gap:7px; background:var(--brass-soft); border:1px solid rgba(201,162,75,.3);
+    border-radius:var(--r-sm); color:var(--brass); font-size:11px; font-weight:600; padding:7px 15px; cursor:pointer;
     transition:.2s; font-family:inherit; text-transform:uppercase; letter-spacing:.05em;
   }
-  .btn-refresh:hover{background:rgba(255,95,174,.2); transform:translateY(-1px);}
+  .btn-refresh:hover{background:rgba(201,162,75,.2); transform:translateY(-1px);}
   .btn-refresh svg{transition:transform .5s;}
   .btn-refresh.spin svg{transform:rotate(360deg);}
+
+  .btn-theme{
+    display:flex; align-items:center; justify-content:center; width:32px; height:32px;
+    background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1);
+    border-radius:var(--r-sm); color:rgba(255,255,255,.75); cursor:pointer; transition:background .2s;
+  }
+  .btn-theme:hover{background:rgba(255,255,255,.12);}
+  .btn-theme svg{display:block;}
 
   main{max-width:1240px; margin:0 auto; padding:34px 40px;}
 
@@ -70,34 +97,27 @@
   @media(max-width:860px){ .hero{grid-template-columns:1fr;} }
   .card-visual{
     aspect-ratio:1.586/1; border-radius:18px; position:relative; overflow:hidden;
-    background:
-      radial-gradient(circle at 50% 45%, rgba(255,95,174,.22), transparent 60%),
-      radial-gradient(circle at 80% 0%, rgba(255,255,255,.06), transparent 55%),
-      linear-gradient(135deg,#241522 0%, #170f1a 60%, #100a12 100%);
-    border:1px solid var(--line); padding:18px 22px; display:flex; flex-direction:column; justify-content:space-between;
+    background:radial-gradient(circle at 80% 0%, rgba(255,255,255,.08), transparent 55%), linear-gradient(135deg,#20263a 0%, #171b26 60%, #12151d 100%);
+    border:1px solid var(--line); padding:22px 24px; display:flex; flex-direction:column; justify-content:space-between;
     box-shadow:0 20px 50px -20px rgba(0,0,0,.6);
   }
   .card-visual::before{content:''; position:absolute; inset:0; background:repeating-linear-gradient(115deg, rgba(255,255,255,.02) 0 2px, transparent 2px 40px); pointer-events:none;}
-  .card-top{display:flex; justify-content:space-between; align-items:flex-start; position:relative; z-index:1;}
+  .chip{width:38px;height:28px;border-radius:5px;background:linear-gradient(135deg,var(--brass),#8a6f2e);}
+  .card-top{display:flex; justify-content:space-between; align-items:flex-start;}
   .card-issuer{font-size:11px; letter-spacing:.12em; color:var(--text-mid); text-transform:uppercase;}
-  .bunny-wrap{flex:1; display:flex; align-items:center; justify-content:center; position:relative;}
-  .bunny-wrap svg{
-    filter:
-      drop-shadow(0 0 3px var(--pink))
-      drop-shadow(0 0 9px var(--pink))
-      drop-shadow(0 0 22px rgba(255,95,174,.6));
-  }
-  .card-bottom{display:flex; justify-content:space-between; align-items:flex-end; position:relative; z-index:1;}
+  .card-number{font-family:'JetBrains Mono',monospace; font-size:17px; letter-spacing:.14em; color:rgba(255,255,255,.75); margin-top:14px;}
+  .card-bottom{display:flex; justify-content:space-between; align-items:flex-end;}
   .card-label{font-size:9px; color:var(--text-dim); letter-spacing:.1em; text-transform:uppercase; margin-bottom:3px;}
   .card-value{font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--text);}
-  .card-brandmark{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:17px; color:var(--pink);}
+  .card-brandmark{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:15px; font-style:italic; color:var(--brass);}
 
   .hero-right{display:flex; flex-direction:column; gap:16px;}
   .countdown-card{background:var(--card); border:1px solid var(--line); border-radius:var(--r-lg); padding:20px 24px; display:flex; align-items:center; gap:24px; flex:1;}
-  .carrot-wrap{position:relative; width:96px; height:112px; flex-shrink:0; display:flex; align-items:flex-end; justify-content:center;}
-  .carrot-num{position:absolute; left:0; right:0; top:40%; display:flex; flex-direction:column; align-items:center; pointer-events:none;}
-  .carrot-num .n{font-size:22px; font-weight:700; color:var(--text); text-shadow:0 1px 0 #fff, 0 0 6px rgba(255,255,255,.8);}
-  .carrot-num .u{font-size:8.5px; color:var(--text-mid); text-transform:uppercase; letter-spacing:.08em; text-shadow:0 0 4px rgba(255,255,255,.8);}
+  .ring-wrap{position:relative; width:96px; height:96px; flex-shrink:0;}
+  .ring-wrap svg{transform:rotate(-90deg);}
+  .ring-num{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;}
+  .ring-num .n{font-size:24px; font-weight:700;}
+  .ring-num .u{font-size:9px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.08em;}
   .countdown-text .k{font-size:12px; color:var(--text-mid); margin-bottom:6px;}
   .countdown-text .v{font-size:18px; font-weight:600;}
   .countdown-text .status{display:inline-flex; align-items:center; gap:6px; margin-top:10px; font-size:11.5px; padding:5px 12px; border-radius:20px; font-weight:600;}
@@ -107,19 +127,19 @@
   .date-edit label{font-size:10.5px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.08em; display:flex; justify-content:space-between; margin-bottom:8px;}
   .date-edit .src{font-size:9px; padding:2px 7px; border-radius:10px; background:var(--mint-soft); color:var(--mint); white-space:nowrap;}
   .date-edit .src.local{background:var(--amber-soft); color:var(--amber);}
-  .date-edit input{background:var(--bg-2); border:1px solid var(--line); border-radius:8px; color:var(--text); font-family:'JetBrains Mono',monospace; font-size:14px; padding:8px 10px; width:100%; color-scheme:light;}
-  .date-edit input:focus{outline:none; border-color:var(--pink);}
+  .date-edit input{background:var(--bg-2); border:1px solid var(--line); border-radius:8px; color:var(--text); font-family:'JetBrains Mono',monospace; font-size:14px; padding:8px 10px; width:100%; color-scheme:dark;}
+  .date-edit input:focus{outline:none; border-color:var(--brass);}
 
   /* ── KPIs ── */
   .kpi-row{display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:28px;}
   @media(max-width:860px){ .kpi-row{grid-template-columns:1fr 1fr;} }
   .kpi{background:var(--card); border:1px solid var(--line); border-radius:var(--r-md); padding:18px 20px; position:relative; overflow:hidden;}
   .kpi::before{content:''; position:absolute; left:0; top:0; bottom:0; width:3px;}
-  .kpi.k1::before{background:var(--pink);} .kpi.k2::before{background:var(--mint);}
+  .kpi.k1::before{background:var(--brass);} .kpi.k2::before{background:var(--mint);}
   .kpi.k3::before{background:var(--amber);} .kpi.k4::before{background:var(--rose);}
   .kpi .lbl{font-size:11px; color:var(--text-mid); text-transform:uppercase; letter-spacing:.06em; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;}
   .kpi .lbl input{
-    width:56px; background:var(--bg-2); border:1px solid var(--line); border-radius:6px; color:var(--pink);
+    width:56px; background:var(--bg-2); border:1px solid var(--line); border-radius:6px; color:var(--brass);
     font-family:'JetBrains Mono',monospace; font-size:11px; padding:2px 5px; text-align:right;
   }
   .kpi .val{font-size:24px; font-weight:700; font-family:'Space Grotesk',sans-serif;}
@@ -137,46 +157,26 @@
     background:var(--bg-2); border:1px solid var(--line); border-radius:8px; color:var(--text);
     font-family:'Inter',sans-serif; font-size:12.5px; padding:7px 12px; width:200px;
   }
-  .input-search:focus{outline:none; border-color:var(--pink);}
+  .input-search:focus{outline:none; border-color:var(--brass);}
   .input-search::placeholder{color:var(--text-dim);}
 
-  .panel{background:var(--card); border:1px solid var(--line); border-radius:var(--r-lg); padding:22px 24px; position:relative;}
-
-  /* ── Orejitas decorativas ──
-     .kpi ya usa ::before para su franja de color lateral, así que sus dos
-     orejas viven juntas en un solo ::after (ícono SVG con el par completo).
-     .panel no tiene ese conflicto, así que usa ::before + ::after por separado. */
-  .kpi{position:relative;}
-  .kpi::after{
-    content:''; position:absolute; top:-15px; left:18px; width:40px; height:24px;
-    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 28'%3E%3Cg transform='rotate(-16 10 26)'%3E%3Cpath d='M10,26 C4,10 8,0 12,2 C15,5 13,18 11,26 Z' fill='%23ff4fa8'/%3E%3Cpath d='M10,22 C7,13 9,6 12,6 C14,9 12,16 10,22 Z' fill='%23ffd6ec'/%3E%3C/g%3E%3Cg transform='rotate(16 30 26)'%3E%3Cpath d='M30,26 C24,10 28,0 32,2 C35,5 33,18 31,26 Z' fill='%23ff4fa8'/%3E%3Cpath d='M30,22 C27,13 29,6 32,6 C34,9 32,16 30,22 Z' fill='%23ffd6ec'/%3E%3C/g%3E%3C/svg%3E");
-    background-repeat:no-repeat; background-size:contain; z-index:1; pointer-events:none;
-  }
-  .panel::before, .panel::after{
-    content:''; position:absolute; top:-16px; width:14px; height:24px;
-    background:linear-gradient(180deg, var(--pink) 0 60%, #ffd6ec 60% 100%);
-    border-radius:50% 50% 45% 45% / 65% 65% 35% 35%;
-    transform-origin:bottom center; z-index:1; box-shadow:0 1px 4px rgba(255,79,168,.25); pointer-events:none;
-  }
-  .panel::before{left:20px; transform:rotate(-16deg);}
-  .panel::after{left:36px; transform:rotate(16deg);}
-  .panel > *{position:relative; z-index:2;}
+  .panel{background:var(--card); border:1px solid var(--line); border-radius:var(--r-lg); padding:22px 24px;}
 
   table{width:100%; border-collapse:collapse; font-size:13px;}
   thead th{text-align:left; font-size:10.5px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.06em; font-weight:600; padding:0 10px 10px; border-bottom:1px solid var(--line);}
   thead th.sortable{cursor:pointer; user-select:none; transition:color .15s;}
   thead th.sortable:hover{color:var(--text);}
   thead th.sortable .arrow{display:inline-block; margin-left:4px; opacity:.35; font-size:9px;}
-  thead th.sortable.active .arrow{opacity:1; color:var(--pink);}
+  thead th.sortable.active .arrow{opacity:1; color:var(--brass);}
   tbody td{padding:11px 10px; border-bottom:1px solid var(--line-soft); vertical-align:middle;}
   tbody tr:last-child td{border-bottom:none;}
-  tbody tr:hover td{background:rgba(255,79,168,.04);}
+  tbody tr:hover td{background:rgba(255,255,255,.015);}
   .amt{font-family:'JetBrains Mono',monospace; font-weight:600; text-align:right;}
   .empty-row td{text-align:center; color:var(--text-dim); padding:24px;}
 
   /* ── Modal ── */
   .modal-overlay{
-    position:fixed; inset:0; background:rgba(74,33,64,.45); backdrop-filter:blur(4px);
+    position:fixed; inset:0; background:rgba(10,11,15,.75); backdrop-filter:blur(4px);
     display:none; align-items:center; justify-content:center; z-index:500; padding:20px;
   }
   .modal-overlay.show{display:flex;}
@@ -223,18 +223,17 @@
 
 <header>
   <div class="brand">
-    <div class="brand-mark">
-      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M8.5 9C6.5 5 8 2 9.5 2.5C11 3 10.5 6.5 9.5 9.5"/>
-        <path d="M15.5 9C17.5 5 16 2 14.5 2.5C13 3 13.5 6.5 14.5 9.5"/>
-        <ellipse cx="12" cy="14.5" rx="6.5" ry="6" fill="rgba(255,255,255,.12)"/>
-        <circle cx="9.8" cy="13" r="0.9" fill="#fff" stroke="none"/>
-      </svg>
+    <div class="brand-mark"></div>
+    <div>
+      <div class="brand-name">CONTROL DE TARJETA</div>
+      <div class="brand-sub">Ledger personal · Tarjeta Cuscatlán</div>
     </div>
-    <div class="brand-name">CONTROL DE TARJETA 🐰</div>
   </div>
   <div class="header-right">
     <div class="pill"><span class="dot-live"></span> <span id="last-update">—</span></div>
+    <button class="btn-theme" id="btn-theme" title="Cambiar tema">
+      <svg id="theme-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
     <button class="btn-refresh" id="btn-refresh">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
       Actualizar
@@ -255,67 +254,24 @@
     <div class="card-visual">
       <div class="card-top">
         <div class="card-issuer">Banco Cuscatlán</div>
-        <div class="card-brandmark">🐾</div>
+        <div class="chip"></div>
       </div>
-
-      <div class="bunny-wrap">
-        <svg width="150" height="108" viewBox="0 0 220 150" xmlns="http://www.w3.org/2000/svg">
-          <!-- orejas -->
-          <path d="M92,62 C82,24 89,4 98,9 C105,14 101,40 96,63" fill="#ffe1f0" stroke="#ff5fae" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M108,63 C110,20 123,2 129,9 C133,18 125,44 116,63" fill="#ffe1f0" stroke="#ff5fae" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-          <!-- cuerpo -->
-          <path d="M80,92 C62,98 56,118 68,132 C84,144 140,144 156,130 C166,120 162,100 148,94" fill="#fff" stroke="#ff5fae" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-          <!-- patitas delanteras -->
-          <path d="M92,128 C90,134 90,138 92,140" fill="none" stroke="#ff5fae" stroke-width="3" stroke-linecap="round"/>
-          <path d="M118,130 C116,136 116,139 118,141" fill="none" stroke="#ff5fae" stroke-width="3" stroke-linecap="round"/>
-          <!-- pliegue de la pancita -->
-          <path d="M76,124 C96,132 124,132 144,124" fill="none" stroke="#ff5fae" stroke-width="3" stroke-linecap="round"/>
-          <!-- cola -->
-          <circle cx="158" cy="122" r="10" fill="#fff" stroke="#ff5fae" stroke-width="4"/>
-          <!-- cabeza -->
-          <circle cx="104" cy="80" r="27" fill="#fff" stroke="#ff5fae" stroke-width="4"/>
-          <!-- mejilla sonrojada -->
-          <circle cx="96" cy="90" r="7" fill="#ffb6d9" opacity=".7"/>
-          <!-- ojo con brillo -->
-          <circle cx="93" cy="75" r="3.4" fill="#4a2140"/>
-          <circle cx="94.3" cy="73.7" r="1" fill="#fff"/>
-          <!-- naricita -->
-          <path d="M84,84 C86,86 89,86 91,84" fill="none" stroke="#ff5fae" stroke-width="2.2" stroke-linecap="round"/>
-        </svg>
-      </div>
-
+      <div class="card-number">*****</div>
       <div class="card-bottom">
         <div><div class="card-label">Corte</div><div class="card-value" id="card-corte-val">—</div></div>
         <div><div class="card-label">Pago</div><div class="card-value" id="card-pago-val">—</div></div>
+        <div class="card-brandmark">tarjeta</div>
       </div>
     </div>
 
     <div class="hero-right">
       <div class="countdown-card">
-        <div class="carrot-wrap">
-          <svg width="76" height="106" viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <clipPath id="carrotClip" clipPathUnits="userSpaceOnUse">
-                <path d="M35,38 C35,30 65,30 65,38 C68,60 58,102 50,120 C42,102 32,60 35,38 Z"/>
-              </clipPath>
-            </defs>
-            <!-- hojitas -->
-            <path d="M50,34 C45,22 38,16 31,17 C36,26 43,31 50,34Z" fill="#5fbf6e"/>
-            <path d="M50,34 C50,18 50,9 50,6 C53,17 53,27 50,34Z" fill="#79d488"/>
-            <path d="M50,34 C55,22 62,16 69,17 C64,26 57,31 50,34Z" fill="#5fbf6e"/>
-            <!-- pista (parte "comida") -->
-            <path d="M35,38 C35,30 65,30 65,38 C68,60 58,102 50,120 C42,102 32,60 35,38 Z" fill="#ffe6f2" stroke="none"/>
-            <!-- relleno restante, controlado por JS -->
-            <g clip-path="url(#carrotClip)">
-              <rect id="carrot-fill" x="30" y="38" width="40" height="82" fill="#ff9a3d"/>
-              <path d="M38,56 L60,54" stroke="#ffb469" stroke-width="2" stroke-linecap="round"/>
-              <path d="M39,72 L58,70" stroke="#ffb469" stroke-width="2" stroke-linecap="round"/>
-              <path d="M41,88 L55,86" stroke="#ffb469" stroke-width="2" stroke-linecap="round"/>
-            </g>
-            <!-- contorno nítido, cambia de color según urgencia -->
-            <path id="carrot-outline" d="M35,38 C35,30 65,30 65,38 C68,60 58,102 50,120 C42,102 32,60 35,38 Z" fill="none" stroke="var(--pink)" stroke-width="3.5" stroke-linejoin="round"/>
+        <div class="ring-wrap">
+          <svg width="96" height="96" viewBox="0 0 104 104">
+            <circle cx="52" cy="52" r="46" fill="none" stroke="#242a38" stroke-width="8"/>
+            <circle id="ring-progress" cx="52" cy="52" r="46" fill="none" stroke="var(--brass)" stroke-width="8" stroke-linecap="round" stroke-dasharray="289" stroke-dashoffset="289"/>
           </svg>
-          <div class="carrot-num"><div class="n" id="days-left">—</div><div class="u">días</div></div>
+          <div class="ring-num"><div class="n" id="days-left">—</div><div class="u">días</div></div>
         </div>
         <div class="countdown-text">
           <div class="k">Para la fecha de pago</div>
@@ -440,9 +396,8 @@
   /** Límite de pago personal usado la primera vez que se abre el dashboard. */
   const DEFAULT_LIMITE = 200;
 
-  /** Coordenadas Y (en el viewBox del SVG) del cuerpo de la zanahoria — ver <rect id="carrot-fill">. */
-  const CARROT_TOP = 38;
-  const CARROT_BOTTOM = 120;
+  /** Perímetro (2πr, r=46) del anillo SVG de cuenta regresiva — ver <circle id="ring-progress">. */
+  const RING_CIRCUMFERENCE = 289;
 
   /** Umbrales de urgencia para el badge de estado de pago (días restantes). */
   const DUE_SOON_DAYS = 3;
@@ -453,6 +408,7 @@
     FECHAS_MANUAL: 'tarjeta:fechas-manual',
     LIMITE: 'tarjeta:limite-pago',
     VEREDICTO: 'tarjeta:veredicto',
+    THEME: 'tarjeta:theme',
   };
 
   // ┌──────────────────────────────────────────────────────────────────────┐
@@ -699,6 +655,32 @@
     } catch (e) { /* falla silenciosa */ }
   }
 
+  /** Carga el tema guardado (default: oscuro) y lo aplica antes del primer render. */
+  async function loadTheme() {
+    let theme = 'dark';
+    try {
+      const saved = await window.storage.get(STORAGE_KEYS.THEME);
+      if (saved && saved.value) theme = saved.value;
+    } catch (e) { /* primera visita: usa el tema oscuro por defecto */ }
+    applyTheme(theme);
+  }
+
+  /** Aplica un tema al documento y actualiza el ícono del botón (sol/luna). */
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    $('theme-icon').innerHTML = theme === 'light'
+      ? '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>' // sol
+      : '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>'; // luna
+  }
+
+  /** Alterna entre tema oscuro y claro, y persiste la elección. */
+  async function toggleTheme() {
+    const current = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+    const next = current === 'light' ? 'dark' : 'light';
+    applyTheme(next);
+    try { await window.storage.set(STORAGE_KEYS.THEME, next); } catch (e) { /* falla silenciosa */ }
+  }
+
   // ┌──────────────────────────────────────────────────────────────────────┐
   // │ 9. RENDER LAYER — pintan el STATE actual en el DOM                   │
   // └──────────────────────────────────────────────────────────────────────┘
@@ -731,11 +713,7 @@
     });
   }
 
-  /**
-   * Pinta el header de la tarjeta visual + la zanahoria de cuenta regresiva.
-   * La zanahoria se "come" desde arriba a medida que se acerca la fecha de
-   * pago: llena = falta mucho tiempo, mordida hasta la puntita = ya casi vence.
-   */
+  /** Pinta el header de la tarjeta visual + el anillo de cuenta regresiva de pago. */
   function updateCountdown() {
     const corte = $('input-corte').value;
     const pago = $('input-pago').value;
@@ -743,19 +721,10 @@
     $('card-corte-val').textContent = corte ? fmtDate(corte) : '— — —';
     $('card-pago-val').textContent = pago ? fmtDate(pago) : '— — —';
 
-    const fill = $('carrot-fill');
-    const outline = $('carrot-outline');
+    const ring = $('ring-progress');
     const daysLeftEl = $('days-left');
     const msgEl = $('countdown-msg');
     const badge = $('status-badge');
-    const totalH = CARROT_BOTTOM - CARROT_TOP;
-
-    /** Ajusta cuánta zanahoria queda visible (0 = totalmente comida, 1 = intacta). */
-    const setCarrotLevel = (pct) => {
-      const h = totalH * pct;
-      fill.setAttribute('height', h);
-      fill.setAttribute('y', CARROT_BOTTOM - h);
-    };
 
     if (!pago) {
       daysLeftEl.textContent = '—';
@@ -763,8 +732,7 @@
       badge.textContent = 'Sin definir';
       badge.style.background = 'var(--bg-2)';
       badge.style.color = 'var(--text-mid)';
-      outline.style.stroke = 'var(--pink)';
-      setCarrotLevel(1);
+      ring.style.strokeDashoffset = RING_CIRCUMFERENCE;
       return;
     }
 
@@ -774,20 +742,20 @@
 
     const cicloTotal = corte ? Math.max(daysBetween(corte, pago), 1) : 30;
     const pct = Math.min(Math.max(diff / cicloTotal, 0), 1);
-    setCarrotLevel(pct);
+    ring.style.strokeDashoffset = RING_CIRCUMFERENCE - RING_CIRCUMFERENCE * pct;
 
     if (diff < 0) {
       msgEl.textContent = 'Fecha de pago vencida';
-      badge.textContent = '⚠ Vencido'; badge.style.background = 'var(--rose-soft)'; badge.style.color = 'var(--rose)'; outline.style.stroke = 'var(--rose)';
+      badge.textContent = '⚠ Vencido'; badge.style.background = 'var(--rose-soft)'; badge.style.color = 'var(--rose)'; ring.style.stroke = 'var(--rose)';
     } else if (diff <= DUE_SOON_DAYS) {
       msgEl.textContent = `Vence el ${fmtDate(pago)}`;
-      badge.textContent = '🔴 Pago próximo'; badge.style.background = 'var(--rose-soft)'; badge.style.color = 'var(--rose)'; outline.style.stroke = 'var(--rose)';
+      badge.textContent = '🔴 Pago próximo'; badge.style.background = 'var(--rose-soft)'; badge.style.color = 'var(--rose)'; ring.style.stroke = 'var(--rose)';
     } else if (diff <= DUE_WARNING_DAYS) {
       msgEl.textContent = `Vence el ${fmtDate(pago)}`;
-      badge.textContent = '🟡 Se acerca'; badge.style.background = 'var(--amber-soft)'; badge.style.color = 'var(--amber)'; outline.style.stroke = 'var(--amber)';
+      badge.textContent = '🟡 Se acerca'; badge.style.background = 'var(--amber-soft)'; badge.style.color = 'var(--amber)'; ring.style.stroke = 'var(--amber)';
     } else {
       msgEl.textContent = `Vence el ${fmtDate(pago)}`;
-      badge.textContent = '🟢 Al día'; badge.style.background = 'var(--mint-soft)'; badge.style.color = 'var(--mint)'; outline.style.stroke = 'var(--mint)';
+      badge.textContent = '🟢 Al día'; badge.style.background = 'var(--mint-soft)'; badge.style.color = 'var(--mint)'; ring.style.stroke = 'var(--mint)';
     }
   }
 
@@ -933,6 +901,7 @@
   /** Registra todos los listeners de la app en un solo lugar (nada de onclick inline en el HTML). */
   function bindEvents() {
     $('btn-refresh').addEventListener('click', manualRefresh);
+    $('btn-theme').addEventListener('click', toggleTheme);
     $('btn-reset-verdict').addEventListener('click', resetVerdict);
     $('btn-answer-no').addEventListener('click', () => answerVerdict(false));
     $('btn-answer-yes').addEventListener('click', () => answerVerdict(true));
@@ -974,6 +943,9 @@
   /** Punto de entrada: carga preferencias guardadas, conecta eventos, trae datos, arranca el polling. */
   async function init() {
     bindEvents();
+
+    // El tema se aplica primero para evitar cualquier parpadeo de color al cargar.
+    await loadTheme();
 
     // Preferencias del usuario primero — así los inputs ya tienen su valor
     // guardado antes del primer render con datos del Sheet.

@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -7,7 +6,6 @@
 <title>Control de Tarjeta | Ledger Personal</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 32'%3E%3Crect x='2' y='4' width='40' height='24' rx='4' fill='%23c9a24b'/%3E%3Crect x='6' y='11' width='10' height='7' rx='1.5' fill='%2314171f'/%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
   :root{
     --bg:#14171f; --bg-2:#1b2029; --card:#1b2029; --card-hover:#20263a;
@@ -177,51 +175,6 @@
   .verdict-banner b{color:var(--text);}
   .verdict-banner button{margin-left:auto; background:none; border:1px solid currentColor; color:inherit; border-radius:7px; padding:5px 12px; font-size:11.5px; cursor:pointer; font-family:inherit;}
 
-  /* ── Predicción ── */
-  .predict-banner{
-    display:none; align-items:center; gap:14px; padding:14px 20px; border-radius:var(--r-md);
-    margin-bottom:20px; font-size:13px; background:rgba(148,163,255,.1); border:1px solid rgba(148,163,255,.3); color:#a8b4ff;
-  }
-  .predict-banner.show{display:flex;}
-  .predict-banner b{color:var(--text);}
-
-  .analytics-row{display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:28px;}
-  @media(max-width:860px){ .analytics-row{grid-template-columns:1fr;} }
-  .metric{background:var(--card); border:1px solid var(--line); border-radius:var(--r-md); padding:16px 20px;}
-  .metric .lbl{font-size:10.5px; color:var(--text-mid); text-transform:uppercase; letter-spacing:.06em; margin-bottom:8px; display:flex; align-items:center; gap:6px;}
-  .metric .val{font-size:21px; font-weight:700; font-family:'Space Grotesk',sans-serif;}
-  .metric .val.warn{color:var(--rose);}
-  .metric .val.ok{color:var(--mint);}
-  .metric .sub{font-size:11px; color:var(--text-dim); margin-top:4px;}
-
-  .chart-panel{margin-bottom:28px;}
-  .chart-box{position:relative; height:220px; margin-top:8px;}
-  .chart-legend-note{font-size:11px; color:var(--text-dim); margin-top:10px; display:flex; gap:16px; flex-wrap:wrap;}
-  .chart-legend-note span{display:inline-flex; align-items:center; gap:6px;}
-  .dot-legend{width:8px; height:8px; border-radius:2px;}
-
-  .tag-warn{
-    font-size:9.5px; padding:2px 7px; border-radius:20px; background:var(--amber-soft); color:var(--amber);
-    text-transform:uppercase; letter-spacing:.03em; font-weight:600; margin-left:8px; white-space:nowrap;
-  }
-
-  /* ── Meta de ahorro ── */
-  .savings-panel{margin-bottom:28px;}
-  .savings-header{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;}
-  .savings-inputs{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;}
-  .savings-field label{font-size:10.5px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.08em; display:block; margin-bottom:8px;}
-  .savings-field input{
-    background:var(--bg-2); border:1px solid var(--line); border-radius:8px; color:var(--text);
-    font-family:'JetBrains Mono',monospace; font-size:14px; padding:8px 10px; width:100%;
-  }
-  .savings-field input:focus{outline:none; border-color:var(--brass);}
-  .savings-progress-label{display:flex; justify-content:space-between; font-size:12.5px; color:var(--text-mid); margin-bottom:6px;}
-  .savings-progress-label b{color:var(--text); font-family:'JetBrains Mono',monospace;}
-  .savings-hint{font-size:11.5px; color:var(--text-dim); margin-top:10px; line-height:1.5;}
-
-  .btn-ghost{background:transparent; border:1px solid var(--line); color:var(--text); border-radius:9px; font-size:12.5px; padding:9px 16px; cursor:pointer; font-family:'Space Grotesk',sans-serif; font-weight:600;}
-  .btn-ghost:hover{background:var(--card-hover); border-color:var(--text-dim);}
-
   .toast{position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 20px; font-size:13px; opacity:0; pointer-events:none; transition:all .3s; z-index:600; box-shadow:0 10px 30px rgba(0,0,0,.4);}
   .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
 
@@ -259,11 +212,6 @@
     <span id="verdict-icon">✅</span>
     <span id="verdict-text"></span>
     <button id="btn-reset-verdict">Volver a preguntar</button>
-  </div>
-
-  <div class="predict-banner" id="predict-banner">
-    <span>📈</span>
-    <span id="predict-text"></span>
   </div>
 
   <!-- ── HERO ── -->
@@ -334,60 +282,6 @@
     </div>
   </div>
 
-  <!-- ── Análisis predictivo ── -->
-  <div class="analytics-row">
-    <div class="metric">
-      <div class="lbl">Proyección al corte</div>
-      <div class="val figures" id="metric-proyeccion">$0.00</div>
-      <div class="sub" id="metric-proyeccion-sub">calculando…</div>
-    </div>
-    <div class="metric">
-      <div class="lbl">Ritmo diario actual</div>
-      <div class="val figures" id="metric-ritmo">$0.00/día</div>
-      <div class="sub" id="metric-ritmo-sub">promedio hasta hoy</div>
-    </div>
-    <div class="metric">
-      <div class="lbl">Ritmo máximo permitido</div>
-      <div class="val figures" id="metric-permitido">$0.00/día</div>
-      <div class="sub" id="metric-permitido-sub">para no pasar tu límite</div>
-    </div>
-  </div>
-
-  <!-- ── Gráfico de ritmo ── -->
-  <div class="panel chart-panel">
-    <div class="section-title">Ritmo de gasto (ciclo actual)</div>
-    <div class="chart-box"><canvas id="chart-ritmo"></canvas></div>
-    <div class="chart-legend-note">
-      <span><span class="dot-legend" style="background:#c9a24b"></span>Gasto diario</span>
-      <span><span class="dot-legend" style="background:#4fd1ae"></span>Acumulado real</span>
-      <span><span class="dot-legend" style="background:#94a3ff"></span>Proyección</span>
-      <span><span class="dot-legend" style="background:#e2536b"></span>Tu límite ($<span id="legend-limite">200</span>)</span>
-    </div>
-  </div>
-
-  <!-- ── Meta de ahorro ── -->
-  <div class="panel savings-panel">
-    <div class="savings-header">
-      <div class="section-title" style="margin:0; border:none;">Meta de ahorro mensual</div>
-    </div>
-    <div class="savings-inputs">
-      <div class="savings-field">
-        <label>Meta de ahorro</label>
-        <input type="number" id="input-meta" placeholder="$0.00" step="0.01">
-      </div>
-      <div class="savings-field">
-        <label>Ahorrado hasta hoy</label>
-        <input type="number" id="input-ahorrado" placeholder="$0.00" step="0.01">
-      </div>
-    </div>
-    <div class="savings-progress-label">
-      <span>Progreso hacia tu meta</span>
-      <b id="savings-progress-text">$0.00 / $0.00</b>
-    </div>
-    <div class="bar-track"><div class="bar-fill" id="bar-savings" style="width:0%; background:var(--mint);"></div></div>
-    <div class="savings-hint" id="savings-hint"></div>
-  </div>
-
   <!-- ── Recordatorio ── -->
   <div class="reminder">
     <div class="reminder-icon">
@@ -439,9 +333,9 @@
  *  CONTROL DE TARJETA — Ledger Personal
  * ──────────────────────────────────────────────────────────────────────────
  *  Dashboard estático (sin backend) que lee en vivo la hoja "TARJETA" de un
- *  Google Sheet público vía la API gviz, calcula métricas de gasto/ahorro,
- *  y persiste preferencias del usuario (fechas, límite, meta) en
- *  localStorage a través de window.storage.
+ *  Google Sheet público vía la API gviz, y persiste preferencias del usuario
+ *  (fechas de corte/pago, límite de pago personal) en localStorage a través
+ *  de window.storage.
  *
  *  Estructura del archivo (de arriba hacia abajo):
  *    1. CONFIG          — constantes de configuración, nunca cambian en runtime
@@ -453,8 +347,9 @@
  *    7. BUSINESS LOGIC  — cálculos puros (no tocan el DOM)
  *    8. PERSISTENCE     — leer/escribir preferencias del usuario
  *    9. RENDER LAYER    — pintan el estado actual en el DOM
- *   10. EVENT BINDINGS  — conectan inputs/botones a sus handlers
- *   11. LIFECYCLE       — orquestación de arranque y refresco periódico
+ *   10. ORCHESTRATION   — combina data layer + render layer
+ *   11. EVENT BINDINGS  — conectan inputs/botones a sus handlers
+ *   12. LIFECYCLE       — orquestación de arranque y refresco periódico
  * ══════════════════════════════════════════════════════════════════════════
  */
 (function () {
@@ -477,13 +372,6 @@
   /** Perímetro (2πr, r=46) del anillo SVG de cuenta regresiva — ver <circle id="ring-progress">. */
   const RING_CIRCUMFERENCE = 289;
 
-  /** Un gasto se marca "inusual" si supera este múltiplo del promedio del ciclo. */
-  const OUTLIER_MULTIPLIER = 2;
-  /** ...y además supera este monto mínimo (evita marcar gastos chicos por ruido estadístico). */
-  const OUTLIER_MIN_AMOUNT = 15;
-  /** Mínimo de movimientos en el ciclo para que el análisis de outliers tenga sentido. */
-  const OUTLIER_MIN_SAMPLE = 3;
-
   /** Umbrales de urgencia para el badge de estado de pago (días restantes). */
   const DUE_SOON_DAYS = 3;
   const DUE_WARNING_DAYS = 7;
@@ -492,7 +380,6 @@
   const STORAGE_KEYS = {
     FECHAS_MANUAL: 'tarjeta:fechas-manual',
     LIMITE: 'tarjeta:limite-pago',
-    META_AHORRO: 'tarjeta:meta-ahorro',
     VEREDICTO: 'tarjeta:veredicto',
   };
 
@@ -508,9 +395,6 @@
 
   /** Última respuesta guardada al modal "¿podrás pagar?". @type {{total:number, answer:boolean}|null} */
   let VERDICT = null;
-
-  /** Instancia activa del gráfico de ritmo de gasto (se destruye y recrea en cada render). */
-  let ritmoChart = null;
 
   // ┌──────────────────────────────────────────────────────────────────────┐
   // │ 3. DOM HELPERS                                                       │
@@ -539,7 +423,7 @@
     return `${d} ${MESES_LARGO[+m - 1]} ${y.slice(2)}`;
   };
 
-  /** ISO "YYYY-MM-DD" → "25 ago" (para la tabla y el eje del gráfico). */
+  /** ISO "YYYY-MM-DD" → "25 ago" (para la tabla). */
   const fmtDateShort = (iso) => {
     if (!iso) return '—';
     const [y, m, d] = iso.split('-');
@@ -635,46 +519,6 @@
     return Math.round((d2 - d1) / 86400000);
   }
 
-  /**
-   * Determina el rango de fechas del ciclo actual (corte → pago), con fallback
-   * a la fecha del primer/último gasto si el Sheet aún no tiene esas columnas llenas.
-   * @returns {{start:string, end:string, today:string}}
-   */
-  function cycleBounds() {
-    const corte = $('input-corte').value;
-    const pago = $('input-pago').value;
-    const today = new Date().toISOString().slice(0, 10);
-    const start = corte || (EXPENSES[0] ? EXPENSES[0].fecha : today);
-    const end = pago || start;
-    return { start, end, today };
-  }
-
-  /**
-   * Proyecta el total del ciclo al ritmo de gasto actual (promedio diario × días totales del ciclo).
-   * @returns {{start:string, end:string, today:string, total:number, daysElapsed:number,
-   *            daysTotal:number, avgPerDay:number, projectedTotal:number, daysRemaining:number}}
-   */
-  function computeProjection() {
-    const { start, end, today } = cycleBounds();
-    const total = totalTarjeta();
-    const daysElapsed = Math.max(daysBetween(start, today) + 1, 1);
-    const daysTotal = Math.max(daysBetween(start, end), daysElapsed);
-    const avgPerDay = total / daysElapsed;
-    const projectedTotal = avgPerDay * daysTotal;
-    const daysRemaining = Math.max(daysTotal - daysElapsed, 0);
-    return { start, end, today, total, daysElapsed, daysTotal, avgPerDay, projectedTotal, daysRemaining };
-  }
-
-  /**
-   * Un gasto es "inusual" si el ciclo tiene suficientes movimientos como para
-   * que un promedio sea significativo, y el monto duplica ese promedio.
-   * @param {number} monto
-   * @param {number} avg — promedio del ciclo, precalculado por el llamador.
-   */
-  function isOutlier(monto, avg) {
-    return EXPENSES.length >= OUTLIER_MIN_SAMPLE && monto > avg * OUTLIER_MULTIPLIER && monto > OUTLIER_MIN_AMOUNT;
-  }
-
   // ┌──────────────────────────────────────────────────────────────────────┐
   // │ 8. PERSISTENCE — preferencias del usuario en window.storage          │
   // └──────────────────────────────────────────────────────────────────────┘
@@ -738,35 +582,7 @@
       await window.storage.set(STORAGE_KEYS.FECHAS_MANUAL, JSON.stringify({ corte, pago }));
     } catch (e) { /* falla silenciosa: no es crítico, el usuario puede reintentar */ }
     updateCountdown();
-    renderPredictivo();
-    renderChart();
     showToast('💾 Fecha guardada localmente');
-  }
-
-  /** Carga la meta de ahorro y el monto ya ahorrado, guardados por el usuario. */
-  async function loadSavings() {
-    let meta = '', ahorrado = '';
-    try {
-      const saved = await window.storage.get(STORAGE_KEYS.META_AHORRO);
-      if (saved && saved.value) {
-        const d = JSON.parse(saved.value);
-        meta = d.meta ?? '';
-        ahorrado = d.ahorrado ?? '';
-      }
-    } catch (e) { /* sin meta guardada todavía */ }
-    $('input-meta').value = meta;
-    $('input-ahorrado').value = ahorrado;
-    renderSavings();
-  }
-
-  /** Persiste meta de ahorro + monto ahorrado. */
-  async function saveSavings() {
-    const meta = $('input-meta').value;
-    const ahorrado = $('input-ahorrado').value;
-    try {
-      await window.storage.set(STORAGE_KEYS.META_AHORRO, JSON.stringify({ meta, ahorrado }));
-    } catch (e) { /* falla silenciosa */ }
-    renderSavings();
   }
 
   /** Carga la última respuesta guardada al modal "¿podrás pagar?". */
@@ -791,18 +607,17 @@
   // │ 9. RENDER LAYER — pintan el STATE actual en el DOM                   │
   // └──────────────────────────────────────────────────────────────────────┘
 
-  /** Pinta la tabla de movimientos, marcando gastos inusuales con un badge. */
+  /** Pinta la tabla de movimientos. */
   function renderTable() {
     const body = $('tbl-body');
     if (EXPENSES.length === 0) {
       body.innerHTML = `<tr class="empty-row"><td colspan="3">Sin movimientos registrados en este ciclo</td></tr>`;
       return;
     }
-    const avg = totalTarjeta() / EXPENSES.length;
     body.innerHTML = EXPENSES.map((e) => `
       <tr>
         <td class="figures">${fmtDateShort(e.fecha)}</td>
-        <td>${e.gasto}${isOutlier(e.monto, avg) ? '<span class="tag-warn" title="Más del doble del promedio de este ciclo">⚠ inusual</span>' : ''}</td>
+        <td>${e.gasto}</td>
         <td class="amt">${fmt(e.monto)}</td>
       </tr>`).join('');
   }
@@ -879,137 +694,6 @@
     } else {
       $('kpi-avg').textContent = fmt(0);
       $('kpi-max-sub').textContent = 'mayor: —';
-    }
-  }
-
-  /** Pinta las 3 métricas de análisis predictivo + el banner de alerta temprana. */
-  function renderPredictivo() {
-    const p = computeProjection();
-    const limite = getLimite();
-
-    const projEl = $('metric-proyeccion');
-    projEl.textContent = fmt(p.projectedTotal);
-    projEl.className = 'val figures ' + (p.projectedTotal > limite ? 'warn' : 'ok');
-    $('metric-proyeccion-sub').textContent = p.daysTotal > 0 ? `al día ${p.daysTotal} del ciclo` : 'sin fecha de corte/pago';
-
-    $('metric-ritmo').textContent = fmt(p.avgPerDay) + '/día';
-    $('metric-ritmo-sub').textContent = `en ${p.daysElapsed} día${p.daysElapsed === 1 ? '' : 's'} transcurridos`;
-
-    const restante = Math.max(limite - p.total, 0);
-    const permitido = p.daysRemaining > 0 ? restante / p.daysRemaining : 0;
-    const permEl = $('metric-permitido');
-    permEl.textContent = fmt(permitido) + '/día';
-    permEl.className = 'val figures ' + (p.total > limite ? 'warn' : '');
-    $('metric-permitido-sub').textContent = p.daysRemaining > 0 ? `en ${p.daysRemaining} días restantes` : 'ciclo por cerrar';
-
-    // Alerta temprana: se dispara solo si TODAVÍA no superaste el límite pero la
-    // proyección dice que lo harás — el banner rojo (checkLimitAndPrompt) cubre el caso reactivo.
-    const banner = $('predict-banner');
-    if (p.projectedTotal > limite && p.total <= limite && p.daysRemaining > 0) {
-      banner.classList.add('show');
-      $('predict-text').innerHTML = `Con tu ritmo actual (${fmt(p.avgPerDay)}/día) vas a cerrar el ciclo en <b>${fmt(p.projectedTotal)}</b>, por encima de tu límite de ${fmt(limite)}.`;
-    } else {
-      banner.classList.remove('show');
-    }
-  }
-
-  /**
-   * Construye el gráfico mixto (barras = gasto diario, líneas = acumulado real,
-   * proyección y línea de límite) usando Chart.js.
-   */
-  function renderChart() {
-    const { start, end, today } = cycleBounds();
-    const limite = getLimite();
-    $('legend-limite').textContent = limite.toFixed(0);
-
-    const lastDay = end && end < today ? end : today;
-
-    // Genera el eje X: un punto por cada día del ciclo (corte → pago).
-    const labels = [];
-    let d = start;
-    while (d <= end) {
-      labels.push(d);
-      if (d === end) break;
-      const next = new Date(d + 'T00:00:00');
-      next.setDate(next.getDate() + 1);
-      d = next.toISOString().slice(0, 10);
-    }
-    if (labels.length === 0) labels.push(start);
-
-    const dailyMap = {};
-    EXPENSES.forEach((e) => { dailyMap[e.fecha] = (dailyMap[e.fecha] || 0) + e.monto; });
-
-    const daily = [];
-    const acumuladoReal = [];
-    const proyeccion = [];
-    let running = 0;
-    const p = computeProjection();
-
-    labels.forEach((date) => {
-      const isPast = date <= lastDay;
-      const dailyValue = dailyMap[date] || 0;
-      daily.push(isPast ? dailyValue : null);
-
-      if (isPast) {
-        running += dailyValue;
-        acumuladoReal.push(running);
-        proyeccion.push(date === lastDay ? running : null); // conecta la proyección al último punto real
-      } else {
-        acumuladoReal.push(null);
-        const daysAhead = daysBetween(lastDay, date);
-        proyeccion.push(running + p.avgPerDay * daysAhead);
-      }
-    });
-
-    if (ritmoChart) ritmoChart.destroy();
-    ritmoChart = new Chart($('chart-ritmo'), {
-      data: {
-        labels: labels.map(fmtDateShort),
-        datasets: [
-          { type: 'bar', label: 'Gasto diario', data: daily, backgroundColor: 'rgba(201,162,75,.55)', yAxisID: 'y', borderRadius: 3, barThickness: 10 },
-          { type: 'line', label: 'Acumulado real', data: acumuladoReal, borderColor: '#4fd1ae', backgroundColor: 'transparent', yAxisID: 'y1', tension: .25, spanGaps: false, pointRadius: 2 },
-          { type: 'line', label: 'Proyección', data: proyeccion, borderColor: '#94a3ff', borderDash: [5, 4], backgroundColor: 'transparent', yAxisID: 'y1', tension: .25, spanGaps: true, pointRadius: 0 },
-          { type: 'line', label: 'Límite', data: labels.map(() => limite), borderColor: '#e2536b', borderWidth: 1.5, borderDash: [3, 3], backgroundColor: 'transparent', yAxisID: 'y1', pointRadius: 0 },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: false },
-        plugins: {
-          legend: { display: false },
-          tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${c.raw != null ? fmt(c.raw) : '—'}` } },
-        },
-        scales: {
-          x: { grid: { color: '#242a38' }, ticks: { color: '#5c6272', font: { size: 10 } } },
-          y: { position: 'left', grid: { display: false }, ticks: { color: '#5c6272', font: { size: 9 } } },
-          y1: { position: 'right', grid: { color: '#242a38' }, ticks: { color: '#5c6272', font: { size: 9 } } },
-        },
-      },
-    });
-  }
-
-  /** Pinta el panel de meta de ahorro (progreso + sugerencia textual). */
-  function renderSavings() {
-    const meta = parseFloat($('input-meta').value) || 0;
-    const ahorrado = parseFloat($('input-ahorrado').value) || 0;
-    const limite = getLimite();
-    const total = totalTarjeta();
-    const margen = Math.max(limite - total, 0);
-
-    $('savings-progress-text').textContent = `${fmt(ahorrado)} / ${fmt(meta)}`;
-    const pct = meta > 0 ? Math.min((ahorrado / meta) * 100, 100) : 0;
-    const bar = $('bar-savings');
-    bar.style.width = pct + '%';
-    bar.style.background = pct >= 100 ? 'var(--mint)' : pct >= 50 ? 'var(--brass)' : 'var(--amber)';
-
-    const hint = $('savings-hint');
-    if (meta <= 0) {
-      hint.textContent = 'Define una meta para hacerle seguimiento.';
-    } else if (ahorrado >= meta) {
-      hint.textContent = '🎉 Meta alcanzada este mes.';
-    } else {
-      hint.textContent = `Vas gastando ${fmt(total)} de tu límite de ${fmt(limite)} — te quedan ${fmt(margen)} de margen que podrías destinar a tu meta.`;
     }
   }
 
@@ -1098,9 +782,6 @@
       renderKpis();
       await resolveDates();
       updateCountdown();
-      renderPredictivo();
-      renderChart();
-      renderSavings();
       checkLimitAndPrompt();
 
       $('last-update').textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' });
@@ -1136,14 +817,8 @@
     $('input-limite').addEventListener('change', () => {
       saveLimite();
       renderKpis();
-      renderPredictivo();
-      renderChart();
-      renderSavings();
       checkLimitAndPrompt();
     });
-
-    $('input-meta').addEventListener('change', saveSavings);
-    $('input-ahorrado').addEventListener('change', saveSavings);
   }
 
   // ┌──────────────────────────────────────────────────────────────────────┐
@@ -1158,7 +833,6 @@
     // guardado antes del primer render con datos del Sheet.
     await loadLimite();
     await loadVerdict();
-    await loadSavings();
 
     try {
       await loadData(false);

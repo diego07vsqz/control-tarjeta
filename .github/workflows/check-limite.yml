@@ -43,6 +43,10 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add automation/state/last-alert.json
-          git diff --staged --quiet || git commit -m "chore: actualizar estado de alerta de tarjeta"
-          git push
-
+          if git diff --staged --quiet; then
+            echo "Sin cambios de estado que guardar — nada que subir."
+          else
+            git commit -m "chore: actualizar estado de alerta de tarjeta"
+            git pull --rebase origin main
+            git push
+          fi

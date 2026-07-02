@@ -124,8 +124,8 @@
   .dates-row{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
   .date-edit{background:var(--card); border:1px solid var(--line); border-radius:var(--r-md); padding:14px 18px;}
   .date-edit label{font-size:10.5px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.08em; display:flex; justify-content:space-between; margin-bottom:8px;}
-  .date-edit .src{font-size:9px; padding:2px 7px; border-radius:10px; background:var(--mint-soft); color:var(--mint);}
-  .date-edit .src.local{background:var(--amber-soft); color:var(--amber);}
+  .date-edit .src, .kpi .src{font-size:9px; padding:2px 7px; border-radius:10px; background:var(--mint-soft); color:var(--mint); white-space:nowrap;}
+  .date-edit .src.local, .kpi .src.local{background:var(--amber-soft); color:var(--amber);}
   .date-edit input{background:var(--bg-2); border:1px solid var(--line); border-radius:8px; color:var(--text); font-family:'JetBrains Mono',monospace; font-size:14px; padding:8px 10px; width:100%; color-scheme:dark;}
   .date-edit input:focus{outline:none; border-color:var(--brass);}
 
@@ -308,7 +308,13 @@
       <div class="sub" id="kpi-total-sub">— movimientos</div>
     </div>
     <div class="kpi k4">
-      <div class="lbl">Mi límite de pago <input type="number" id="input-limite"></div>
+      <div class="lbl">
+        <span>Mi límite de pago</span>
+        <span style="display:flex; align-items:center; gap:6px;">
+          <span class="src" id="src-limite">Sheet</span>
+          <input type="number" id="input-limite">
+        </span>
+      </div>
       <div class="val figures" id="kpi-limite">$0 / $200</div>
       <div class="bar-track"><div class="bar-fill" id="bar-limite" style="width:0%; background:var(--mint);"></div></div>
     </div>
@@ -443,7 +449,7 @@
   let EXPENSES = [];
 
   /** Metadatos leídos del Sheet (columnas D-F): fecha de corte/pago y límite del banco. */
-  let META = { corte: null, pago: null, limiteBanco: null };
+  let META = { corte: null, pago: null, limiteBanco: null, limitePersonal: null };
 
   /** Última respuesta guardada al modal "¿podrás pagar?". @type {{total:number, answer:boolean}|null} */
   let VERDICT = null;
@@ -524,9 +530,9 @@
 
   /**
    * Descarga y parsea la hoja "TARJETA" vía la API pública gviz de Google Sheets.
-   * Columnas esperadas A–F: FECHA | GASTOS | $ | Fecha de Corte | Fecha de Pago | Total permitido.
+   * Columnas esperadas A–G: FECHA | GASTOS | $ | Fecha de Corte | Fecha de Pago | Límite banco | Mi límite personal.
    * Requiere que el Sheet esté compartido como "Cualquiera con el enlace — Lector".
-   * @returns {Promise<{expenses: object[], corte: string|null, pago: string|null, limiteBanco: number|null}>}
+   * @returns {Promise<{expenses: object[], corte: string|null, pago: string|null, limiteBanco: number|null, limitePersonal: number|null}>}
    */
   async function fetchSheet() {
     const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(SHEET_NAME)}&headers=1&_=${Date.now()}`;
@@ -539,7 +545,7 @@
     const rows = JSON.parse(jsonStr).table.rows || [];
 
     const expenses = [];
-    let corte = null, pago = null, limiteBanco = null;
+    let corte = null, pago = null, limiteBanco = null, limitePersonal = null;
 
     rows.forEach((row) => {
       const cells = row.c || [];
@@ -549,10 +555,11 @@
       const gasto = cell(1);
       const monto = parseMoney(cell(2));
 
-      // Corte/pago/límite del banco solo aparecen en la primera fila con dato — tomamos el primero no vacío.
+      // Corte/pago/límites solo aparecen en la primera fila con dato — tomamos el primero no vacío.
       if (!corte) corte = parseDMY(cell(3));
       if (!pago) pago = parseDMY(cell(4));
       if (!limiteBanco) limiteBanco = parseMoney(cell(5));
+      if (!limitePersonal) limitePersonal = parseMoney(cell(6)); // columna G
 
       if (fecha && gasto && monto !== null) {
         expenses.push({ fecha, gasto: String(gasto).trim(), monto });
@@ -560,7 +567,7 @@
     });
 
     expenses.sort((a, b) => a.fecha.localeCompare(b.fecha));
-    return { expenses, corte, pago, limiteBanco };
+    return { expenses, corte, pago, limiteBanco, limitePersonal };
   }
 
   // ┌──────────────────────────────────────────────────────────────────────┐
@@ -600,8 +607,9 @@
   // └──────────────────────────────────────────────────────────────────────┘
 
   /**
-   * Carga el límite de pago guardado por el usuario. Si nunca lo definió,
-   * usa DEFAULT_LIMITE — así el campo nunca aparece vacío ni se resetea solo.
+   * Carga el límite de pago guardado localmente, como valor de arranque
+   * mientras se resuelve la fuente real (Sheet) en resolveLimite(). Evita
+   * que el campo aparezca vacío o en $200 por un instante al recargar.
    */
   async function loadLimite() {
     let limite = DEFAULT_LIMITE;
@@ -612,12 +620,35 @@
     $('input-limite').value = limite;
   }
 
-  /** Persiste el límite de pago cada vez que el usuario lo edita. */
+  /**
+   * Resuelve el límite de pago con prioridad: columna G del Sheet > guardado
+   * manual en el navegador > DEFAULT_LIMITE. Igual que resolveDates(), actualiza
+   * el badge "Sheet"/"Manual" junto al campo para que el origen sea siempre visible.
+   */
+  async function resolveLimite() {
+    let localLimite = null;
+    try {
+      const saved = await window.storage.get(STORAGE_KEYS.LIMITE);
+      if (saved && saved.value) localLimite = parseFloat(saved.value);
+    } catch (e) { /* sin valor manual guardado todavía */ }
+
+    const limite = META.limitePersonal ?? localLimite ?? DEFAULT_LIMITE;
+    $('input-limite').value = limite;
+
+    $('src-limite').textContent = META.limitePersonal != null ? 'Sheet' : 'Manual';
+    $('src-limite').className = 'src' + (META.limitePersonal != null ? '' : ' local');
+  }
+
+  /** Persiste el límite de pago cada vez que el usuario lo edita manualmente. */
   async function saveLimite() {
     const limite = getLimite();
     try {
       await window.storage.set(STORAGE_KEYS.LIMITE, String(limite));
-      showToast('💾 Límite de pago guardado');
+      showToast(
+        META.limitePersonal != null
+          ? '💾 Guardado localmente — pero la columna G del Sheet manda; edítala ahí para que quede fijo'
+          : '💾 Límite de pago guardado'
+      );
     } catch (e) {
       showToast('⚠️ No se pudo guardar el límite');
     }
@@ -889,13 +920,17 @@
     if (showSpinner) btn.classList.add('spin');
 
     try {
-      const { expenses, corte, pago, limiteBanco } = await fetchSheet();
+      const { expenses, corte, pago, limiteBanco, limitePersonal } = await fetchSheet();
       EXPENSES = expenses;
-      META = { corte, pago, limiteBanco };
+      META = { corte, pago, limiteBanco, limitePersonal };
+
+      // Primero se resuelven las fuentes de verdad (Sheet > manual) para que
+      // los inputs ya tengan su valor final antes de pintar cualquier KPI.
+      await resolveDates();
+      await resolveLimite();
 
       renderTable();
       renderKpis();
-      await resolveDates();
       updateCountdown();
       checkLimitAndPrompt();
 

@@ -6,6 +6,7 @@
 <title>Control de Tarjeta | Ledger Personal</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 32'%3E%3Crect x='2' y='4' width='40' height='24' rx='4' fill='%23c9a24b'/%3E%3Crect x='6' y='11' width='10' height='7' rx='1.5' fill='%2314171f'/%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
   :root{
     --bg:#14171f; --bg-2:#1b2029; --card:#1b2029; --card-hover:#20263a;
@@ -175,6 +176,48 @@
   .verdict-banner b{color:var(--text);}
   .verdict-banner button{margin-left:auto; background:none; border:1px solid currentColor; color:inherit; border-radius:7px; padding:5px 12px; font-size:11.5px; cursor:pointer; font-family:inherit;}
 
+  /* ── Predicción ── */
+  .predict-banner{
+    display:none; align-items:center; gap:14px; padding:14px 20px; border-radius:var(--r-md);
+    margin-bottom:20px; font-size:13px; background:rgba(148,163,255,.1); border:1px solid rgba(148,163,255,.3); color:#a8b4ff;
+  }
+  .predict-banner.show{display:flex;}
+  .predict-banner b{color:var(--text);}
+
+  .analytics-row{display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:28px;}
+  @media(max-width:860px){ .analytics-row{grid-template-columns:1fr;} }
+  .metric{background:var(--card); border:1px solid var(--line); border-radius:var(--r-md); padding:16px 20px;}
+  .metric .lbl{font-size:10.5px; color:var(--text-mid); text-transform:uppercase; letter-spacing:.06em; margin-bottom:8px; display:flex; align-items:center; gap:6px;}
+  .metric .val{font-size:21px; font-weight:700; font-family:'Space Grotesk',sans-serif;}
+  .metric .val.warn{color:var(--rose);}
+  .metric .val.ok{color:var(--mint);}
+  .metric .sub{font-size:11px; color:var(--text-dim); margin-top:4px;}
+
+  .chart-panel{margin-bottom:28px;}
+  .chart-box{position:relative; height:220px; margin-top:8px;}
+  .chart-legend-note{font-size:11px; color:var(--text-dim); margin-top:10px; display:flex; gap:16px; flex-wrap:wrap;}
+  .chart-legend-note span{display:inline-flex; align-items:center; gap:6px;}
+  .dot-legend{width:8px; height:8px; border-radius:2px;}
+
+  .tag-warn{
+    font-size:9.5px; padding:2px 7px; border-radius:20px; background:var(--amber-soft); color:var(--amber);
+    text-transform:uppercase; letter-spacing:.03em; font-weight:600; margin-left:8px; white-space:nowrap;
+  }
+
+  /* ── Meta de ahorro ── */
+  .savings-panel{margin-bottom:28px;}
+  .savings-header{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;}
+  .savings-inputs{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;}
+  .savings-field label{font-size:10.5px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.08em; display:block; margin-bottom:8px;}
+  .savings-field input{
+    background:var(--bg-2); border:1px solid var(--line); border-radius:8px; color:var(--text);
+    font-family:'JetBrains Mono',monospace; font-size:14px; padding:8px 10px; width:100%;
+  }
+  .savings-field input:focus{outline:none; border-color:var(--brass);}
+  .savings-progress-label{display:flex; justify-content:space-between; font-size:12.5px; color:var(--text-mid); margin-bottom:6px;}
+  .savings-progress-label b{color:var(--text); font-family:'JetBrains Mono',monospace;}
+  .savings-hint{font-size:11.5px; color:var(--text-dim); margin-top:10px; line-height:1.5;}
+
   .btn-ghost{background:transparent; border:1px solid var(--line); color:var(--text); border-radius:9px; font-size:12.5px; padding:9px 16px; cursor:pointer; font-family:'Space Grotesk',sans-serif; font-weight:600;}
   .btn-ghost:hover{background:var(--card-hover); border-color:var(--text-dim);}
 
@@ -202,7 +245,7 @@
   </div>
   <div class="header-right">
     <div class="pill"><span class="dot-live"></span> <span id="last-update">—</span></div>
-    <button class="btn-refresh" id="btn-refresh" onclick="manualRefresh()">
+    <button class="btn-refresh" id="btn-refresh">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
       Actualizar
     </button>
@@ -214,7 +257,12 @@
   <div class="verdict-banner" id="verdict-banner">
     <span id="verdict-icon">✅</span>
     <span id="verdict-text"></span>
-    <button onclick="resetVerdict()">Volver a preguntar</button>
+    <button id="btn-reset-verdict">Volver a preguntar</button>
+  </div>
+
+  <div class="predict-banner" id="predict-banner">
+    <span>📈</span>
+    <span id="predict-text"></span>
   </div>
 
   <!-- ── HERO ── -->
@@ -269,7 +317,7 @@
       <div class="sub" id="kpi-total-sub">— movimientos</div>
     </div>
     <div class="kpi k4">
-      <div class="lbl">Mi límite de pago <input type="number" id="input-limite" value="200"></div>
+      <div class="lbl">Mi límite de pago <input type="number" id="input-limite"></div>
       <div class="val figures" id="kpi-limite">$0 / $200</div>
       <div class="bar-track"><div class="bar-fill" id="bar-limite" style="width:0%; background:var(--mint);"></div></div>
     </div>
@@ -283,6 +331,60 @@
       <div class="val figures" id="kpi-avg">$0.00</div>
       <div class="sub" id="kpi-max-sub">mayor: —</div>
     </div>
+  </div>
+
+  <!-- ── Análisis predictivo ── -->
+  <div class="analytics-row">
+    <div class="metric">
+      <div class="lbl">Proyección al corte</div>
+      <div class="val figures" id="metric-proyeccion">$0.00</div>
+      <div class="sub" id="metric-proyeccion-sub">calculando…</div>
+    </div>
+    <div class="metric">
+      <div class="lbl">Ritmo diario actual</div>
+      <div class="val figures" id="metric-ritmo">$0.00/día</div>
+      <div class="sub" id="metric-ritmo-sub">promedio hasta hoy</div>
+    </div>
+    <div class="metric">
+      <div class="lbl">Ritmo máximo permitido</div>
+      <div class="val figures" id="metric-permitido">$0.00/día</div>
+      <div class="sub" id="metric-permitido-sub">para no pasar tu límite</div>
+    </div>
+  </div>
+
+  <!-- ── Gráfico de ritmo ── -->
+  <div class="panel chart-panel">
+    <div class="section-title">Ritmo de gasto (ciclo actual)</div>
+    <div class="chart-box"><canvas id="chart-ritmo"></canvas></div>
+    <div class="chart-legend-note">
+      <span><span class="dot-legend" style="background:#c9a24b"></span>Gasto diario</span>
+      <span><span class="dot-legend" style="background:#4fd1ae"></span>Acumulado real</span>
+      <span><span class="dot-legend" style="background:#94a3ff"></span>Proyección</span>
+      <span><span class="dot-legend" style="background:#e2536b"></span>Tu límite ($<span id="legend-limite">200</span>)</span>
+    </div>
+  </div>
+
+  <!-- ── Meta de ahorro ── -->
+  <div class="panel savings-panel">
+    <div class="savings-header">
+      <div class="section-title" style="margin:0; border:none;">Meta de ahorro mensual</div>
+    </div>
+    <div class="savings-inputs">
+      <div class="savings-field">
+        <label>Meta de ahorro</label>
+        <input type="number" id="input-meta" placeholder="$0.00" step="0.01">
+      </div>
+      <div class="savings-field">
+        <label>Ahorrado hasta hoy</label>
+        <input type="number" id="input-ahorrado" placeholder="$0.00" step="0.01">
+      </div>
+    </div>
+    <div class="savings-progress-label">
+      <span>Progreso hacia tu meta</span>
+      <b id="savings-progress-text">$0.00 / $0.00</b>
+    </div>
+    <div class="bar-track"><div class="bar-fill" id="bar-savings" style="width:0%; background:var(--mint);"></div></div>
+    <div class="savings-hint" id="savings-hint"></div>
   </div>
 
   <!-- ── Recordatorio ── -->
@@ -321,8 +423,8 @@
     <h3>Superaste tu límite de pago</h3>
     <p>Este ciclo llevas <span class="figures" id="modal-total">$0.00</span>, por encima de tu límite mensual de <span class="figures" id="modal-limite">$200.00</span>. ¿Podrás pagar este monto completo?</p>
     <div class="modal-actions">
-      <button class="btn btn-no" onclick="answerVerdict(false)">No, cuidado</button>
-      <button class="btn btn-yes" onclick="answerVerdict(true)">Sí, puedo pagarlo</button>
+      <button class="btn btn-no" id="btn-answer-no">No, cuidado</button>
+      <button class="btn btn-yes" id="btn-answer-yes">Sí, puedo pagarlo</button>
     </div>
   </div>
 </div>
@@ -331,301 +433,750 @@
 <div class="toast" id="toast"></div>
 
 <script>
-/* ─────────────────────────────────────────────────────────
-   CONFIG — Actualizar SHEET_ID / SHEET_NAME si cambia la fuente.
-───────────────────────────────────────────────────────────── */
-const SHEET_ID   = '1lTFi6NWYgzn_olV4usP4y2aWol_AnN096knpQ2rZ7Hk';
-const SHEET_NAME = 'TARJETA';
-const REFRESH_MS = 120000; // 2 minutos
+/**
+ * ══════════════════════════════════════════════════════════════════════════
+ *  CONTROL DE TARJETA — Ledger Personal
+ * ──────────────────────────────────────────────────────────────────────────
+ *  Dashboard estático (sin backend) que lee en vivo la hoja "TARJETA" de un
+ *  Google Sheet público vía la API gviz, calcula métricas de gasto/ahorro,
+ *  y persiste preferencias del usuario (fechas, límite, meta) en
+ *  localStorage a través de window.storage.
+ *
+ *  Estructura del archivo (de arriba hacia abajo):
+ *    1. CONFIG          — constantes de configuración, nunca cambian en runtime
+ *    2. STATE           — estado mutable de la aplicación
+ *    3. DOM HELPERS     — acceso al DOM
+ *    4. FORMATTERS      — number/date → string
+ *    5. PARSERS         — string (Sheet) → number/date
+ *    6. DATA LAYER      — fetch a la fuente de datos externa (Google Sheets)
+ *    7. BUSINESS LOGIC  — cálculos puros (no tocan el DOM)
+ *    8. PERSISTENCE     — leer/escribir preferencias del usuario
+ *    9. RENDER LAYER    — pintan el estado actual en el DOM
+ *   10. EVENT BINDINGS  — conectan inputs/botones a sus handlers
+ *   11. LIFECYCLE       — orquestación de arranque y refresco periódico
+ * ══════════════════════════════════════════════════════════════════════════
+ */
+(function () {
+  'use strict';
 
-let EXPENSES = [];
-let META = { corte:null, pago:null, limiteBanco:null };
+  // ┌──────────────────────────────────────────────────────────────────────┐
+  // │ 1. CONFIG                                                            │
+  // └──────────────────────────────────────────────────────────────────────┘
 
-const fmt = n => '$' + (n||0).toLocaleString('en-US',{minimumFractionDigits:2, maximumFractionDigits:2});
-const fmtDate = iso => { if(!iso) return '—'; const [y,m,d]=iso.split('-'); const meses=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC']; return `${d} ${meses[+m-1]} ${y.slice(2)}`; };
-const fmtDateShort = iso => { if(!iso) return '—'; const [y,m,d]=iso.split('-'); const meses=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']; return `${d} ${meses[+m-1]}`; };
+  /** ID y nombre de hoja del Google Sheet fuente de datos. */
+  const SHEET_ID = '1lTFi6NWYgzn_olV4usP4y2aWol_AnN096knpQ2rZ7Hk';
+  const SHEET_NAME = 'TARJETA';
 
-function parseDMY(str){
-  if(!str) return null;
-  const m = String(str).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if(!m) return null;
-  const [,d,mo,y] = m;
-  return `${y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`;
-}
+  /** Cada cuánto se vuelve a consultar el Sheet automáticamente (ms). */
+  const REFRESH_MS = 120000; // 2 minutos
 
-function parseMoney(v){
-  if(v === null || v === undefined) return null;
-  if(typeof v === 'number') return v;
-  const cleaned = String(v).replace(/[^0-9.\-]/g,'');
-  const n = parseFloat(cleaned);
-  return isNaN(n) ? null : n;
-}
+  /** Límite de pago personal usado la primera vez que se abre el dashboard. */
+  const DEFAULT_LIMITE = 200;
 
-/* ── Fetch en vivo desde Google Sheets (API gviz pública) ──
-   Columnas actuales A–F: FECHA, GASTOS, $, Fecha de Corte, Fecha de Pago, Total de permitido de Tarjeta
-───────────────────────────────────────────────────────────── */
-async function fetchSheet(){
-  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(SHEET_NAME)}&headers=1&_=${Date.now()}`;
-  const res = await fetch(url);
-  if(!res.ok) throw new Error('No se pudo leer la hoja (¿está compartida como "Cualquiera con el enlace"?)');
-  const text = await res.text();
-  const jsonStr = text.substring(text.indexOf('{'), text.lastIndexOf('}')+1);
-  const json = JSON.parse(jsonStr);
-  const rows = json.table.rows || [];
+  /** Perímetro (2πr, r=46) del anillo SVG de cuenta regresiva — ver <circle id="ring-progress">. */
+  const RING_CIRCUMFERENCE = 289;
 
-  const expenses = [];
-  let corte = null, pago = null, limiteBanco = null;
+  /** Un gasto se marca "inusual" si supera este múltiplo del promedio del ciclo. */
+  const OUTLIER_MULTIPLIER = 2;
+  /** ...y además supera este monto mínimo (evita marcar gastos chicos por ruido estadístico). */
+  const OUTLIER_MIN_AMOUNT = 15;
+  /** Mínimo de movimientos en el ciclo para que el análisis de outliers tenga sentido. */
+  const OUTLIER_MIN_SAMPLE = 3;
 
-  rows.forEach(row => {
-    const c = row.c || [];
-    const get = i => c[i] ? (c[i].f ?? c[i].v ?? null) : null;
+  /** Umbrales de urgencia para el badge de estado de pago (días restantes). */
+  const DUE_SOON_DAYS = 3;
+  const DUE_WARNING_DAYS = 7;
 
-    const fecha = parseDMY(get(0));
-    const gasto = get(1);
-    const monto = parseMoney(get(2));
-    if(!corte)       corte       = parseDMY(get(3));
-    if(!pago)        pago        = parseDMY(get(4));
-    if(!limiteBanco) limiteBanco = parseMoney(get(5));
+  /** Claves de window.storage — centralizadas para evitar strings mágicos repetidos. */
+  const STORAGE_KEYS = {
+    FECHAS_MANUAL: 'tarjeta:fechas-manual',
+    LIMITE: 'tarjeta:limite-pago',
+    META_AHORRO: 'tarjeta:meta-ahorro',
+    VEREDICTO: 'tarjeta:veredicto',
+  };
 
-    if(fecha && gasto && monto !== null){
-      expenses.push({ fecha, gasto: String(gasto).trim(), monto });
+  // ┌──────────────────────────────────────────────────────────────────────┐
+  // │ 2. STATE                                                             │
+  // └──────────────────────────────────────────────────────────────────────┘
+
+  /** Movimientos del ciclo actual, tal como vienen del Sheet. @type {{fecha:string, gasto:string, monto:number}[]} */
+  let EXPENSES = [];
+
+  /** Metadatos leídos del Sheet (columnas D-F): fecha de corte/pago y límite del banco. */
+  let META = { corte: null, pago: null, limiteBanco: null };
+
+  /** Última respuesta guardada al modal "¿podrás pagar?". @type {{total:number, answer:boolean}|null} */
+  let VERDICT = null;
+
+  /** Instancia activa del gráfico de ritmo de gasto (se destruye y recrea en cada render). */
+  let ritmoChart = null;
+
+  // ┌──────────────────────────────────────────────────────────────────────┐
+  // │ 3. DOM HELPERS                                                       │
+  // └──────────────────────────────────────────────────────────────────────┘
+
+  /** Atajo para document.getElementById — reduce ruido repetido en todo el archivo. */
+  const $ = (id) => document.getElementById(id);
+
+  /** Lee el límite de pago actual desde el input, con fallback seguro si está vacío/inválido. */
+  const getLimite = () => parseFloat($('input-limite').value) || DEFAULT_LIMITE;
+
+  // ┌──────────────────────────────────────────────────────────────────────┐
+  // │ 4. FORMATTERS — number/date → string para mostrar en pantalla        │
+  // └──────────────────────────────────────────────────────────────────────┘
+
+  /** Formatea un número como moneda USD: 1234.5 → "$1,234.50". */
+  const fmt = (n) => '$' + (n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const MESES_LARGO = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+  const MESES_CORTO = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+  /** ISO "YYYY-MM-DD" → "25 AGO 26" (para la tarjeta visual). */
+  const fmtDate = (iso) => {
+    if (!iso) return '—';
+    const [y, m, d] = iso.split('-');
+    return `${d} ${MESES_LARGO[+m - 1]} ${y.slice(2)}`;
+  };
+
+  /** ISO "YYYY-MM-DD" → "25 ago" (para la tabla y el eje del gráfico). */
+  const fmtDateShort = (iso) => {
+    if (!iso) return '—';
+    const [y, m, d] = iso.split('-');
+    return `${d} ${MESES_CORTO[+m - 1]}`;
+  };
+
+  // ┌──────────────────────────────────────────────────────────────────────┐
+  // │ 5. PARSERS — texto crudo del Sheet → tipos utilizables               │
+  // └──────────────────────────────────────────────────────────────────────┘
+
+  /**
+   * Convierte una fecha "DD/MM/YYYY" (formato del Sheet) a ISO "YYYY-MM-DD".
+   * @param {string} str
+   * @returns {string|null} null si el formato no coincide o el valor es vacío.
+   */
+  function parseDMY(str) {
+    if (!str) return null;
+    const match = String(str).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (!match) return null;
+    const [, d, mo, y] = match;
+    return `${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  }
+
+  /**
+   * Convierte un valor de celda ("$2.39", 2.39, " $ 2,39 ") a número.
+   * @param {string|number|null} v
+   * @returns {number|null} null si no se pudo interpretar como número.
+   */
+  function parseMoney(v) {
+    if (v === null || v === undefined) return null;
+    if (typeof v === 'number') return v;
+    const cleaned = String(v).replace(/[^0-9.\-]/g, '');
+    const n = parseFloat(cleaned);
+    return isNaN(n) ? null : n;
+  }
+
+  // ┌──────────────────────────────────────────────────────────────────────┐
+  // │ 6. DATA LAYER — comunicación con la fuente externa (Google Sheets)   │
+  // └──────────────────────────────────────────────────────────────────────┘
+
+  /**
+   * Descarga y parsea la hoja "TARJETA" vía la API pública gviz de Google Sheets.
+   * Columnas esperadas A–F: FECHA | GASTOS | $ | Fecha de Corte | Fecha de Pago | Total permitido.
+   * Requiere que el Sheet esté compartido como "Cualquiera con el enlace — Lector".
+   * @returns {Promise<{expenses: object[], corte: string|null, pago: string|null, limiteBanco: number|null}>}
+   */
+  async function fetchSheet() {
+    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(SHEET_NAME)}&headers=1&_=${Date.now()}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('No se pudo leer la hoja (¿está compartida como "Cualquiera con el enlace"?)');
+
+    const text = await res.text();
+    // La respuesta viene envuelta en "google.visualization.Query.setResponse({...});" — extraemos solo el JSON.
+    const jsonStr = text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1);
+    const rows = JSON.parse(jsonStr).table.rows || [];
+
+    const expenses = [];
+    let corte = null, pago = null, limiteBanco = null;
+
+    rows.forEach((row) => {
+      const cells = row.c || [];
+      const cell = (i) => (cells[i] ? (cells[i].f ?? cells[i].v ?? null) : null);
+
+      const fecha = parseDMY(cell(0));
+      const gasto = cell(1);
+      const monto = parseMoney(cell(2));
+
+      // Corte/pago/límite del banco solo aparecen en la primera fila con dato — tomamos el primero no vacío.
+      if (!corte) corte = parseDMY(cell(3));
+      if (!pago) pago = parseDMY(cell(4));
+      if (!limiteBanco) limiteBanco = parseMoney(cell(5));
+
+      if (fecha && gasto && monto !== null) {
+        expenses.push({ fecha, gasto: String(gasto).trim(), monto });
+      }
+    });
+
+    expenses.sort((a, b) => a.fecha.localeCompare(b.fecha));
+    return { expenses, corte, pago, limiteBanco };
+  }
+
+  // ┌──────────────────────────────────────────────────────────────────────┐
+  // │ 7. BUSINESS LOGIC — cálculos puros, sin efectos sobre el DOM         │
+  // └──────────────────────────────────────────────────────────────────────┘
+
+  /** Suma el total gastado en el ciclo actual. */
+  const totalTarjeta = () => EXPENSES.reduce((sum, e) => sum + e.monto, 0);
+
+  /** Diferencia en días completos entre dos fechas ISO (b - a). */
+  function daysBetween(a, b) {
+    const d1 = new Date(a + 'T00:00:00');
+    const d2 = new Date(b + 'T00:00:00');
+    return Math.round((d2 - d1) / 86400000);
+  }
+
+  /**
+   * Determina el rango de fechas del ciclo actual (corte → pago), con fallback
+   * a la fecha del primer/último gasto si el Sheet aún no tiene esas columnas llenas.
+   * @returns {{start:string, end:string, today:string}}
+   */
+  function cycleBounds() {
+    const corte = $('input-corte').value;
+    const pago = $('input-pago').value;
+    const today = new Date().toISOString().slice(0, 10);
+    const start = corte || (EXPENSES[0] ? EXPENSES[0].fecha : today);
+    const end = pago || start;
+    return { start, end, today };
+  }
+
+  /**
+   * Proyecta el total del ciclo al ritmo de gasto actual (promedio diario × días totales del ciclo).
+   * @returns {{start:string, end:string, today:string, total:number, daysElapsed:number,
+   *            daysTotal:number, avgPerDay:number, projectedTotal:number, daysRemaining:number}}
+   */
+  function computeProjection() {
+    const { start, end, today } = cycleBounds();
+    const total = totalTarjeta();
+    const daysElapsed = Math.max(daysBetween(start, today) + 1, 1);
+    const daysTotal = Math.max(daysBetween(start, end), daysElapsed);
+    const avgPerDay = total / daysElapsed;
+    const projectedTotal = avgPerDay * daysTotal;
+    const daysRemaining = Math.max(daysTotal - daysElapsed, 0);
+    return { start, end, today, total, daysElapsed, daysTotal, avgPerDay, projectedTotal, daysRemaining };
+  }
+
+  /**
+   * Un gasto es "inusual" si el ciclo tiene suficientes movimientos como para
+   * que un promedio sea significativo, y el monto duplica ese promedio.
+   * @param {number} monto
+   * @param {number} avg — promedio del ciclo, precalculado por el llamador.
+   */
+  function isOutlier(monto, avg) {
+    return EXPENSES.length >= OUTLIER_MIN_SAMPLE && monto > avg * OUTLIER_MULTIPLIER && monto > OUTLIER_MIN_AMOUNT;
+  }
+
+  // ┌──────────────────────────────────────────────────────────────────────┐
+  // │ 8. PERSISTENCE — preferencias del usuario en window.storage          │
+  // └──────────────────────────────────────────────────────────────────────┘
+
+  /**
+   * Carga el límite de pago guardado por el usuario. Si nunca lo definió,
+   * usa DEFAULT_LIMITE — así el campo nunca aparece vacío ni se resetea solo.
+   */
+  async function loadLimite() {
+    let limite = DEFAULT_LIMITE;
+    try {
+      const saved = await window.storage.get(STORAGE_KEYS.LIMITE);
+      if (saved && saved.value) limite = parseFloat(saved.value) || DEFAULT_LIMITE;
+    } catch (e) { /* primera visita: no hay valor guardado todavía */ }
+    $('input-limite').value = limite;
+  }
+
+  /** Persiste el límite de pago cada vez que el usuario lo edita. */
+  async function saveLimite() {
+    const limite = getLimite();
+    try {
+      await window.storage.set(STORAGE_KEYS.LIMITE, String(limite));
+      showToast('💾 Límite de pago guardado');
+    } catch (e) {
+      showToast('⚠️ No se pudo guardar el límite');
     }
-  });
-
-  expenses.sort((a,b)=> a.fecha.localeCompare(b.fecha));
-  return { expenses, corte, pago, limiteBanco };
-}
-
-/* ── Render ── */
-function renderTable(){
-  const body = document.getElementById('tbl-body');
-  if(EXPENSES.length === 0){
-    body.innerHTML = `<tr class="empty-row"><td colspan="3">Sin movimientos registrados en este ciclo</td></tr>`;
-    return;
-  }
-  body.innerHTML = EXPENSES.map(e => `
-    <tr>
-      <td class="figures">${fmtDateShort(e.fecha)}</td>
-      <td>${e.gasto}</td>
-      <td class="amt">${fmt(e.monto)}</td>
-    </tr>`).join('');
-}
-
-function totalTarjeta(){ return EXPENSES.reduce((s,e)=>s+e.monto,0); }
-
-function renderKpis(){
-  const total = totalTarjeta();
-  const limite = parseFloat(document.getElementById('input-limite').value) || 200;
-
-  document.getElementById('kpi-total').textContent = fmt(total);
-  document.getElementById('kpi-total-sub').textContent = `${EXPENSES.length} movimientos`;
-
-  document.getElementById('kpi-limite').textContent = `${fmt(total)} / ${fmt(limite)}`;
-  const pctLim = Math.min((total/limite)*100, 100);
-  const barLim = document.getElementById('bar-limite');
-  barLim.style.width = pctLim + '%';
-  barLim.style.background = total > limite ? 'var(--rose)' : pctLim > 75 ? 'var(--amber)' : 'var(--mint)';
-
-  const limiteBanco = META.limiteBanco || 0;
-  document.getElementById('kpi-banco').textContent = `${fmt(total)} / ${fmt(limiteBanco)}`;
-  const pctBanco = limiteBanco ? Math.min((total/limiteBanco)*100,100) : 0;
-  document.getElementById('bar-banco').style.width = pctBanco + '%';
-
-  if(EXPENSES.length){
-    document.getElementById('kpi-avg').textContent = fmt(total/EXPENSES.length);
-    const max = EXPENSES.reduce((a,b)=> b.monto > a.monto ? b : a);
-    document.getElementById('kpi-max-sub').textContent = 'mayor: ' + max.gasto;
-  } else {
-    document.getElementById('kpi-avg').textContent = fmt(0);
-    document.getElementById('kpi-max-sub').textContent = 'mayor: —';
-  }
-}
-
-function daysBetween(a,b){
-  const d1 = new Date(a+'T00:00:00'), d2 = new Date(b+'T00:00:00');
-  return Math.round((d2-d1)/86400000);
-}
-
-function updateCountdown(){
-  const corte = document.getElementById('input-corte').value;
-  const pago  = document.getElementById('input-pago').value;
-
-  document.getElementById('card-corte-val').textContent = corte ? fmtDate(corte) : '— — —';
-  document.getElementById('card-pago-val').textContent  = pago  ? fmtDate(pago)  : '— — —';
-
-  const ring = document.getElementById('ring-progress');
-  const daysLeftEl = document.getElementById('days-left');
-  const msgEl = document.getElementById('countdown-msg');
-  const badge = document.getElementById('status-badge');
-
-  if(!pago){
-    daysLeftEl.textContent = '—';
-    msgEl.textContent = 'Sin fecha de pago aún';
-    badge.textContent = 'Sin definir';
-    badge.style.background = 'var(--bg-2)'; badge.style.color = 'var(--text-mid)';
-    ring.style.strokeDashoffset = 289;
-    return;
   }
 
-  const today = new Date().toISOString().slice(0,10);
-  const diff = daysBetween(today, pago);
-  daysLeftEl.textContent = diff >= 0 ? diff : '0';
+  /**
+   * Resuelve fecha de corte/pago con prioridad: Sheet > guardado manual en el navegador.
+   * Actualiza también los badges "Sheet"/"Manual" junto a cada campo.
+   */
+  async function resolveDates() {
+    let localCorte = null, localPago = null;
+    try {
+      const saved = await window.storage.get(STORAGE_KEYS.FECHAS_MANUAL);
+      if (saved && saved.value) {
+        const d = JSON.parse(saved.value);
+        localCorte = d.corte;
+        localPago = d.pago;
+      }
+    } catch (e) { /* sin fechas manuales guardadas todavía */ }
 
-  const cicloTotal = corte ? Math.max(daysBetween(corte,pago),1) : 30;
-  const pct = Math.min(Math.max(diff/cicloTotal,0),1);
-  ring.style.strokeDashoffset = 289 - (289*pct);
+    const corte = META.corte || localCorte;
+    const pago = META.pago || localPago;
 
-  if(diff < 0){
-    msgEl.textContent = 'Fecha de pago vencida';
-    badge.textContent = '⚠ Vencido'; badge.style.background='var(--rose-soft)'; badge.style.color='var(--rose)'; ring.style.stroke='var(--rose)';
-  } else if(diff <= 3){
-    msgEl.textContent = `Vence el ${fmtDate(pago)}`;
-    badge.textContent = '🔴 Pago próximo'; badge.style.background='var(--rose-soft)'; badge.style.color='var(--rose)'; ring.style.stroke='var(--rose)';
-  } else if(diff <= 7){
-    msgEl.textContent = `Vence el ${fmtDate(pago)}`;
-    badge.textContent = '🟡 Se acerca'; badge.style.background='var(--amber-soft)'; badge.style.color='var(--amber)'; ring.style.stroke='var(--amber)';
-  } else {
-    msgEl.textContent = `Vence el ${fmtDate(pago)}`;
-    badge.textContent = '🟢 Al día'; badge.style.background='var(--mint-soft)'; badge.style.color='var(--mint)'; ring.style.stroke='var(--mint)';
-  }
-}
+    $('input-corte').value = corte || '';
+    $('input-pago').value = pago || '';
 
-/* ── Modal ¿podrás pagar? ── */
-let VERDICT = null; // { total, answer }
-async function loadVerdict(){
-  try{
-    const saved = await window.storage.get('tarjeta:veredicto');
-    VERDICT = saved && saved.value ? JSON.parse(saved.value) : null;
-  }catch(e){ VERDICT = null; }
-}
-async function saveVerdict(v){
-  VERDICT = v;
-  try{ await window.storage.set('tarjeta:veredicto', JSON.stringify(v)); }catch(e){}
-}
-function checkLimitAndPrompt(){
-  const total = totalTarjeta();
-  const limite = parseFloat(document.getElementById('input-limite').value) || 200;
-  const banner = document.getElementById('verdict-banner');
-
-  if(total <= limite){
-    banner.classList.remove('show');
-    document.getElementById('modal-overlay').classList.remove('show');
-    return;
+    $('src-corte').textContent = META.corte ? 'Sheet' : 'Manual';
+    $('src-corte').className = 'src' + (META.corte ? '' : ' local');
+    $('src-pago').textContent = META.pago ? 'Sheet' : 'Manual';
+    $('src-pago').className = 'src' + (META.pago ? '' : ' local');
   }
 
-  // Ya respondió para este mismo total exacto -> solo mostrar banner
-  if(VERDICT && Math.abs(VERDICT.total - total) < 0.01){
-    showVerdictBanner(VERDICT.answer, total, limite);
-    return;
-  }
-
-  // Nuevo exceso -> preguntar
-  document.getElementById('modal-total').textContent = fmt(total);
-  document.getElementById('modal-limite').textContent = fmt(limite);
-  document.getElementById('modal-overlay').classList.add('show');
-}
-function answerVerdict(canPay){
-  const total = totalTarjeta();
-  saveVerdict({ total, answer: canPay });
-  document.getElementById('modal-overlay').classList.remove('show');
-  const limite = parseFloat(document.getElementById('input-limite').value) || 200;
-  showVerdictBanner(canPay, total, limite);
-  if(!canPay) showToast('💡 Revisa tus gastos del mes para cuadrar el pago');
-}
-function showVerdictBanner(canPay, total, limite){
-  const banner = document.getElementById('verdict-banner');
-  const icon = document.getElementById('verdict-icon');
-  const text = document.getElementById('verdict-text');
-  banner.classList.add('show', canPay ? 'yes' : 'no');
-  banner.classList.remove(canPay ? 'no' : 'yes');
-  icon.textContent = canPay ? '✅' : '⚠️';
-  text.innerHTML = canPay
-    ? `Confirmaste que <b>sí puedes pagar</b> los ${fmt(total)} de este ciclo (límite: ${fmt(limite)}).`
-    : `Marcaste que <b>no podrás pagar</b> los ${fmt(total)} completos este ciclo. Ajusta tus gastos de este mes para cubrir la diferencia.`;
-}
-function resetVerdict(){
-  saveVerdict(null);
-  document.getElementById('verdict-banner').classList.remove('show');
-  checkLimitAndPrompt();
-}
-
-/* ── Fechas: prioriza el Sheet, cae a lo guardado localmente ── */
-async function resolveDates(){
-  let localCorte = null, localPago = null;
-  try{
-    const saved = await window.storage.get('tarjeta:fechas-manual');
-    if(saved && saved.value){ const d = JSON.parse(saved.value); localCorte = d.corte; localPago = d.pago; }
-  }catch(e){}
-
-  const corte = META.corte || localCorte;
-  const pago  = META.pago  || localPago;
-
-  document.getElementById('input-corte').value = corte || '';
-  document.getElementById('input-pago').value  = pago  || '';
-  document.getElementById('src-corte').textContent = META.corte ? 'Sheet' : 'Manual';
-  document.getElementById('src-corte').className = 'src' + (META.corte ? '' : ' local');
-  document.getElementById('src-pago').textContent  = META.pago  ? 'Sheet' : 'Manual';
-  document.getElementById('src-pago').className  = 'src' + (META.pago ? '' : ' local');
-}
-async function saveManualDates(){
-  const corte = document.getElementById('input-corte').value;
-  const pago  = document.getElementById('input-pago').value;
-  try{ await window.storage.set('tarjeta:fechas-manual', JSON.stringify({ corte, pago })); }catch(e){}
-  updateCountdown();
-  showToast('💾 Fecha guardada localmente');
-}
-document.getElementById('input-corte').addEventListener('change', saveManualDates);
-document.getElementById('input-pago').addEventListener('change', saveManualDates);
-document.getElementById('input-limite').addEventListener('change', () => { renderKpis(); checkLimitAndPrompt(); });
-
-/* ── Carga principal ── */
-async function loadData(showSpinner){
-  const btn = document.getElementById('btn-refresh');
-  if(showSpinner) btn.classList.add('spin');
-  try{
-    const { expenses, corte, pago, limiteBanco } = await fetchSheet();
-    EXPENSES = expenses;
-    META = { corte, pago, limiteBanco };
-    renderTable();
-    renderKpis();
-    await resolveDates();
+  /** Persiste las fechas de corte/pago cuando el Sheet aún no las trae. */
+  async function saveManualDates() {
+    const corte = $('input-corte').value;
+    const pago = $('input-pago').value;
+    try {
+      await window.storage.set(STORAGE_KEYS.FECHAS_MANUAL, JSON.stringify({ corte, pago }));
+    } catch (e) { /* falla silenciosa: no es crítico, el usuario puede reintentar */ }
     updateCountdown();
+    renderPredictivo();
+    renderChart();
+    showToast('💾 Fecha guardada localmente');
+  }
+
+  /** Carga la meta de ahorro y el monto ya ahorrado, guardados por el usuario. */
+  async function loadSavings() {
+    let meta = '', ahorrado = '';
+    try {
+      const saved = await window.storage.get(STORAGE_KEYS.META_AHORRO);
+      if (saved && saved.value) {
+        const d = JSON.parse(saved.value);
+        meta = d.meta ?? '';
+        ahorrado = d.ahorrado ?? '';
+      }
+    } catch (e) { /* sin meta guardada todavía */ }
+    $('input-meta').value = meta;
+    $('input-ahorrado').value = ahorrado;
+    renderSavings();
+  }
+
+  /** Persiste meta de ahorro + monto ahorrado. */
+  async function saveSavings() {
+    const meta = $('input-meta').value;
+    const ahorrado = $('input-ahorrado').value;
+    try {
+      await window.storage.set(STORAGE_KEYS.META_AHORRO, JSON.stringify({ meta, ahorrado }));
+    } catch (e) { /* falla silenciosa */ }
+    renderSavings();
+  }
+
+  /** Carga la última respuesta guardada al modal "¿podrás pagar?". */
+  async function loadVerdict() {
+    try {
+      const saved = await window.storage.get(STORAGE_KEYS.VEREDICTO);
+      VERDICT = saved && saved.value ? JSON.parse(saved.value) : null;
+    } catch (e) {
+      VERDICT = null;
+    }
+  }
+
+  /** Persiste la respuesta del usuario al modal "¿podrás pagar?". */
+  async function saveVerdict(v) {
+    VERDICT = v;
+    try {
+      await window.storage.set(STORAGE_KEYS.VEREDICTO, JSON.stringify(v));
+    } catch (e) { /* falla silenciosa */ }
+  }
+
+  // ┌──────────────────────────────────────────────────────────────────────┐
+  // │ 9. RENDER LAYER — pintan el STATE actual en el DOM                   │
+  // └──────────────────────────────────────────────────────────────────────┘
+
+  /** Pinta la tabla de movimientos, marcando gastos inusuales con un badge. */
+  function renderTable() {
+    const body = $('tbl-body');
+    if (EXPENSES.length === 0) {
+      body.innerHTML = `<tr class="empty-row"><td colspan="3">Sin movimientos registrados en este ciclo</td></tr>`;
+      return;
+    }
+    const avg = totalTarjeta() / EXPENSES.length;
+    body.innerHTML = EXPENSES.map((e) => `
+      <tr>
+        <td class="figures">${fmtDateShort(e.fecha)}</td>
+        <td>${e.gasto}${isOutlier(e.monto, avg) ? '<span class="tag-warn" title="Más del doble del promedio de este ciclo">⚠ inusual</span>' : ''}</td>
+        <td class="amt">${fmt(e.monto)}</td>
+      </tr>`).join('');
+  }
+
+  /** Pinta el header de la tarjeta visual + el anillo de cuenta regresiva de pago. */
+  function updateCountdown() {
+    const corte = $('input-corte').value;
+    const pago = $('input-pago').value;
+
+    $('card-corte-val').textContent = corte ? fmtDate(corte) : '— — —';
+    $('card-pago-val').textContent = pago ? fmtDate(pago) : '— — —';
+
+    const ring = $('ring-progress');
+    const daysLeftEl = $('days-left');
+    const msgEl = $('countdown-msg');
+    const badge = $('status-badge');
+
+    if (!pago) {
+      daysLeftEl.textContent = '—';
+      msgEl.textContent = 'Sin fecha de pago aún';
+      badge.textContent = 'Sin definir';
+      badge.style.background = 'var(--bg-2)';
+      badge.style.color = 'var(--text-mid)';
+      ring.style.strokeDashoffset = RING_CIRCUMFERENCE;
+      return;
+    }
+
+    const today = new Date().toISOString().slice(0, 10);
+    const diff = daysBetween(today, pago);
+    daysLeftEl.textContent = diff >= 0 ? diff : '0';
+
+    const cicloTotal = corte ? Math.max(daysBetween(corte, pago), 1) : 30;
+    const pct = Math.min(Math.max(diff / cicloTotal, 0), 1);
+    ring.style.strokeDashoffset = RING_CIRCUMFERENCE - RING_CIRCUMFERENCE * pct;
+
+    if (diff < 0) {
+      msgEl.textContent = 'Fecha de pago vencida';
+      badge.textContent = '⚠ Vencido'; badge.style.background = 'var(--rose-soft)'; badge.style.color = 'var(--rose)'; ring.style.stroke = 'var(--rose)';
+    } else if (diff <= DUE_SOON_DAYS) {
+      msgEl.textContent = `Vence el ${fmtDate(pago)}`;
+      badge.textContent = '🔴 Pago próximo'; badge.style.background = 'var(--rose-soft)'; badge.style.color = 'var(--rose)'; ring.style.stroke = 'var(--rose)';
+    } else if (diff <= DUE_WARNING_DAYS) {
+      msgEl.textContent = `Vence el ${fmtDate(pago)}`;
+      badge.textContent = '🟡 Se acerca'; badge.style.background = 'var(--amber-soft)'; badge.style.color = 'var(--amber)'; ring.style.stroke = 'var(--amber)';
+    } else {
+      msgEl.textContent = `Vence el ${fmtDate(pago)}`;
+      badge.textContent = '🟢 Al día'; badge.style.background = 'var(--mint-soft)'; badge.style.color = 'var(--mint)'; ring.style.stroke = 'var(--mint)';
+    }
+  }
+
+  /** Pinta las 4 tarjetas KPI (total, límite personal, límite banco, promedio). */
+  function renderKpis() {
+    const total = totalTarjeta();
+    const limite = getLimite();
+
+    $('kpi-total').textContent = fmt(total);
+    $('kpi-total-sub').textContent = `${EXPENSES.length} movimientos`;
+
+    $('kpi-limite').textContent = `${fmt(total)} / ${fmt(limite)}`;
+    const pctLim = Math.min((total / limite) * 100, 100);
+    const barLim = $('bar-limite');
+    barLim.style.width = pctLim + '%';
+    barLim.style.background = total > limite ? 'var(--rose)' : pctLim > 75 ? 'var(--amber)' : 'var(--mint)';
+
+    const limiteBanco = META.limiteBanco || 0;
+    $('kpi-banco').textContent = `${fmt(total)} / ${fmt(limiteBanco)}`;
+    const pctBanco = limiteBanco ? Math.min((total / limiteBanco) * 100, 100) : 0;
+    $('bar-banco').style.width = pctBanco + '%';
+
+    if (EXPENSES.length) {
+      $('kpi-avg').textContent = fmt(total / EXPENSES.length);
+      const max = EXPENSES.reduce((a, b) => (b.monto > a.monto ? b : a));
+      $('kpi-max-sub').textContent = 'mayor: ' + max.gasto;
+    } else {
+      $('kpi-avg').textContent = fmt(0);
+      $('kpi-max-sub').textContent = 'mayor: —';
+    }
+  }
+
+  /** Pinta las 3 métricas de análisis predictivo + el banner de alerta temprana. */
+  function renderPredictivo() {
+    const p = computeProjection();
+    const limite = getLimite();
+
+    const projEl = $('metric-proyeccion');
+    projEl.textContent = fmt(p.projectedTotal);
+    projEl.className = 'val figures ' + (p.projectedTotal > limite ? 'warn' : 'ok');
+    $('metric-proyeccion-sub').textContent = p.daysTotal > 0 ? `al día ${p.daysTotal} del ciclo` : 'sin fecha de corte/pago';
+
+    $('metric-ritmo').textContent = fmt(p.avgPerDay) + '/día';
+    $('metric-ritmo-sub').textContent = `en ${p.daysElapsed} día${p.daysElapsed === 1 ? '' : 's'} transcurridos`;
+
+    const restante = Math.max(limite - p.total, 0);
+    const permitido = p.daysRemaining > 0 ? restante / p.daysRemaining : 0;
+    const permEl = $('metric-permitido');
+    permEl.textContent = fmt(permitido) + '/día';
+    permEl.className = 'val figures ' + (p.total > limite ? 'warn' : '');
+    $('metric-permitido-sub').textContent = p.daysRemaining > 0 ? `en ${p.daysRemaining} días restantes` : 'ciclo por cerrar';
+
+    // Alerta temprana: se dispara solo si TODAVÍA no superaste el límite pero la
+    // proyección dice que lo harás — el banner rojo (checkLimitAndPrompt) cubre el caso reactivo.
+    const banner = $('predict-banner');
+    if (p.projectedTotal > limite && p.total <= limite && p.daysRemaining > 0) {
+      banner.classList.add('show');
+      $('predict-text').innerHTML = `Con tu ritmo actual (${fmt(p.avgPerDay)}/día) vas a cerrar el ciclo en <b>${fmt(p.projectedTotal)}</b>, por encima de tu límite de ${fmt(limite)}.`;
+    } else {
+      banner.classList.remove('show');
+    }
+  }
+
+  /**
+   * Construye el gráfico mixto (barras = gasto diario, líneas = acumulado real,
+   * proyección y línea de límite) usando Chart.js.
+   */
+  function renderChart() {
+    const { start, end, today } = cycleBounds();
+    const limite = getLimite();
+    $('legend-limite').textContent = limite.toFixed(0);
+
+    const lastDay = end && end < today ? end : today;
+
+    // Genera el eje X: un punto por cada día del ciclo (corte → pago).
+    const labels = [];
+    let d = start;
+    while (d <= end) {
+      labels.push(d);
+      if (d === end) break;
+      const next = new Date(d + 'T00:00:00');
+      next.setDate(next.getDate() + 1);
+      d = next.toISOString().slice(0, 10);
+    }
+    if (labels.length === 0) labels.push(start);
+
+    const dailyMap = {};
+    EXPENSES.forEach((e) => { dailyMap[e.fecha] = (dailyMap[e.fecha] || 0) + e.monto; });
+
+    const daily = [];
+    const acumuladoReal = [];
+    const proyeccion = [];
+    let running = 0;
+    const p = computeProjection();
+
+    labels.forEach((date) => {
+      const isPast = date <= lastDay;
+      const dailyValue = dailyMap[date] || 0;
+      daily.push(isPast ? dailyValue : null);
+
+      if (isPast) {
+        running += dailyValue;
+        acumuladoReal.push(running);
+        proyeccion.push(date === lastDay ? running : null); // conecta la proyección al último punto real
+      } else {
+        acumuladoReal.push(null);
+        const daysAhead = daysBetween(lastDay, date);
+        proyeccion.push(running + p.avgPerDay * daysAhead);
+      }
+    });
+
+    if (ritmoChart) ritmoChart.destroy();
+    ritmoChart = new Chart($('chart-ritmo'), {
+      data: {
+        labels: labels.map(fmtDateShort),
+        datasets: [
+          { type: 'bar', label: 'Gasto diario', data: daily, backgroundColor: 'rgba(201,162,75,.55)', yAxisID: 'y', borderRadius: 3, barThickness: 10 },
+          { type: 'line', label: 'Acumulado real', data: acumuladoReal, borderColor: '#4fd1ae', backgroundColor: 'transparent', yAxisID: 'y1', tension: .25, spanGaps: false, pointRadius: 2 },
+          { type: 'line', label: 'Proyección', data: proyeccion, borderColor: '#94a3ff', borderDash: [5, 4], backgroundColor: 'transparent', yAxisID: 'y1', tension: .25, spanGaps: true, pointRadius: 0 },
+          { type: 'line', label: 'Límite', data: labels.map(() => limite), borderColor: '#e2536b', borderWidth: 1.5, borderDash: [3, 3], backgroundColor: 'transparent', yAxisID: 'y1', pointRadius: 0 },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${c.raw != null ? fmt(c.raw) : '—'}` } },
+        },
+        scales: {
+          x: { grid: { color: '#242a38' }, ticks: { color: '#5c6272', font: { size: 10 } } },
+          y: { position: 'left', grid: { display: false }, ticks: { color: '#5c6272', font: { size: 9 } } },
+          y1: { position: 'right', grid: { color: '#242a38' }, ticks: { color: '#5c6272', font: { size: 9 } } },
+        },
+      },
+    });
+  }
+
+  /** Pinta el panel de meta de ahorro (progreso + sugerencia textual). */
+  function renderSavings() {
+    const meta = parseFloat($('input-meta').value) || 0;
+    const ahorrado = parseFloat($('input-ahorrado').value) || 0;
+    const limite = getLimite();
+    const total = totalTarjeta();
+    const margen = Math.max(limite - total, 0);
+
+    $('savings-progress-text').textContent = `${fmt(ahorrado)} / ${fmt(meta)}`;
+    const pct = meta > 0 ? Math.min((ahorrado / meta) * 100, 100) : 0;
+    const bar = $('bar-savings');
+    bar.style.width = pct + '%';
+    bar.style.background = pct >= 100 ? 'var(--mint)' : pct >= 50 ? 'var(--brass)' : 'var(--amber)';
+
+    const hint = $('savings-hint');
+    if (meta <= 0) {
+      hint.textContent = 'Define una meta para hacerle seguimiento.';
+    } else if (ahorrado >= meta) {
+      hint.textContent = '🎉 Meta alcanzada este mes.';
+    } else {
+      hint.textContent = `Vas gastando ${fmt(total)} de tu límite de ${fmt(limite)} — te quedan ${fmt(margen)} de margen que podrías destinar a tu meta.`;
+    }
+  }
+
+  /**
+   * Compara el total gastado contra el límite personal y decide qué mostrar:
+   * nada (si vas bien), el banner con la última respuesta guardada, o el
+   * modal preguntando si podrás pagar (solo la primera vez que se cruza el límite).
+   */
+  function checkLimitAndPrompt() {
+    const total = totalTarjeta();
+    const limite = getLimite();
+
+    if (total <= limite) {
+      $('verdict-banner').classList.remove('show');
+      $('modal-overlay').classList.remove('show');
+      return;
+    }
+
+    // Ya respondió para este mismo total exacto → solo mostrar el banner, no volver a preguntar.
+    if (VERDICT && Math.abs(VERDICT.total - total) < 0.01) {
+      showVerdictBanner(VERDICT.answer, total, limite);
+      return;
+    }
+
+    // Nuevo exceso (o el total cambió desde la última respuesta) → preguntar de nuevo.
+    $('modal-total').textContent = fmt(total);
+    $('modal-limite').textContent = fmt(limite);
+    $('modal-overlay').classList.add('show');
+  }
+
+  /** Handler de los botones Sí/No del modal "¿podrás pagar?". */
+  function answerVerdict(canPay) {
+    const total = totalTarjeta();
+    saveVerdict({ total, answer: canPay });
+    $('modal-overlay').classList.remove('show');
+    showVerdictBanner(canPay, total, getLimite());
+    if (!canPay) showToast('💡 Revisa tus gastos del mes para cuadrar el pago');
+  }
+
+  /** Pinta el banner verde/rojo con el resultado de la última respuesta al modal. */
+  function showVerdictBanner(canPay, total, limite) {
+    const banner = $('verdict-banner');
+    banner.classList.add('show', canPay ? 'yes' : 'no');
+    banner.classList.remove(canPay ? 'no' : 'yes');
+    $('verdict-icon').textContent = canPay ? '✅' : '⚠️';
+    $('verdict-text').innerHTML = canPay
+      ? `Confirmaste que <b>sí puedes pagar</b> los ${fmt(total)} de este ciclo (límite: ${fmt(limite)}).`
+      : `Marcaste que <b>no podrás pagar</b> los ${fmt(total)} completos este ciclo. Ajusta tus gastos de este mes para cubrir la diferencia.`;
+  }
+
+  /** Botón "Volver a preguntar" del banner de veredicto: borra la respuesta guardada. */
+  function resetVerdict() {
+    saveVerdict(null);
+    $('verdict-banner').classList.remove('show');
     checkLimitAndPrompt();
-    document.getElementById('last-update').textContent =
-      'Actualizado ' + new Date().toLocaleTimeString('es-SV',{hour:'2-digit',minute:'2-digit'});
-  }catch(err){
-    console.error(err);
-    document.getElementById('last-update').textContent = 'Error de conexión';
-    showToast('⚠️ No se pudo leer el Sheet — revisa que esté compartido como "Cualquiera con el enlace"');
-    throw err;
-  }finally{
-    if(showSpinner) setTimeout(()=>btn.classList.remove('spin'), 500);
   }
-}
-function manualRefresh(){ loadData(true).then(()=>showToast('🔄 Datos actualizados')); }
 
-function showToast(msg){
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'), 3200);
-}
-
-window.addEventListener('DOMContentLoaded', async () => {
-  await loadVerdict();
-  try{
-    await loadData(false);
-  }catch(err){
-    document.getElementById('sheet-error').style.display = 'block';
-    document.getElementById('sheet-error').textContent =
-      'No se pudo conectar con la hoja "TARJETA". Verifica que el archivo de Google Sheets esté compartido como "Cualquiera con el enlace — Lector".';
-    document.getElementById('loading-msg').style.display = 'none';
-  }finally{
-    const overlay = document.getElementById('loading-overlay');
-    overlay.classList.add('fade-out');
-    setTimeout(()=>overlay.remove(), 500);
+  /** Muestra un mensaje flotante breve en la esquina inferior. */
+  function showToast(msg) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3200);
   }
-  setInterval(() => loadData(false).catch(()=>{}), REFRESH_MS);
-});
+
+  // ┌──────────────────────────────────────────────────────────────────────┐
+  // │ 10. ORCHESTRATION — combina data layer + render layer                │
+  // └──────────────────────────────────────────────────────────────────────┘
+
+  /**
+   * Ciclo completo de actualización: trae datos frescos del Sheet y repinta
+   * todo el dashboard. Se llama al cargar la página, cada REFRESH_MS, y al
+   * presionar "Actualizar".
+   * @param {boolean} showSpinner — true si el refresco fue manual (anima el botón).
+   */
+  async function loadData(showSpinner) {
+    const btn = $('btn-refresh');
+    if (showSpinner) btn.classList.add('spin');
+
+    try {
+      const { expenses, corte, pago, limiteBanco } = await fetchSheet();
+      EXPENSES = expenses;
+      META = { corte, pago, limiteBanco };
+
+      renderTable();
+      renderKpis();
+      await resolveDates();
+      updateCountdown();
+      renderPredictivo();
+      renderChart();
+      renderSavings();
+      checkLimitAndPrompt();
+
+      $('last-update').textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' });
+    } catch (err) {
+      console.error(err);
+      $('last-update').textContent = 'Error de conexión';
+      showToast('⚠️ No se pudo leer el Sheet — revisa que esté compartido como "Cualquiera con el enlace"');
+      throw err; // se re-lanza para que el llamador (init) pueda mostrar el panel de error
+    } finally {
+      if (showSpinner) setTimeout(() => btn.classList.remove('spin'), 500);
+    }
+  }
+
+  /** Handler del botón "Actualizar": fuerza un refresco inmediato con feedback visual. */
+  function manualRefresh() {
+    loadData(true).then(() => showToast('🔄 Datos actualizados'));
+  }
+
+  // ┌──────────────────────────────────────────────────────────────────────┐
+  // │ 11. EVENT BINDINGS — conecta el DOM a los handlers de arriba         │
+  // └──────────────────────────────────────────────────────────────────────┘
+
+  /** Registra todos los listeners de la app en un solo lugar (nada de onclick inline en el HTML). */
+  function bindEvents() {
+    $('btn-refresh').addEventListener('click', manualRefresh);
+    $('btn-reset-verdict').addEventListener('click', resetVerdict);
+    $('btn-answer-no').addEventListener('click', () => answerVerdict(false));
+    $('btn-answer-yes').addEventListener('click', () => answerVerdict(true));
+
+    $('input-corte').addEventListener('change', saveManualDates);
+    $('input-pago').addEventListener('change', saveManualDates);
+
+    $('input-limite').addEventListener('change', () => {
+      saveLimite();
+      renderKpis();
+      renderPredictivo();
+      renderChart();
+      renderSavings();
+      checkLimitAndPrompt();
+    });
+
+    $('input-meta').addEventListener('change', saveSavings);
+    $('input-ahorrado').addEventListener('change', saveSavings);
+  }
+
+  // ┌──────────────────────────────────────────────────────────────────────┐
+  // │ 12. LIFECYCLE — arranque de la aplicación                            │
+  // └──────────────────────────────────────────────────────────────────────┘
+
+  /** Punto de entrada: carga preferencias guardadas, conecta eventos, trae datos, arranca el polling. */
+  async function init() {
+    bindEvents();
+
+    // Preferencias del usuario primero — así los inputs ya tienen su valor
+    // guardado antes del primer render con datos del Sheet.
+    await loadLimite();
+    await loadVerdict();
+    await loadSavings();
+
+    try {
+      await loadData(false);
+    } catch (err) {
+      $('sheet-error').style.display = 'block';
+      $('sheet-error').textContent =
+        'No se pudo conectar con la hoja "TARJETA". Verifica que el archivo de Google Sheets esté compartido como "Cualquiera con el enlace — Lector".';
+      $('loading-msg').style.display = 'none';
+    } finally {
+      const overlay = $('loading-overlay');
+      overlay.classList.add('fade-out');
+      setTimeout(() => overlay.remove(), 500);
+    }
+
+    setInterval(() => loadData(false).catch(() => {}), REFRESH_MS);
+  }
+
+  window.addEventListener('DOMContentLoaded', init);
+})();
 </script>
 </body>
 </html>

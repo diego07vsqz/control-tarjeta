@@ -17,6 +17,23 @@
     --text:#eef0f4; --text-mid:#9aa1b0; --text-dim:#5c6272;
     --r-sm:8px; --r-md:14px; --r-lg:20px;
   }
+  /* ── Tema claro — el header y la tarjeta visual se mantienen oscuros
+     a propósito (identidad de marca), solo cambia el cuerpo del dashboard. */
+  [data-theme="light"]{
+    --bg:#f5f3ee; --bg-2:#ffffff; --card:#ffffff; --card-hover:#f0ede4;
+    --line:#e3ded2; --line-soft:#ece7db;
+    --text:#1c1b18; --text-mid:#635d51; --text-dim:#948d7d;
+  }
+  [data-theme="light"] body{
+    background:
+      radial-gradient(circle at 15% 0%, rgba(201,162,75,.05), transparent 40%),
+      radial-gradient(circle at 85% 10%, rgba(79,209,174,.04), transparent 35%),
+      var(--bg);
+  }
+  [data-theme="light"] .date-edit input{ color-scheme:light; }
+  [data-theme="light"] tbody tr:hover td{ background:rgba(0,0,0,.02); }
+  body{ transition:background-color .25s ease, color .25s ease; }
+  .kpi, .panel, .countdown-card, .date-edit, .modal, .toast{ transition:background-color .25s ease, border-color .25s ease; }
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   body{
     background:
@@ -64,6 +81,14 @@
   .btn-refresh:hover{background:rgba(201,162,75,.2); transform:translateY(-1px);}
   .btn-refresh svg{transition:transform .5s;}
   .btn-refresh.spin svg{transform:rotate(360deg);}
+
+  .btn-theme{
+    display:flex; align-items:center; justify-content:center; width:32px; height:32px;
+    background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1);
+    border-radius:var(--r-sm); color:rgba(255,255,255,.75); cursor:pointer; transition:background .2s;
+  }
+  .btn-theme:hover{background:rgba(255,255,255,.12);}
+  .btn-theme svg{display:block;}
 
   main{max-width:1240px; margin:0 auto; padding:34px 40px;}
 
@@ -124,10 +149,24 @@
   .section-title{display:flex; align-items:center; gap:10px; margin:0 0 16px; font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:var(--text-mid);}
   .section-title::after{content:''; flex:1; height:1px; background:var(--line);}
 
+  .table-toolbar{display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:16px;}
+  .table-toolbar .section-title{margin:0; border:none; flex-shrink:0;}
+  .table-toolbar .section-title::after{display:none;}
+  .input-search{
+    background:var(--bg-2); border:1px solid var(--line); border-radius:8px; color:var(--text);
+    font-family:'Inter',sans-serif; font-size:12.5px; padding:7px 12px; width:200px;
+  }
+  .input-search:focus{outline:none; border-color:var(--brass);}
+  .input-search::placeholder{color:var(--text-dim);}
+
   .panel{background:var(--card); border:1px solid var(--line); border-radius:var(--r-lg); padding:22px 24px;}
 
   table{width:100%; border-collapse:collapse; font-size:13px;}
   thead th{text-align:left; font-size:10.5px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.06em; font-weight:600; padding:0 10px 10px; border-bottom:1px solid var(--line);}
+  thead th.sortable{cursor:pointer; user-select:none; transition:color .15s;}
+  thead th.sortable:hover{color:var(--text);}
+  thead th.sortable .arrow{display:inline-block; margin-left:4px; opacity:.35; font-size:9px;}
+  thead th.sortable.active .arrow{opacity:1; color:var(--brass);}
   tbody td{padding:11px 10px; border-bottom:1px solid var(--line-soft); vertical-align:middle;}
   tbody tr:last-child td{border-bottom:none;}
   tbody tr:hover td{background:rgba(255,255,255,.015);}
@@ -199,6 +238,9 @@
   </div>
   <div class="header-right">
     <div class="pill"><span class="dot-live"></span> <span id="last-update">—</span></div>
+    <button class="btn-theme" id="btn-theme" title="Cambiar tema">
+      <svg id="theme-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
     <button class="btn-refresh" id="btn-refresh">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
       Actualizar
@@ -301,9 +343,18 @@
 
   <!-- ── Tabla ── -->
   <div class="panel" style="margin-bottom:28px;">
-    <div class="section-title">Movimientos del ciclo (en vivo desde Sheets)</div>
+    <div class="table-toolbar">
+      <div class="section-title">Movimientos del ciclo (en vivo desde Sheets)</div>
+      <input type="text" class="input-search" id="input-search" placeholder="Buscar gasto…">
+    </div>
     <table>
-      <thead><tr><th>Fecha</th><th>Gasto</th><th style="text-align:right">Monto</th></tr></thead>
+      <thead>
+        <tr>
+          <th class="sortable" data-key="fecha">Fecha <span class="arrow">▲</span></th>
+          <th class="sortable" data-key="gasto">Gasto <span class="arrow">▲</span></th>
+          <th class="sortable" data-key="monto" style="text-align:right">Monto <span class="arrow">▲</span></th>
+        </tr>
+      </thead>
       <tbody id="tbl-body"><tr class="empty-row"><td colspan="3">Cargando…</td></tr></tbody>
     </table>
   </div>
@@ -381,6 +432,7 @@
     FECHAS_MANUAL: 'tarjeta:fechas-manual',
     LIMITE: 'tarjeta:limite-pago',
     VEREDICTO: 'tarjeta:veredicto',
+    THEME: 'tarjeta:theme',
   };
 
   // ┌──────────────────────────────────────────────────────────────────────┐
@@ -395,6 +447,12 @@
 
   /** Última respuesta guardada al modal "¿podrás pagar?". @type {{total:number, answer:boolean}|null} */
   let VERDICT = null;
+
+  /** Texto actual del buscador de la tabla (case-insensitive, filtra por nombre de gasto). */
+  let TABLE_FILTER = '';
+
+  /** Columna y dirección de orden actual de la tabla de movimientos. */
+  let SORT_STATE = { key: 'fecha', dir: 'asc' };
 
   // ┌──────────────────────────────────────────────────────────────────────┐
   // │ 3. DOM HELPERS                                                       │
@@ -512,6 +570,24 @@
   /** Suma el total gastado en el ciclo actual. */
   const totalTarjeta = () => EXPENSES.reduce((sum, e) => sum + e.monto, 0);
 
+  /**
+   * Aplica TABLE_FILTER (búsqueda por nombre) y SORT_STATE (columna + dirección)
+   * sobre EXPENSES, sin mutar el arreglo original. Pura: no toca el DOM.
+   * @returns {object[]}
+   */
+  function getVisibleExpenses() {
+    const query = TABLE_FILTER.trim().toLowerCase();
+    const filtered = query ? EXPENSES.filter((e) => e.gasto.toLowerCase().includes(query)) : EXPENSES.slice();
+
+    const { key, dir } = SORT_STATE;
+    const factor = dir === 'asc' ? 1 : -1;
+    filtered.sort((a, b) => {
+      if (key === 'monto') return (a.monto - b.monto) * factor;
+      return a[key].localeCompare(b[key]) * factor;
+    });
+    return filtered;
+  }
+
   /** Diferencia en días completos entre dos fechas ISO (b - a). */
   function daysBetween(a, b) {
     const d1 = new Date(a + 'T00:00:00');
@@ -603,23 +679,62 @@
     } catch (e) { /* falla silenciosa */ }
   }
 
+  /** Carga el tema guardado (default: oscuro) y lo aplica antes del primer render. */
+  async function loadTheme() {
+    let theme = 'dark';
+    try {
+      const saved = await window.storage.get(STORAGE_KEYS.THEME);
+      if (saved && saved.value) theme = saved.value;
+    } catch (e) { /* primera visita: usa el tema oscuro por defecto */ }
+    applyTheme(theme);
+  }
+
+  /** Aplica un tema al documento y actualiza el ícono del botón (sol/luna). */
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    $('theme-icon').innerHTML = theme === 'light'
+      ? '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>' // sol
+      : '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>'; // luna
+  }
+
+  /** Alterna entre tema oscuro y claro, y persiste la elección. */
+  async function toggleTheme() {
+    const current = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+    const next = current === 'light' ? 'dark' : 'light';
+    applyTheme(next);
+    try { await window.storage.set(STORAGE_KEYS.THEME, next); } catch (e) { /* falla silenciosa */ }
+  }
+
   // ┌──────────────────────────────────────────────────────────────────────┐
   // │ 9. RENDER LAYER — pintan el STATE actual en el DOM                   │
   // └──────────────────────────────────────────────────────────────────────┘
 
-  /** Pinta la tabla de movimientos. */
+  /** Pinta la tabla de movimientos, aplicando el filtro de búsqueda y el orden activo. */
   function renderTable() {
     const body = $('tbl-body');
-    if (EXPENSES.length === 0) {
-      body.innerHTML = `<tr class="empty-row"><td colspan="3">Sin movimientos registrados en este ciclo</td></tr>`;
-      return;
+    const rows = getVisibleExpenses();
+
+    if (rows.length === 0) {
+      const msg = TABLE_FILTER ? 'Sin resultados para tu búsqueda' : 'Sin movimientos registrados en este ciclo';
+      body.innerHTML = `<tr class="empty-row"><td colspan="3">${msg}</td></tr>`;
+    } else {
+      body.innerHTML = rows.map((e) => `
+        <tr>
+          <td class="figures">${fmtDateShort(e.fecha)}</td>
+          <td>${e.gasto}</td>
+          <td class="amt">${fmt(e.monto)}</td>
+        </tr>`).join('');
     }
-    body.innerHTML = EXPENSES.map((e) => `
-      <tr>
-        <td class="figures">${fmtDateShort(e.fecha)}</td>
-        <td>${e.gasto}</td>
-        <td class="amt">${fmt(e.monto)}</td>
-      </tr>`).join('');
+    renderSortIndicators();
+  }
+
+  /** Marca en el encabezado de la tabla qué columna está activa y en qué dirección. */
+  function renderSortIndicators() {
+    document.querySelectorAll('thead th.sortable').forEach((th) => {
+      const isActive = th.dataset.key === SORT_STATE.key;
+      th.classList.toggle('active', isActive);
+      th.querySelector('.arrow').textContent = isActive && SORT_STATE.dir === 'desc' ? '▼' : '▲';
+    });
   }
 
   /** Pinta el header de la tarjeta visual + el anillo de cuenta regresiva de pago. */
@@ -807,6 +922,7 @@
   /** Registra todos los listeners de la app en un solo lugar (nada de onclick inline en el HTML). */
   function bindEvents() {
     $('btn-refresh').addEventListener('click', manualRefresh);
+    $('btn-theme').addEventListener('click', toggleTheme);
     $('btn-reset-verdict').addEventListener('click', resetVerdict);
     $('btn-answer-no').addEventListener('click', () => answerVerdict(false));
     $('btn-answer-yes').addEventListener('click', () => answerVerdict(true));
@@ -819,6 +935,26 @@
       renderKpis();
       checkLimitAndPrompt();
     });
+
+    // Búsqueda en vivo: filtra la tabla en cada tecla, sin esperar submit.
+    $('input-search').addEventListener('input', (e) => {
+      TABLE_FILTER = e.target.value;
+      renderTable();
+    });
+
+    // Orden de tabla: click en un encabezado ordenable alterna asc/desc,
+    // o cambia de columna (reinicia a ascendente) si se hace click en otra.
+    document.querySelectorAll('thead th.sortable').forEach((th) => {
+      th.addEventListener('click', () => {
+        const key = th.dataset.key;
+        if (SORT_STATE.key === key) {
+          SORT_STATE.dir = SORT_STATE.dir === 'asc' ? 'desc' : 'asc';
+        } else {
+          SORT_STATE = { key, dir: 'asc' };
+        }
+        renderTable();
+      });
+    });
   }
 
   // ┌──────────────────────────────────────────────────────────────────────┐
@@ -828,6 +964,9 @@
   /** Punto de entrada: carga preferencias guardadas, conecta eventos, trae datos, arranca el polling. */
   async function init() {
     bindEvents();
+
+    // El tema se aplica primero para evitar cualquier parpadeo de color al cargar.
+    await loadTheme();
 
     // Preferencias del usuario primero — así los inputs ya tienen su valor
     // guardado antes del primer render con datos del Sheet.

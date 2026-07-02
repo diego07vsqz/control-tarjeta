@@ -132,9 +132,62 @@ async function sendAlertEmail({ total, limitePersonal, pago, daysLeft }) {
   });
 }
 
+/**
+ * Envía un correo de prueba real (mismas credenciales, mismo remitente/destinatario)
+ * sin evaluar condiciones y sin tocar el archivo de estado. Sirve para validar que
+ * GMAIL_USER / GMAIL_APP_PASSWORD / ALERT_EMAIL_TO están bien configurados, sin
+ * tener que esperar a que se cumplan las condiciones reales del ciclo.
+ */
+async function sendTestEmail({ total, limitePersonal, pago }) {
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_APP_PASSWORD,
+    },
+  });
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;background:#14171f;color:#eef0f4;padding:28px;border-radius:14px;max-width:480px;margin:0 auto;">
+      <h2 style="color:#4fd1ae;margin:0 0 14px;font-size:19px;">🧪 Correo de prueba — Control de Tarjeta</h2>
+      <p style="line-height:1.6;margin:0 0 10px;">
+        Si estás leyendo esto, tu configuración de GitHub Secrets (<code>GMAIL_USER</code>,
+        <code>GMAIL_APP_PASSWORD</code>, <code>ALERT_EMAIL_TO</code>) funciona correctamente.
+      </p>
+      <p style="line-height:1.6;margin:0 0 10px;color:#9aa1b0;">
+        Datos actuales leídos del Sheet (informativo, no dispararon esta alerta):<br>
+        Gastado: $${total.toFixed(2)} · Límite personal: $${limitePersonal.toFixed(2)} · Fecha de pago: ${pago}
+      </p>
+      <p style="color:#9aa1b0;font-size:12.5px;margin:0;">
+        Este correo se generó manualmente en modo de prueba y no afecta el historial de alertas reales.
+      </p>
+    </div>`;
+
+  await transporter.sendMail({
+    from: `"Control de Tarjeta" <${process.env.GMAIL_USER}>`,
+    to: process.env.ALERT_EMAIL_TO,
+    subject: '🧪 Prueba — Control de Tarjeta',
+    html,
+  });
+}
+
 // ── MAIN ────────────────────────────────────────────────────────────────
 (async () => {
   const { total, pago, limitePersonal } = await fetchSheet();
+
+  // Modo de prueba: envía un correo real de inmediato, usando los datos que
+  // haya disponibles del Sheet (o valores de ejemplo si aún faltan), sin
+  // evaluar condiciones ni tocar el estado de alertas del ciclo real.
+  if (process.env.TEST_MODE === 'true') {
+    console.log('🧪 TEST_MODE activo — enviando correo de prueba sin evaluar condiciones.');
+    await sendTestEmail({
+      total: total ?? 0,
+      limitePersonal: limitePersonal ?? 0,
+      pago: pago ?? 'sin definir',
+    });
+    console.log('✅ Correo de prueba enviado a ' + process.env.ALERT_EMAIL_TO);
+    return;
+  }
 
   if (!pago || !limitePersonal) {
     console.log('Faltan datos en el Sheet (fecha de pago o "Mi límite personal" en la columna G) — no se evalúa alerta.');

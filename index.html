@@ -298,6 +298,17 @@
   thead th.sortable:hover{color:var(--text);}
   thead th.sortable .arrow{display:inline-block; margin-left:4px; opacity:.35; font-size:9px;}
   thead th.sortable.active .arrow{opacity:1; color:var(--brass);}
+
+  .table-wrap{touch-action:pan-y;}
+  .table-pagination{display:flex; align-items:center; justify-content:center; gap:16px; margin-top:16px; padding-top:14px; border-top:1px solid var(--line);}
+  .page-btn{
+    width:30px; height:30px; border-radius:50%; background:var(--bg-2); border:1px solid var(--line); color:var(--text);
+    font-size:15px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    transition:transform .2s cubic-bezier(.2,.8,.2,1), background .2s, opacity .2s;
+  }
+  .page-btn:hover:not(:disabled){background:var(--card-hover); transform:scale(1.08);}
+  .page-btn:disabled{opacity:.3; cursor:not-allowed;}
+  .page-indicator{font-size:11.5px; color:var(--text-mid); font-family:'JetBrains Mono',monospace; min-width:110px; text-align:center;}
   tbody td{padding:11px 10px; border-bottom:1px solid var(--line-soft); vertical-align:middle;}
   tbody tr:last-child td{border-bottom:none;}
   tbody tr:hover td{background:rgba(255,255,255,.015);}
@@ -563,16 +574,23 @@
       <div class="section-title">Movimientos del ciclo (en vivo desde Sheets)</div>
       <input type="text" class="input-search" id="input-search" placeholder="Buscar gasto…">
     </div>
-    <table>
-      <thead>
-        <tr>
-          <th class="sortable" data-key="fecha">Fecha <span class="arrow">▲</span></th>
-          <th class="sortable" data-key="gasto">Gasto <span class="arrow">▲</span></th>
-          <th class="sortable" data-key="monto" style="text-align:right">Monto <span class="arrow">▲</span></th>
-        </tr>
-      </thead>
-      <tbody id="tbl-body"><tr class="empty-row"><td colspan="3">Cargando…</td></tr></tbody>
-    </table>
+    <div class="table-wrap" id="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="sortable" data-key="fecha">Fecha <span class="arrow">▲</span></th>
+            <th class="sortable" data-key="gasto">Gasto <span class="arrow">▲</span></th>
+            <th class="sortable" data-key="monto" style="text-align:right">Monto <span class="arrow">▲</span></th>
+          </tr>
+        </thead>
+        <tbody id="tbl-body"><tr class="empty-row"><td colspan="3">Cargando…</td></tr></tbody>
+      </table>
+    </div>
+    <div class="table-pagination" id="table-pagination">
+      <button class="page-btn" id="btn-page-prev" title="Más recientes">‹</button>
+      <span class="page-indicator" id="page-indicator">Página 1 de 1</span>
+      <button class="page-btn" id="btn-page-next" title="Más antiguos">›</button>
+    </div>
   </div>
 
 </main>
@@ -691,7 +709,11 @@
   let TABLE_FILTER = '';
 
   /** Columna y dirección de orden actual de la tabla de movimientos. */
-  let SORT_STATE = { key: 'fecha', dir: 'asc' };
+  let SORT_STATE = { key: 'fecha', dir: 'desc' };
+
+  /** Página actual de la tabla de movimientos y cuántas filas se muestran por página. */
+  let CURRENT_PAGE = 1;
+  const PAGE_SIZE = 10;
 
   // ┌──────────────────────────────────────────────────────────────────────┐
   // │ 3. DOM HELPERS                                                       │
@@ -1063,33 +1085,52 @@
   // │ 9. RENDER LAYER — pintan el STATE actual en el DOM                   │
   // └──────────────────────────────────────────────────────────────────────┘
 
-  /** Pinta la tabla de movimientos, aplicando el filtro de búsqueda y el orden activo. */
+  /** Pinta la tabla de movimientos, aplicando filtro, orden y la página actual (10 filas). */
   function renderTable() {
     const body = $('tbl-body');
-    const rows = getVisibleExpenses();
+    const allRows = getVisibleExpenses();
 
-    if (rows.length === 0) {
+    const totalPages = Math.max(Math.ceil(allRows.length / PAGE_SIZE), 1);
+    CURRENT_PAGE = Math.min(Math.max(CURRENT_PAGE, 1), totalPages);
+    const start = (CURRENT_PAGE - 1) * PAGE_SIZE;
+    const rows = allRows.slice(start, start + PAGE_SIZE);
+
+    if (allRows.length === 0) {
       const msg = TABLE_FILTER ? 'Sin resultados para tu búsqueda' : 'Sin movimientos registrados en este ciclo';
       body.innerHTML = `<tr class="empty-row"><td colspan="3">${msg}</td></tr>`;
-      return;
+    } else {
+      body.innerHTML = rows.map((e) => {
+        const key = notaKey(e);
+        const nota = NOTAS[key];
+        return `
+          <tr>
+            <td class="figures">${fmtDateShort(e.fecha)}</td>
+            <td>
+              <span>${e.gasto}</span>
+              ${isOutlier(e.monto) ? '<span class="tag-warn" title="Mayor a $100">⚠ inusual</span>' : ''}
+              <button class="note-btn" data-notakey="${key}" title="${nota ? 'Editar nota' : 'Agregar nota'}">${nota ? '🗒️' : '➕'}</button>
+              ${nota ? `<div class="note-text">${nota}</div>` : ''}
+            </td>
+            <td class="amt">${fmt(e.monto)}</td>
+          </tr>`;
+      }).join('');
     }
 
-    body.innerHTML = rows.map((e) => {
-      const key = notaKey(e);
-      const nota = NOTAS[key];
-      return `
-        <tr>
-          <td class="figures">${fmtDateShort(e.fecha)}</td>
-          <td>
-            <span>${e.gasto}</span>
-            ${isOutlier(e.monto) ? '<span class="tag-warn" title="Mayor a $100">⚠ inusual</span>' : ''}
-            <button class="note-btn" data-notakey="${key}" title="${nota ? 'Editar nota' : 'Agregar nota'}">${nota ? '🗒️' : '➕'}</button>
-            ${nota ? `<div class="note-text">${nota}</div>` : ''}
-          </td>
-          <td class="amt">${fmt(e.monto)}</td>
-        </tr>`;
-    }).join('');
     renderSortIndicators();
+    renderPagination(totalPages, allRows.length);
+  }
+
+  /** Pinta el indicador "Página X de Y" y habilita/deshabilita las flechas según corresponda. */
+  function renderPagination(totalPages, totalRows) {
+    $('page-indicator').textContent = totalRows === 0 ? 'Sin movimientos' : `Página ${CURRENT_PAGE} de ${totalPages}`;
+    $('btn-page-prev').disabled = CURRENT_PAGE <= 1;
+    $('btn-page-next').disabled = CURRENT_PAGE >= totalPages;
+  }
+
+  /** Cambia de página (delta: -1 anterior, +1 siguiente) y repinta la tabla. */
+  function goToPage(delta) {
+    CURRENT_PAGE += delta;
+    renderTable();
   }
 
   /**
@@ -1468,6 +1509,7 @@
     // Búsqueda en vivo: filtra la tabla en cada tecla, sin esperar submit.
     $('input-search').addEventListener('input', (e) => {
       TABLE_FILTER = e.target.value;
+      CURRENT_PAGE = 1;
       renderTable();
     });
 
@@ -1481,9 +1523,26 @@
         } else {
           SORT_STATE = { key, dir: 'asc' };
         }
+        CURRENT_PAGE = 1;
         renderTable();
       });
     });
+
+    // Paginación: flechas + deslizar (swipe) en móvil/trackpad.
+    $('btn-page-prev').addEventListener('click', () => goToPage(-1));
+    $('btn-page-next').addEventListener('click', () => goToPage(1));
+
+    let swipeStartX = null;
+    const tableWrap = $('table-wrap');
+    tableWrap.addEventListener('touchstart', (e) => { swipeStartX = e.touches[0].clientX; }, { passive: true });
+    tableWrap.addEventListener('touchend', (e) => {
+      if (swipeStartX === null) return;
+      const delta = e.changedTouches[0].clientX - swipeStartX;
+      const SWIPE_THRESHOLD = 50;
+      if (delta > SWIPE_THRESHOLD) goToPage(-1);       // deslizar a la derecha → página anterior
+      else if (delta < -SWIPE_THRESHOLD) goToPage(1);  // deslizar a la izquierda → página siguiente
+      swipeStartX = null;
+    }, { passive: true });
 
     // Notas por movimiento: delegado en el tbody porque las filas se
     // reconstruyen en cada render (los listeners individuales se perderían).

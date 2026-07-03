@@ -177,6 +177,32 @@
   .card-visual.over-limit .card-emblem .crack{opacity:1; stroke-dashoffset:0;}
   .card-visual.over-limit::before{background:repeating-linear-gradient(115deg, rgba(226,83,107,.1) 0 2px, transparent 2px 40px);}
 
+  /* Grieta de tarjeta completa — "destrozada", diseño propio, no logo de nadie. */
+  .card-tear{position:absolute; inset:0; opacity:0; pointer-events:none; transition:opacity .5s ease; z-index:1;}
+  .card-tear svg{width:100%; height:100%;}
+  .card-tear .tear-line{fill:none; stroke:var(--rose); stroke-width:1.6; stroke-linecap:round; opacity:.9;}
+  .card-tear .tear-shard{fill:rgba(7,23,48,.55); stroke:var(--rose); stroke-width:.8;}
+  .card-visual.over-limit .card-tear{opacity:1; filter:drop-shadow(0 0 4px rgba(226,83,107,.65));}
+
+  /* Estado "ok" — dentro del límite: brillo verde tranquilo, respiración lenta, nada agresivo. */
+  .card-visual.card-ok .card-alert-glow{opacity:1; background:radial-gradient(ellipse at 78% 85%, rgba(79,209,174,.2), transparent 62%); animation:glow-pulse-mint 3.4s ease-in-out infinite;}
+  .card-visual.card-ok .card-emblem{opacity:.14;}
+  @keyframes glow-pulse-mint{0%,100%{opacity:.35;} 50%{opacity:.75;}}
+
+  /* Aviso de fecha de pago próxima — cinta que sube desde abajo, color según si se podrá pagar o no. */
+  .card-due-notice{
+    position:absolute; left:0; right:0; bottom:0; padding:9px 16px; z-index:3;
+    transform:translateY(100%); opacity:0; transition:transform .4s cubic-bezier(.2,.8,.2,1), opacity .4s ease;
+    backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+  }
+  .card-due-notice.show{transform:translateY(0); opacity:1;}
+  .due-title{font-size:9.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase;}
+  .due-sub{font-size:10.5px; margin-top:2px; opacity:.92;}
+  .card-due-notice.ok{background:rgba(79,209,174,.28); color:#eafff7; border-top:1px solid rgba(79,209,174,.45);}
+  .card-due-notice.warn{background:rgba(226,165,62,.3); color:#fff6e6; border-top:1px solid rgba(226,165,62,.5);}
+  .card-due-notice.critical{background:rgba(226,83,107,.32); color:#ffecef; border-top:1px solid rgba(226,83,107,.55); animation:due-pulse-critical 1.6s ease-in-out infinite;}
+  @keyframes due-pulse-critical{0%,100%{background:rgba(226,83,107,.28);} 50%{background:rgba(226,83,107,.48);}}
+
   @keyframes card-alert-shake{
     10%,90%{transform:translateX(-1px) rotateZ(-.3deg);}
     20%,80%{transform:translateX(2px) rotateZ(.4deg);}
@@ -466,6 +492,15 @@
       </div>
       <div class="card-alert-glow" aria-hidden="true"></div>
       <div class="card-scanline" aria-hidden="true"></div>
+      <div class="card-tear" id="card-tear" aria-hidden="true">
+        <svg viewBox="0 0 200 126" preserveAspectRatio="none">
+          <path class="tear-line" d="M12 20 L48 42 L34 60 L74 84 L58 100 L100 118"/>
+          <path class="tear-line" d="M48 42 L66 30"/>
+          <path class="tear-line" d="M155 14 L172 36 L160 52 L182 70"/>
+          <path class="tear-shard" d="M12 20 L48 42 L34 60 L14 46 Z"/>
+          <path class="tear-shard" d="M155 14 L172 36 L160 52 L145 34 Z"/>
+        </svg>
+      </div>
       <div class="card-top">
         <div class="card-issuer">Banco Cuscatlán</div>
         <div style="display:flex; align-items:center; gap:10px;">
@@ -478,6 +513,10 @@
         <div><div class="card-label">Corte</div><div class="card-value" id="card-corte-val">—</div></div>
         <div><div class="card-label">Pago</div><div class="card-value" id="card-pago-val">—</div></div>
         <div class="card-brandmark">tarjeta</div>
+      </div>
+      <div class="card-due-notice" id="card-due-notice">
+        <div class="due-title" id="due-title"></div>
+        <div class="due-sub" id="due-sub"></div>
       </div>
     </div>
 
@@ -1151,6 +1190,8 @@
 
   /** Pinta el header de la tarjeta visual + el anillo de cuenta regresiva de pago. */
   function updateCountdown() {
+    updateCardDueNotice();
+
     const corte = $('input-corte').value;
     const pago = $('input-pago').value;
 
@@ -1247,30 +1288,38 @@
     }
 
     updateCardEmblem();
+    updateCardDueNotice();
   }
 
   /**
-   * Resuelve y aplica el estado visual de la tarjeta según gasto vs. límite
-   * Y la respuesta del usuario al modal "¿podrás pagar?":
-   *   - ok: dentro del límite → normal.
-   *   - warn: excedido pero el usuario confirmó "sí puedo pagarlo" → alarma
-   *           suave, ámbar, sin glitch ni grietas.
-   *   - critical: excedido y el usuario dijo "no" (o no ha respondido aún)
-   *               → corrupción roja intensa, grietas, glitch.
+   * Único punto de verdad para el estado de la tarjeta — lo usan tanto el
+   * emblema/corrupción como la cinta de aviso de fecha de pago, así nunca
+   * pueden mostrar mensajes contradictorios entre sí.
+   *   - ok: dentro del límite.
+   *   - warn: excedido pero el usuario confirmó "sí puedo pagarlo".
+   *   - critical: excedido y dijo "no" (o no ha respondido aún).
+   */
+  function computeCardState() {
+    const total = totalTarjeta();
+    const limite = getLimite();
+    if (total <= limite) return 'ok';
+    const respondioSi = VERDICT && Math.abs(VERDICT.total - total) < 0.01 && VERDICT.answer === true;
+    return respondioSi ? 'warn' : 'critical';
+  }
+
+  /**
+   * Aplica el estado visual de la tarjeta:
+   *   - ok: brillo verde tranquilo, "estás bien".
+   *   - warn: alarma ámbar suave, sin glitch ni grietas.
+   *   - critical: corrupción roja intensa — grietas, glitch, tarjeta "destrozada".
    * Solo dispara el shake una vez, al entrar a "critical", no en cada refresco.
    */
   let lastCardState = 'ok';
   function updateCardEmblem() {
     const card = $('card-visual');
-    const total = totalTarjeta();
-    const limite = getLimite();
+    const state = computeCardState();
 
-    let state = 'ok';
-    if (total > limite) {
-      const respondioSi = VERDICT && Math.abs(VERDICT.total - total) < 0.01 && VERDICT.answer === true;
-      state = respondioSi ? 'warn' : 'critical';
-    }
-
+    card.classList.toggle('card-ok', state === 'ok');
     card.classList.toggle('card-warn', state === 'warn');
     card.classList.toggle('over-limit', state === 'critical');
 
@@ -1280,6 +1329,39 @@
       card.classList.add('over-limit');
     }
     lastCardState = state;
+  }
+
+  /** ISO "YYYY-MM-DD" → "DD/MM/YYYY", para el texto del aviso de pago. */
+  const fmtDMY = (iso) => iso.split('-').reverse().join('/');
+
+  /**
+   * Muestra en la tarjeta un aviso cuando la fecha de pago está a 3 días o
+   * menos (incluye el día mismo). El mensaje es dinámico: usa el mismo
+   * computeCardState() que el resto de la tarjeta para decir si se podrá
+   * pagar, se podrá con cuidado, o no se podrá y hay que buscar alternativas.
+   */
+  function updateCardDueNotice() {
+    const notice = $('card-due-notice');
+    const pago = $('input-pago').value;
+
+    if (!pago) { notice.classList.remove('show'); return; }
+
+    const daysLeft = daysBetween(todayInSV(), pago);
+    if (daysLeft < 0 || daysLeft > DUE_SOON_DAYS) { notice.classList.remove('show'); return; }
+
+    const state = computeCardState();
+    const subtextos = {
+      ok: '✅ Podrás pagar sin problema',
+      warn: '🟠 Podrás pagar — cuida tus gastos',
+      critical: '🔴 No podrás pagar — busca alternativas',
+    };
+
+    $('due-title').textContent = daysLeft === 0
+      ? `⚠ TU PAGO VENCE HOY — ${fmtDMY(pago)}`
+      : `⚠ SE ACERCA FECHA DE PAGO — ${fmtDMY(pago)}`;
+    $('due-sub').textContent = subtextos[state];
+
+    notice.className = `card-due-notice show ${state}`;
   }
 
   /**
@@ -1385,6 +1467,7 @@
     $('modal-overlay').classList.remove('show');
     showVerdictBanner(canPay, total, getLimite());
     updateCardEmblem();
+    updateCardDueNotice();
     if (!canPay) showToast('💡 Revisa tus gastos del mes para cuadrar el pago');
   }
 
@@ -1404,6 +1487,7 @@
     saveVerdict(null);
     $('verdict-banner').classList.remove('show');
     updateCardEmblem();
+    updateCardDueNotice();
     checkLimitAndPrompt();
   }
 

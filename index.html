@@ -6,6 +6,7 @@
 <title>Control de Tarjeta | Ledger Personal</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 32'%3E%3Crect x='2' y='4' width='40' height='24' rx='4' fill='%23c9a24b'/%3E%3Crect x='6' y='11' width='10' height='7' rx='1.5' fill='%2314171f'/%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
   :root{
     --bg:#14171f; --bg-2:#1b2029; --card:#1b2029; --card-hover:#20263a;
@@ -174,6 +175,36 @@
   .amt{font-family:'JetBrains Mono',monospace; font-weight:600; text-align:right;}
   .empty-row td{text-align:center; color:var(--text-dim); padding:24px;}
 
+  .cat-icon{margin-right:6px;}
+  .tag-warn{
+    font-size:9.5px; padding:2px 7px; border-radius:20px; background:var(--amber-soft); color:var(--amber);
+    text-transform:uppercase; letter-spacing:.03em; font-weight:600; margin-left:8px; white-space:nowrap;
+  }
+  .note-btn{
+    background:none; border:none; cursor:pointer; font-size:12px; opacity:.55; margin-left:8px;
+    vertical-align:middle; transition:opacity .15s;
+  }
+  .note-btn:hover{opacity:1;}
+  .note-text{font-size:11.5px; color:var(--text-dim); font-style:italic; margin-top:3px;}
+
+  /* ── Analítica ── */
+  .analytics-row{display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:28px;}
+  @media(max-width:860px){ .analytics-row{grid-template-columns:1fr;} }
+  .metric{background:var(--card); border:1px solid var(--line); border-radius:var(--r-md); padding:16px 20px;}
+  .metric .lbl{font-size:10.5px; color:var(--text-mid); text-transform:uppercase; letter-spacing:.06em; margin-bottom:8px;}
+  .metric .val{font-size:21px; font-weight:700; font-family:'Space Grotesk',sans-serif;}
+  .metric .sub{font-size:11px; color:var(--text-dim); margin-top:4px;}
+
+  /* ── Gráfico ── */
+  .chart-panel{margin-bottom:28px;}
+  .chart-box{position:relative; height:200px; margin-top:8px;}
+
+  /* ── Selector de tarjeta ── */
+  .card-select{
+    background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); border-radius:var(--r-sm);
+    color:var(--text); font-size:11.5px; padding:6px 10px; font-family:inherit; cursor:pointer;
+  }
+
   /* ── Modal ── */
   .modal-overlay{
     position:fixed; inset:0; background:rgba(10,11,15,.75); backdrop-filter:blur(4px);
@@ -230,6 +261,7 @@
     </div>
   </div>
   <div class="header-right">
+    <select class="card-select" id="card-select" style="display:none;"></select>
     <div class="pill"><span class="dot-live"></span> <span id="last-update">—</span></div>
     <button class="btn-theme" id="btn-theme" title="Cambiar tema">
       <svg id="theme-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
@@ -317,6 +349,29 @@
     </div>
   </div>
 
+  <!-- ── Analítica ── -->
+  <div class="analytics-row">
+    <div class="metric">
+      <div class="lbl">Promedio semanal</div>
+      <div class="val figures" id="metric-semanal">$0.00</div>
+      <div class="sub">esta semana del ciclo</div>
+    </div>
+    <div class="metric">
+      <div class="lbl">Racha sin gastar</div>
+      <div class="val figures" id="metric-racha">—</div>
+      <div class="sub" id="metric-racha-sub">desde el último gasto</div>
+    </div>
+    <div class="metric">
+      <div class="lbl">Vs. ciclo anterior</div>
+      <div class="val figures" id="metric-comparar">—</div>
+      <div class="sub" id="metric-comparar-sub">sin datos históricos aún</div>
+    </div>
+  </div>
+
+  <!-- ── Gráfico ── -->
+  <div class="panel chart-panel">
+    <div class="section-title">Gasto por día (ciclo actual)</div>
+    <div class="chart-box"><canvas id="chart-diario"></canvas></div>
   </div>
 
   <!-- ── Tabla ── -->
@@ -388,9 +443,12 @@
   // │ 1. CONFIG                                                            │
   // └──────────────────────────────────────────────────────────────────────┘
 
-  /** ID y nombre de hoja del Google Sheet fuente de datos. */
-  const SHEET_ID = '1lTFi6NWYgzn_olV4usP4y2aWol_AnN096knpQ2rZ7Hk';
-  const SHEET_NAME = 'TARJETA';
+  /** Tarjetas configuradas. Agregar una 2ª tarjeta aquí es todo lo que hace
+      falta para que el selector del header y el resto de la app la soporten
+      — cada tarjeta guarda su límite/fechas/notas bajo su propio "id". */
+  const CARDS = [
+    { id: 'cuscatlan', nombre: 'Banco Cuscatlán', sheetId: '1lTFi6NWYgzn_olV4usP4y2aWol_AnN096knpQ2rZ7Hk', sheetName: 'TARJETA' },
+  ];
 
   /** Cada cuánto se vuelve a consultar el Sheet automáticamente (ms). */
   const REFRESH_MS = 120000; // 2 minutos
@@ -405,16 +463,43 @@
   const DUE_SOON_DAYS = 3;
   const DUE_WARNING_DAYS = 7;
 
+  /** Un gasto se marca "inusual" si supera este múltiplo del promedio del ciclo,
+      además de superar un monto mínimo (evita marcar gastos chicos por ruido). */
+  const OUTLIER_MULTIPLIER = 2;
+  const OUTLIER_MIN_AMOUNT = 15;
+  const OUTLIER_MIN_SAMPLE = 3; // mínimo de movimientos para que el promedio tenga sentido
+
+  /**
+   * Palabras clave → ícono de categoría, para darle contexto visual a la tabla
+   * sin depender de una columna de categoría en el Sheet (ya no existe). Se
+   * evalúa en orden; la primera coincidencia gana.
+   */
+  const CATEGORY_ICONS = [
+    { icon: '⛽', keywords: ['gasolina', 'combustible', 'texaco', 'shell', 'puma', 'uno '] },
+    { icon: '🍔', keywords: ['comida', 'restaurante', 'super', 'almuerzo', 'cena', 'pollo', 'pizza'] },
+    { icon: '💊', keywords: ['farmacia', 'doctor', 'salud', 'medicina', 'clinica', 'clínica'] },
+    { icon: '💡', keywords: ['agua', 'luz', 'electricidad', 'internet', 'cable', 'telefono', 'teléfono'] },
+    { icon: '🏦', keywords: ['seguro', 'tarjeta', 'banco', 'interes', 'interés', 'mantenimiento'] },
+    { icon: '🛍️', keywords: ['ropa', 'tienda', 'compra', 'zapatos'] },
+    { icon: '🎬', keywords: ['cine', 'streaming', 'netflix', 'spotify', 'entretenimiento'] },
+    { icon: '📄', keywords: ['partida', 'documento', 'tramite', 'trámite'] },
+  ];
+  const CATEGORY_ICON_DEFAULT = '🧾';
+
   /** Zona horaria fija de El Salvador — todo cálculo de "hoy" pasa por aquí,
       sin importar en qué huso horario esté configurado el navegador del usuario. */
   const TIMEZONE = 'America/El_Salvador';
 
-  /** Claves de window.storage — centralizadas para evitar strings mágicos repetidos. */
+  /** Claves de window.storage. Cada una se combina con el id de la tarjeta
+      activa (ver skey() en DOM HELPERS) para que cada tarjeta tenga sus
+      propios datos guardados. */
   const STORAGE_KEYS = {
     FECHAS_MANUAL: 'tarjeta:fechas-manual',
     LIMITE: 'tarjeta:limite-pago',
     VEREDICTO: 'tarjeta:veredicto',
     THEME: 'tarjeta:theme',
+    NOTAS: 'tarjeta:notas',
+    HISTORIAL: 'tarjeta:historial-ciclos',
   };
 
   // ┌──────────────────────────────────────────────────────────────────────┐
@@ -429,6 +514,15 @@
 
   /** Última respuesta guardada al modal "¿podrás pagar?". @type {{total:number, answer:boolean}|null} */
   let VERDICT = null;
+
+  /** Índice de la tarjeta activa dentro de CARDS. */
+  let activeCardIndex = 0;
+
+  /** Historial de totales por ciclo cerrado, para la comparación "vs. mes anterior". */
+  let HISTORIAL = [];
+
+  /** Notas de texto libre por movimiento, indexadas por una clave derivada del propio movimiento. */
+  let NOTAS = {};
 
   /** Texto actual del buscador de la tabla (case-insensitive, filtra por nombre de gasto). */
   let TABLE_FILTER = '';
@@ -445,6 +539,13 @@
 
   /** Lee el límite de pago actual desde el input, con fallback seguro si está vacío/inválido. */
   const getLimite = () => parseFloat($('input-limite').value) || DEFAULT_LIMITE;
+
+  /** La tarjeta actualmente seleccionada (ver CARDS en CONFIG). */
+  const activeCard = () => CARDS[activeCardIndex];
+
+  /** Combina una clave base de STORAGE_KEYS con el id de la tarjeta activa,
+      así cada tarjeta guarda su límite/fechas/notas por separado. */
+  const skey = (base) => `${base}:${activeCard().id}`;
 
   // ┌──────────────────────────────────────────────────────────────────────┐
   // │ 4. FORMATTERS — number/date → string para mostrar en pantalla        │
@@ -476,6 +577,19 @@
     const [y, m, d] = iso.split('-');
     return `${d} ${MESES_CORTO[+m - 1]}`;
   };
+
+  /**
+   * Devuelve el ícono de categoría que mejor coincide con el texto del gasto,
+   * por palabras clave (ver CATEGORY_ICONS). Sin columna de categoría en el
+   * Sheet, esta es la única forma de darle contexto visual a la tabla.
+   * @param {string} gasto
+   * @returns {string} un emoji
+   */
+  function categoryIcon(gasto) {
+    const texto = gasto.toLowerCase();
+    const match = CATEGORY_ICONS.find((c) => c.keywords.some((k) => texto.includes(k)));
+    return match ? match.icon : CATEGORY_ICON_DEFAULT;
+  }
 
   // ┌──────────────────────────────────────────────────────────────────────┐
   // │ 5. PARSERS — texto crudo del Sheet → tipos utilizables               │
@@ -518,7 +632,8 @@
    * @returns {Promise<{expenses: object[], corte: string|null, pago: string|null, limiteBanco: number|null}>}
    */
   async function fetchSheet() {
-    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(SHEET_NAME)}&headers=1&_=${Date.now()}`;
+    const { sheetId, sheetName } = activeCard();
+    const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}&headers=1&_=${Date.now()}`;
     const res = await fetch(url);
     if (!res.ok) throw new Error('No se pudo leer la hoja (¿está compartida como "Cualquiera con el enlace"?)');
 
@@ -584,6 +699,34 @@
     return Math.round((d2 - d1) / 86400000);
   }
 
+  /**
+   * Un gasto es "inusual" si el ciclo tiene suficientes movimientos como para
+   * que un promedio sea significativo, y el monto duplica ese promedio.
+   */
+  function isOutlier(monto, avg) {
+    return EXPENSES.length >= OUTLIER_MIN_SAMPLE && monto > avg * OUTLIER_MULTIPLIER && monto > OUTLIER_MIN_AMOUNT;
+  }
+
+  /**
+   * Promedio de gasto por semana transcurrida del ciclo (no por movimiento).
+   * Usa la fecha de corte si existe; si no, la fecha del primer gasto.
+   */
+  function weeklyAverage() {
+    if (EXPENSES.length === 0) return 0;
+    const start = $('input-corte').value || EXPENSES[0].fecha;
+    const today = todayInSV();
+    const diasTranscurridos = Math.max(daysBetween(start, today) + 1, 1);
+    const semanas = Math.max(diasTranscurridos / 7, 1);
+    return totalTarjeta() / semanas;
+  }
+
+  /** Días transcurridos desde el último gasto registrado (0 si el último gasto fue hoy). */
+  function daysSinceLastExpense() {
+    if (EXPENSES.length === 0) return null;
+    const ultima = EXPENSES[EXPENSES.length - 1].fecha; // ya viene ordenado ascendente por fecha
+    return Math.max(daysBetween(ultima, todayInSV()), 0);
+  }
+
   // ┌──────────────────────────────────────────────────────────────────────┐
   // │ 8. PERSISTENCE — preferencias del usuario en window.storage          │
   // └──────────────────────────────────────────────────────────────────────┘
@@ -595,7 +738,7 @@
   async function loadLimite() {
     let limite = DEFAULT_LIMITE;
     try {
-      const saved = await window.storage.get(STORAGE_KEYS.LIMITE);
+      const saved = await window.storage.get(skey(STORAGE_KEYS.LIMITE));
       if (saved && saved.value) limite = parseFloat(saved.value) || DEFAULT_LIMITE;
     } catch (e) { /* primera visita: no hay valor guardado todavía */ }
     $('input-limite').value = limite;
@@ -605,7 +748,7 @@
   async function saveLimite() {
     const limite = getLimite();
     try {
-      await window.storage.set(STORAGE_KEYS.LIMITE, String(limite));
+      await window.storage.set(skey(STORAGE_KEYS.LIMITE), String(limite));
       showToast('💾 Límite de pago guardado');
     } catch (e) {
       showToast('⚠️ No se pudo guardar el límite');
@@ -619,7 +762,7 @@
   async function resolveDates() {
     let localCorte = null, localPago = null;
     try {
-      const saved = await window.storage.get(STORAGE_KEYS.FECHAS_MANUAL);
+      const saved = await window.storage.get(skey(STORAGE_KEYS.FECHAS_MANUAL));
       if (saved && saved.value) {
         const d = JSON.parse(saved.value);
         localCorte = d.corte;
@@ -644,7 +787,7 @@
     const corte = $('input-corte').value;
     const pago = $('input-pago').value;
     try {
-      await window.storage.set(STORAGE_KEYS.FECHAS_MANUAL, JSON.stringify({ corte, pago }));
+      await window.storage.set(skey(STORAGE_KEYS.FECHAS_MANUAL), JSON.stringify({ corte, pago }));
     } catch (e) { /* falla silenciosa: no es crítico, el usuario puede reintentar */ }
     updateCountdown();
     if (!silent) showToast('💾 Fecha guardada localmente');
@@ -653,7 +796,7 @@
   /** Carga la última respuesta guardada al modal "¿podrás pagar?". */
   async function loadVerdict() {
     try {
-      const saved = await window.storage.get(STORAGE_KEYS.VEREDICTO);
+      const saved = await window.storage.get(skey(STORAGE_KEYS.VEREDICTO));
       VERDICT = saved && saved.value ? JSON.parse(saved.value) : null;
     } catch (e) {
       VERDICT = null;
@@ -664,7 +807,56 @@
   async function saveVerdict(v) {
     VERDICT = v;
     try {
-      await window.storage.set(STORAGE_KEYS.VEREDICTO, JSON.stringify(v));
+      await window.storage.set(skey(STORAGE_KEYS.VEREDICTO), JSON.stringify(v));
+    } catch (e) { /* falla silenciosa */ }
+  }
+
+  /** Carga el historial de totales por ciclo (para comparar contra el mes anterior). */
+  async function loadHistorial() {
+    try {
+      const saved = await window.storage.get(skey(STORAGE_KEYS.HISTORIAL));
+      HISTORIAL = saved && saved.value ? JSON.parse(saved.value) : [];
+    } catch (e) {
+      HISTORIAL = [];
+    }
+  }
+
+  /**
+   * Actualiza (o crea) la entrada del ciclo actual en el historial, con su
+   * total más reciente. Cada ciclo se identifica por su fecha de corte — así,
+   * cuando el corte cambie de valor (nuevo ciclo), la entrada anterior queda
+   * congelada con su total final, lista para comparar.
+   */
+  async function upsertHistorial(cicloKey, total) {
+    if (!cicloKey) return;
+    const idx = HISTORIAL.findIndex((h) => h.ciclo === cicloKey);
+    if (idx >= 0) HISTORIAL[idx].total = total;
+    else HISTORIAL.push({ ciclo: cicloKey, total });
+
+    HISTORIAL.sort((a, b) => a.ciclo.localeCompare(b.ciclo));
+    if (HISTORIAL.length > 12) HISTORIAL = HISTORIAL.slice(-12); // no crece indefinidamente
+
+    try {
+      await window.storage.set(skey(STORAGE_KEYS.HISTORIAL), JSON.stringify(HISTORIAL));
+    } catch (e) { /* falla silenciosa */ }
+  }
+
+  /** Carga las notas de texto libre guardadas por movimiento. */
+  async function loadNotas() {
+    try {
+      const saved = await window.storage.get(skey(STORAGE_KEYS.NOTAS));
+      NOTAS = saved && saved.value ? JSON.parse(saved.value) : {};
+    } catch (e) {
+      NOTAS = {};
+    }
+  }
+
+  /** Persiste (o borra, si el texto queda vacío) la nota de un movimiento. */
+  async function saveNota(key, texto) {
+    if (texto && texto.trim()) NOTAS[key] = texto.trim();
+    else delete NOTAS[key];
+    try {
+      await window.storage.set(skey(STORAGE_KEYS.NOTAS), JSON.stringify(NOTAS));
     } catch (e) { /* falla silenciosa */ }
   }
 
@@ -706,16 +898,35 @@
     if (rows.length === 0) {
       const msg = TABLE_FILTER ? 'Sin resultados para tu búsqueda' : 'Sin movimientos registrados en este ciclo';
       body.innerHTML = `<tr class="empty-row"><td colspan="3">${msg}</td></tr>`;
-    } else {
-      body.innerHTML = rows.map((e) => `
+      return;
+    }
+
+    const avg = totalTarjeta() / EXPENSES.length;
+    body.innerHTML = rows.map((e) => {
+      const key = notaKey(e);
+      const nota = NOTAS[key];
+      return `
         <tr>
           <td class="figures">${fmtDateShort(e.fecha)}</td>
-          <td>${e.gasto}</td>
+          <td>
+            <span class="cat-icon" title="Categoría estimada por palabras clave">${categoryIcon(e.gasto)}</span>
+            <span>${e.gasto}</span>
+            ${isOutlier(e.monto, avg) ? '<span class="tag-warn" title="Más del doble del promedio de este ciclo">⚠ inusual</span>' : ''}
+            <button class="note-btn" data-notakey="${key}" title="${nota ? 'Editar nota' : 'Agregar nota'}">${nota ? '🗒️' : '➕'}</button>
+            ${nota ? `<div class="note-text">${nota}</div>` : ''}
+          </td>
           <td class="amt">${fmt(e.monto)}</td>
-        </tr>`).join('');
-    }
+        </tr>`;
+    }).join('');
     renderSortIndicators();
   }
+
+  /**
+   * Clave estable para guardar la nota de un movimiento. El Sheet no tiene un
+   * ID único por fila, así que se compone con fecha+gasto+monto — suficiente
+   * en la práctica salvo dos movimientos idénticos el mismo día (caso raro).
+   */
+  const notaKey = (e) => `${e.fecha}|${e.gasto}|${e.monto}`;
 
   /** Marca en el encabezado de la tabla qué columna está activa y en qué dirección. */
   function renderSortIndicators() {
@@ -772,12 +983,33 @@
     }
   }
 
+  /**
+   * Anima el texto de un elemento desde su valor numérico actual hasta uno
+   * nuevo (conteo ascendente/descendente), formateando cada frame con `fmt`.
+   * Puramente cosmético — no afecta ningún cálculo.
+   */
+  function animateValue(el, to, formatFn = fmt, duration = 450) {
+    const from = parseFloat(el.dataset.rawValue || '0') || 0;
+    if (Math.abs(to - from) < 0.005) { el.textContent = formatFn(to); el.dataset.rawValue = to; return; }
+
+    const start = performance.now();
+    function tick(now) {
+      const progress = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3); // ease-out cúbico
+      const current = from + (to - from) * eased;
+      el.textContent = formatFn(current);
+      if (progress < 1) requestAnimationFrame(tick);
+      else el.dataset.rawValue = to;
+    }
+    requestAnimationFrame(tick);
+  }
+
   /** Pinta las 4 tarjetas KPI (total, límite personal, límite banco, promedio). */
   function renderKpis() {
     const total = totalTarjeta();
     const limite = getLimite();
 
-    $('kpi-total').textContent = fmt(total);
+    animateValue($('kpi-total'), total);
     $('kpi-total-sub').textContent = `${EXPENSES.length} movimientos`;
 
     $('kpi-limite').textContent = `${fmt(total)} / ${fmt(limite)}`;
@@ -792,13 +1024,76 @@
     $('bar-banco').style.width = pctBanco + '%';
 
     if (EXPENSES.length) {
-      $('kpi-avg').textContent = fmt(total / EXPENSES.length);
+      animateValue($('kpi-avg'), total / EXPENSES.length);
       const max = EXPENSES.reduce((a, b) => (b.monto > a.monto ? b : a));
       $('kpi-max-sub').textContent = 'mayor: ' + max.gasto;
     } else {
-      $('kpi-avg').textContent = fmt(0);
+      animateValue($('kpi-avg'), 0);
       $('kpi-max-sub').textContent = 'mayor: —';
     }
+  }
+
+  /** Pinta las 3 métricas de analítica: promedio semanal, racha sin gastar, comparación vs. ciclo anterior. */
+  function renderAnalytics() {
+    animateValue($('metric-semanal'), weeklyAverage());
+
+    const dias = daysSinceLastExpense();
+    $('metric-racha').textContent = dias === null ? '—' : `${dias} día${dias === 1 ? '' : 's'}`;
+    $('metric-racha-sub').textContent = dias === null ? 'sin movimientos aún' : dias === 0 ? 'hubo gasto hoy' : 'sin registrar gastos';
+
+    const cicloActual = $('input-corte').value;
+    const anteriores = HISTORIAL.filter((h) => h.ciclo !== cicloActual).sort((a, b) => b.ciclo.localeCompare(a.ciclo));
+    const compEl = $('metric-comparar');
+    const compSub = $('metric-comparar-sub');
+
+    if (anteriores.length === 0) {
+      compEl.textContent = '—';
+      compEl.className = 'val figures';
+      compSub.textContent = 'primer ciclo registrado';
+    } else {
+      const anterior = anteriores[0].total;
+      const actual = totalTarjeta();
+      const diff = actual - anterior;
+      const pct = anterior > 0 ? (diff / anterior) * 100 : 0;
+      compEl.textContent = (diff >= 0 ? '+' : '') + fmt(diff);
+      compEl.className = 'val figures ' + (diff > 0 ? '' : '');
+      compEl.style.color = diff > 0 ? 'var(--rose)' : diff < 0 ? 'var(--mint)' : '';
+      compSub.textContent = `${pct >= 0 ? '+' : ''}${pct.toFixed(0)}% vs. ${fmt(anterior)} del ciclo anterior`;
+    }
+  }
+
+  let chartDiario = null;
+
+  /** Dibuja la gráfica de barras de gasto por día del ciclo actual. */
+  function renderChart() {
+    const dailyMap = {};
+    EXPENSES.forEach((e) => { dailyMap[e.fecha] = (dailyMap[e.fecha] || 0) + e.monto; });
+
+    const fechas = Object.keys(dailyMap).sort();
+    const valores = fechas.map((f) => dailyMap[f]);
+
+    if (chartDiario) chartDiario.destroy();
+    if (fechas.length === 0) return;
+
+    chartDiario = new Chart($('chart-diario'), {
+      type: 'bar',
+      data: {
+        labels: fechas.map(fmtDateShort),
+        datasets: [{ label: 'Gasto', data: valores, backgroundColor: 'rgba(201,162,75,.6)', borderRadius: 4 }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: (c) => fmt(c.raw) } },
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: '#9aa1b0', font: { size: 10 } } },
+          y: { grid: { color: '#242a38' }, ticks: { color: '#9aa1b0', font: { size: 10 } } },
+        },
+      },
+    });
   }
 
   /**
@@ -889,6 +1184,14 @@
       renderTable();
       renderKpis();
       updateCountdown();
+      renderChart();
+
+      // El ciclo se identifica por su fecha de corte; al cerrar (cambiar de
+      // corte) la entrada anterior queda congelada en el historial, lista
+      // para la comparación "vs. ciclo anterior".
+      await upsertHistorial(corte, totalTarjeta());
+      renderAnalytics();
+
       checkLimitAndPrompt();
 
       $('last-update').textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit', timeZone: TIMEZONE });
@@ -905,6 +1208,24 @@
   /** Handler del botón "Actualizar": fuerza un refresco inmediato con feedback visual. */
   function manualRefresh() {
     loadData(true).then(() => showToast('🔄 Datos actualizados'));
+  }
+
+  /**
+   * Cambia la tarjeta activa y recarga todo su estado — cada tarjeta tiene su
+   * propio límite, fechas manuales, veredicto, historial y notas (namespaced
+   * por skey()), así que no hay que limpiar nada manualmente: simplemente se
+   * vuelve a cargar todo desde storage bajo el nuevo id.
+   */
+  async function switchCard(idx) {
+    activeCardIndex = idx;
+    EXPENSES = [];
+    HISTORIAL = [];
+    NOTAS = {};
+    await loadLimite();
+    await loadVerdict();
+    await loadHistorial();
+    await loadNotas();
+    loadData(true).then(() => showToast(`💳 Cambiado a ${activeCard().nombre}`));
   }
 
   // ┌──────────────────────────────────────────────────────────────────────┐
@@ -947,6 +1268,21 @@
         renderTable();
       });
     });
+
+    // Notas por movimiento: delegado en el tbody porque las filas se
+    // reconstruyen en cada render (los listeners individuales se perderían).
+    $('tbl-body').addEventListener('click', (e) => {
+      const btn = e.target.closest('.note-btn');
+      if (!btn) return;
+      const key = btn.dataset.notakey;
+      const actual = NOTAS[key] || '';
+      const texto = window.prompt('Nota para este movimiento:', actual);
+      if (texto === null) return; // usuario canceló el prompt
+      saveNota(key, texto).then(renderTable);
+    });
+
+    // Selector de tarjeta (solo visible si hay más de una configurada en CARDS).
+    $('card-select').addEventListener('change', (e) => switchCard(Number(e.target.value)));
   }
 
   // ┌──────────────────────────────────────────────────────────────────────┐
@@ -957,6 +1293,12 @@
   async function init() {
     bindEvents();
 
+    // Selector de tarjeta: solo se muestra si hay más de una configurada en CARDS.
+    if (CARDS.length > 1) {
+      $('card-select').innerHTML = CARDS.map((c, i) => `<option value="${i}">${c.nombre}</option>`).join('');
+      $('card-select').style.display = 'block';
+    }
+
     // El tema se aplica primero para evitar cualquier parpadeo de color al cargar.
     await loadTheme();
 
@@ -964,6 +1306,8 @@
     // guardado antes del primer render con datos del Sheet.
     await loadLimite();
     await loadVerdict();
+    await loadHistorial();
+    await loadNotas();
 
     try {
       await loadData(false);

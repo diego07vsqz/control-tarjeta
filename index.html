@@ -150,6 +150,15 @@
   .section-title{display:flex; align-items:center; gap:10px; margin:0 0 16px; font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:var(--text-mid);}
   .section-title::after{content:''; flex:1; height:1px; background:var(--line);}
 
+  .savings-check-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;}
+  .verdict-pill{font-size:11.5px; padding:5px 13px; border-radius:20px; font-weight:600; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;}
+  .verdict-pill.ok{background:var(--mint-soft); color:var(--mint);}
+  .verdict-pill.bad{background:var(--rose-soft); color:var(--rose);}
+  .verdict-pill.na{background:var(--bg-2); color:var(--text-dim);}
+  .savings-check-row{display:flex; justify-content:space-between; font-size:13px; color:var(--text-mid); margin-bottom:8px; flex-wrap:wrap; gap:6px;}
+  .savings-check-row b{color:var(--text); font-family:'JetBrains Mono',monospace;}
+  .savings-hint{margin-top:10px; font-size:12px; color:var(--text-dim);}
+
   .table-toolbar{display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:16px;}
   .table-toolbar .section-title{margin:0; border:none; flex-shrink:0;}
   .table-toolbar .section-title::after{display:none;}
@@ -435,6 +444,20 @@
     </div>
   </div>
 
+  <!-- ── Ahorro vs pago ── -->
+  <div class="panel" style="margin-bottom:28px;">
+    <div class="savings-check-head">
+      <div class="section-title" style="margin:0; border:none;">Cuenta de ahorro vs. pago de tarjeta</div>
+      <div class="verdict-pill na" id="savings-verdict">Calculando…</div>
+    </div>
+    <div class="savings-check-row">
+      <span>Ingresado a ahorro (col. G): <b class="figures" id="ahorro-ingresado">$0.00</b></span>
+      <span>Total a pagar (col. C): <b class="figures" id="ahorro-total">$0.00</b></span>
+    </div>
+    <div class="bar-track"><div class="bar-fill" id="bar-ahorro" style="width:0%; background:var(--mint);"></div></div>
+    <div class="savings-hint" id="ahorro-hint"></div>
+  </div>
+
   <!-- ── Tabla ── -->
   <div class="panel" style="margin-bottom:28px;">
     <div class="table-toolbar">
@@ -567,7 +590,7 @@
   let EXPENSES = [];
 
   /** Metadatos leídos del Sheet (columnas D-F): fecha de corte/pago y límite del banco. */
-  let META = { corte: null, pago: null, limiteBanco: null };
+  let META = { corte: null, pago: null, limiteBanco: null, ahorro: null };
 
   /** Última respuesta guardada al modal "¿podrás pagar?". @type {{total:number, answer:boolean}|null} */
   let VERDICT = null;
@@ -677,9 +700,9 @@
 
   /**
    * Descarga y parsea la hoja "TARJETA" vía la API pública gviz de Google Sheets.
-   * Columnas esperadas A–F: FECHA | GASTOS | $ | Fecha de Corte | Fecha de Pago | Límite banco.
+   * Columnas esperadas A–G: FECHA | GASTOS | $ | Fecha de Corte | Fecha de Pago | Límite banco | Ingresado a ahorro.
    * Requiere que el Sheet esté compartido como "Cualquiera con el enlace — Lector".
-   * @returns {Promise<{expenses: object[], corte: string|null, pago: string|null, limiteBanco: number|null}>}
+   * @returns {Promise<{expenses: object[], corte: string|null, pago: string|null, limiteBanco: number|null, ahorro: number|null}>}
    */
   async function fetchSheet() {
     const { sheetId, sheetName } = activeCard();
@@ -693,7 +716,7 @@
     const rows = JSON.parse(jsonStr).table.rows || [];
 
     const expenses = [];
-    let corte = null, pago = null, limiteBanco = null;
+    let corte = null, pago = null, limiteBanco = null, ahorro = null;
 
     rows.forEach((row) => {
       const cells = row.c || [];
@@ -703,10 +726,11 @@
       const gasto = cell(1);
       const monto = parseMoney(cell(2));
 
-      // Corte/pago/límite solo aparecen en la primera fila con dato — tomamos el primero no vacío.
+      // Corte/pago/límite/ahorro solo aparecen en la primera fila con dato — tomamos el primero no vacío.
       if (!corte) corte = parseDMY(cell(3));
       if (!pago) pago = parseDMY(cell(4));
       if (!limiteBanco) limiteBanco = parseMoney(cell(5));
+      if (!ahorro) ahorro = parseMoney(cell(6)); // columna G
 
       if (fecha && gasto && monto !== null) {
         expenses.push({ fecha, gasto: String(gasto).trim(), monto });
@@ -714,7 +738,7 @@
     });
 
     expenses.sort((a, b) => a.fecha.localeCompare(b.fecha));
-    return { expenses, corte, pago, limiteBanco };
+    return { expenses, corte, pago, limiteBanco, ahorro };
   }
 
   // ┌──────────────────────────────────────────────────────────────────────┐
@@ -1174,6 +1198,49 @@
     }
   }
 
+  /**
+   * Pinta la card "Cuenta de ahorro vs. pago de tarjeta": compara lo ingresado
+   * a la cuenta de ahorro (columna G) contra el total a pagar del ciclo,
+   * y da un veredicto claro de si alcanza o no.
+   */
+  function renderSavingsCheck() {
+    const total = totalTarjeta();
+    const ahorro = META.ahorro;
+    const pill = $('savings-verdict');
+    const bar = $('bar-ahorro');
+
+    $('ahorro-total').textContent = fmt(total);
+
+    if (ahorro === null) {
+      $('ahorro-ingresado').textContent = '—';
+      pill.textContent = 'Sin datos';
+      pill.className = 'verdict-pill na';
+      bar.style.width = '0%';
+      $('ahorro-hint').textContent = 'Agrega el monto ingresado a tu cuenta de ahorro en la columna G de la hoja.';
+      return;
+    }
+
+    $('ahorro-ingresado').textContent = fmt(ahorro);
+    const pct = total > 0 ? Math.min((ahorro / total) * 100, 100) : 100;
+    bar.style.width = pct + '%';
+
+    if (ahorro >= total) {
+      const sobrante = ahorro - total;
+      bar.style.background = 'var(--mint)';
+      pill.textContent = '✅ Alcanza';
+      pill.className = 'verdict-pill ok';
+      $('ahorro-hint').textContent = sobrante > 0
+        ? `Te sobran ${fmt(sobrante)} después de cubrir el pago completo.`
+        : 'Cubre exactamente el total del ciclo.';
+    } else {
+      const faltante = total - ahorro;
+      bar.style.background = 'var(--rose)';
+      pill.textContent = '⚠ No alcanza';
+      pill.className = 'verdict-pill bad';
+      $('ahorro-hint').textContent = `Te faltan ${fmt(faltante)} para cubrir el total de este ciclo.`;
+    }
+  }
+
   /** Pinta las 3 métricas de analítica: promedio semanal, racha sin gastar, comparación vs. ciclo anterior. */
   function renderAnalytics() {
     animateValue($('metric-semanal'), weeklyAverage());
@@ -1280,9 +1347,9 @@
     if (showSpinner) btn.classList.add('spin');
 
     try {
-      const { expenses, corte, pago, limiteBanco } = await fetchSheet();
+      const { expenses, corte, pago, limiteBanco, ahorro } = await fetchSheet();
       EXPENSES = expenses;
-      META = { corte, pago, limiteBanco };
+      META = { corte, pago, limiteBanco, ahorro };
 
       // Primero se resuelven las fuentes de verdad (Sheet > manual) para que
       // los inputs ya tengan su valor final antes de pintar cualquier KPI.
@@ -1290,6 +1357,7 @@
 
       renderTable();
       renderKpis();
+      renderSavingsCheck();
       updateCountdown();
 
       // El ciclo se identifica por su fecha de corte; al cerrar (cambiar de

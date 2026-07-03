@@ -117,6 +117,7 @@
   main{max-width:1240px; margin:0 auto; padding:34px 40px;}
 
   .hero{display:grid; grid-template-columns:340px 1fr; gap:28px; margin-bottom:28px;}
+  .card-column{display:flex; flex-direction:column;}
   @media(max-width:860px){ .hero{grid-template-columns:1fr;} }
   .card-visual{
     aspect-ratio:1.586/1; border-radius:18px; position:relative; overflow:hidden;
@@ -189,19 +190,19 @@
   .card-visual.card-ok .card-emblem{opacity:.14;}
   @keyframes glow-pulse-mint{0%,100%{opacity:.35;} 50%{opacity:.75;}}
 
-  /* Aviso de fecha de pago próxima — cinta que sube desde abajo, color según si se podrá pagar o no. */
+  /* Aviso de fecha de pago próxima — vive DEBAJO de la tarjeta, no la tapa. */
   .card-due-notice{
-    position:absolute; left:0; right:0; bottom:0; padding:9px 16px; z-index:3;
-    transform:translateY(100%); opacity:0; transition:transform .4s cubic-bezier(.2,.8,.2,1), opacity .4s ease;
-    backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+    max-height:0; opacity:0; overflow:hidden; margin-top:0; border-radius:var(--r-md);
+    transition:max-height .4s cubic-bezier(.2,.8,.2,1), opacity .4s ease, margin-top .4s ease, padding .4s ease;
+    padding:0 16px;
   }
-  .card-due-notice.show{transform:translateY(0); opacity:1;}
+  .card-due-notice.show{max-height:60px; opacity:1; margin-top:12px; padding:10px 16px;}
   .due-title{font-size:9.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase;}
   .due-sub{font-size:10.5px; margin-top:2px; opacity:.92;}
-  .card-due-notice.ok{background:rgba(79,209,174,.28); color:#eafff7; border-top:1px solid rgba(79,209,174,.45);}
-  .card-due-notice.warn{background:rgba(226,165,62,.3); color:#fff6e6; border-top:1px solid rgba(226,165,62,.5);}
-  .card-due-notice.critical{background:rgba(226,83,107,.32); color:#ffecef; border-top:1px solid rgba(226,83,107,.55); animation:due-pulse-critical 1.6s ease-in-out infinite;}
-  @keyframes due-pulse-critical{0%,100%{background:rgba(226,83,107,.28);} 50%{background:rgba(226,83,107,.48);}}
+  .card-due-notice.ok{background:var(--mint-soft); color:var(--mint); border:1px solid rgba(79,209,174,.4);}
+  .card-due-notice.warn{background:var(--amber-soft); color:var(--amber); border:1px solid rgba(226,165,62,.45);}
+  .card-due-notice.critical{background:var(--rose-soft); color:var(--rose); border:1px solid rgba(226,83,107,.5); animation:due-pulse-critical 1.6s ease-in-out infinite;}
+  @keyframes due-pulse-critical{0%,100%{background:var(--rose-soft);} 50%{background:rgba(226,83,107,.22);}}
 
   @keyframes card-alert-shake{
     10%,90%{transform:translateX(-1px) rotateZ(-.3deg);}
@@ -478,41 +479,43 @@
 
   <!-- ── HERO ── -->
   <div class="hero">
-    <div class="card-visual" id="card-visual">
-      <div class="card-emblem" id="card-emblem" aria-hidden="true">
-        <svg viewBox="0 0 150 150">
-          <circle class="ring" cx="75" cy="75" r="60"/>
-          <path class="spiral" d="M75 40 A35 35 0 1 1 40 75"/>
-          <circle class="spiral" cx="40" cy="75" r="6"/>
-          <path class="crack" d="M22 25 L58 58"/>
-          <path class="crack" d="M58 58 L48 78 L70 88"/>
-          <path class="crack" d="M70 88 L100 112"/>
-          <path class="crack" d="M92 30 L72 55 L98 68"/>
-        </svg>
-      </div>
-      <div class="card-alert-glow" aria-hidden="true"></div>
-      <div class="card-scanline" aria-hidden="true"></div>
-      <div class="card-tear" id="card-tear" aria-hidden="true">
-        <svg viewBox="0 0 200 126" preserveAspectRatio="none">
-          <path class="tear-line" d="M12 20 L48 42 L34 60 L74 84 L58 100 L100 118"/>
-          <path class="tear-line" d="M48 42 L66 30"/>
-          <path class="tear-line" d="M155 14 L172 36 L160 52 L182 70"/>
-          <path class="tear-shard" d="M12 20 L48 42 L34 60 L14 46 Z"/>
-          <path class="tear-shard" d="M155 14 L172 36 L160 52 L145 34 Z"/>
-        </svg>
-      </div>
-      <div class="card-top">
-        <div class="card-issuer">Banco Cuscatlán</div>
-        <div style="display:flex; align-items:center; gap:10px;">
-          <svg class="contactless" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="2" stroke-linecap="round"><path d="M8.5 8.5a5 5 0 0 1 0 7"/><path d="M12 5a10 10 0 0 1 0 14"/><path d="M15.5 1.5a15 15 0 0 1 0 21"/></svg>
-          <div class="chip"></div>
+    <div class="card-column">
+      <div class="card-visual" id="card-visual">
+        <div class="card-emblem" id="card-emblem" aria-hidden="true">
+          <svg viewBox="0 0 150 150">
+            <circle class="ring" cx="75" cy="75" r="60"/>
+            <path class="spiral" d="M75 40 A35 35 0 1 1 40 75"/>
+            <circle class="spiral" cx="40" cy="75" r="6"/>
+            <path class="crack" d="M22 25 L58 58"/>
+            <path class="crack" d="M58 58 L48 78 L70 88"/>
+            <path class="crack" d="M70 88 L100 112"/>
+            <path class="crack" d="M92 30 L72 55 L98 68"/>
+          </svg>
         </div>
-      </div>
-      <div class="card-number">*****</div>
-      <div class="card-bottom">
-        <div><div class="card-label">Corte</div><div class="card-value" id="card-corte-val">—</div></div>
-        <div><div class="card-label">Pago</div><div class="card-value" id="card-pago-val">—</div></div>
-        <div class="card-brandmark">tarjeta</div>
+        <div class="card-alert-glow" aria-hidden="true"></div>
+        <div class="card-scanline" aria-hidden="true"></div>
+        <div class="card-tear" id="card-tear" aria-hidden="true">
+          <svg viewBox="0 0 200 126" preserveAspectRatio="none">
+            <path class="tear-line" d="M12 20 L48 42 L34 60 L74 84 L58 100 L100 118"/>
+            <path class="tear-line" d="M48 42 L66 30"/>
+            <path class="tear-line" d="M155 14 L172 36 L160 52 L182 70"/>
+            <path class="tear-shard" d="M12 20 L48 42 L34 60 L14 46 Z"/>
+            <path class="tear-shard" d="M155 14 L172 36 L160 52 L145 34 Z"/>
+          </svg>
+        </div>
+        <div class="card-top">
+          <div class="card-issuer">Banco Cuscatlán</div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <svg class="contactless" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="2" stroke-linecap="round"><path d="M8.5 8.5a5 5 0 0 1 0 7"/><path d="M12 5a10 10 0 0 1 0 14"/><path d="M15.5 1.5a15 15 0 0 1 0 21"/></svg>
+            <div class="chip"></div>
+          </div>
+        </div>
+        <div class="card-number">*****</div>
+        <div class="card-bottom">
+          <div><div class="card-label">Corte</div><div class="card-value" id="card-corte-val">—</div></div>
+          <div><div class="card-label">Pago</div><div class="card-value" id="card-pago-val">—</div></div>
+          <div class="card-brandmark">tarjeta</div>
+        </div>
       </div>
       <div class="card-due-notice" id="card-due-notice">
         <div class="due-title" id="due-title"></div>

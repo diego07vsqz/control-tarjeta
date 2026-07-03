@@ -153,6 +153,15 @@
   .card-scanline{position:absolute; left:0; right:0; height:40%; pointer-events:none; opacity:0; background:linear-gradient(180deg, transparent, rgba(226,83,107,.18), transparent);}
 
   .card-visual{border-width:1px; border-style:solid; border-color:var(--line); transition:transform .5s cubic-bezier(.2,.8,.2,1), box-shadow .5s ease, border-color .4s ease;}
+
+  /* Estado "warn" — excedido pero el usuario confirmó que sí puede pagar: alarma suave, ámbar, sin glitch ni grietas. */
+  .card-visual.card-warn{border-color:rgba(226,165,62,.5); animation:card-warn-pulse 2.4s ease-in-out infinite;}
+  .card-visual.card-warn .card-alert-glow{opacity:1; background:radial-gradient(ellipse at 78% 85%, rgba(226,165,62,.28), transparent 62%); animation:glow-pulse-amber 2.4s ease-in-out infinite;}
+  .card-visual.card-warn .card-emblem{opacity:.35; filter:drop-shadow(0 0 8px rgba(226,165,62,.55));}
+  .card-visual.card-warn .card-emblem .ring, .card-visual.card-warn .card-emblem .spiral{stroke:var(--amber);}
+  @keyframes card-warn-pulse{0%,100%{box-shadow:0 20px 50px -20px rgba(0,0,0,.7);} 50%{box-shadow:0 20px 50px -20px rgba(0,0,0,.7), 0 0 22px -4px rgba(226,165,62,.5);}}
+  @keyframes glow-pulse-amber{0%,100%{opacity:.4;} 50%{opacity:.85;}}
+
   .card-visual.over-limit{
     border-color:rgba(226,83,107,.55);
     animation:card-alert-shake .4s cubic-bezier(.36,.07,.19,.97) 1, card-alert-breathe 1.4s ease-in-out .4s infinite, card-alert-glitch 3.2s linear .4s infinite;
@@ -1196,25 +1205,40 @@
       $('kpi-max-sub').textContent = 'mayor: —';
     }
 
-    updateCardEmblem(total > limite);
+    updateCardEmblem();
   }
 
   /**
-   * Alterna el estado visual "excedido" de la tarjeta: emblema de fondo se
-   * agrieta y se pone rojo, con un shake 3D breve al momento del cruce.
-   * Solo dispara la animación de shake una vez, no en cada refresco mientras
-   * ya estaba excedido.
+   * Resuelve y aplica el estado visual de la tarjeta según gasto vs. límite
+   * Y la respuesta del usuario al modal "¿podrás pagar?":
+   *   - ok: dentro del límite → normal.
+   *   - warn: excedido pero el usuario confirmó "sí puedo pagarlo" → alarma
+   *           suave, ámbar, sin glitch ni grietas.
+   *   - critical: excedido y el usuario dijo "no" (o no ha respondido aún)
+   *               → corrupción roja intensa, grietas, glitch.
+   * Solo dispara el shake una vez, al entrar a "critical", no en cada refresco.
    */
-  let cardWasOverLimit = false;
-  function updateCardEmblem(isOverLimit) {
+  let lastCardState = 'ok';
+  function updateCardEmblem() {
     const card = $('card-visual');
-    card.classList.toggle('over-limit', isOverLimit);
-    if (isOverLimit && !cardWasOverLimit) {
+    const total = totalTarjeta();
+    const limite = getLimite();
+
+    let state = 'ok';
+    if (total > limite) {
+      const respondioSi = VERDICT && Math.abs(VERDICT.total - total) < 0.01 && VERDICT.answer === true;
+      state = respondioSi ? 'warn' : 'critical';
+    }
+
+    card.classList.toggle('card-warn', state === 'warn');
+    card.classList.toggle('over-limit', state === 'critical');
+
+    if (state === 'critical' && lastCardState !== 'critical') {
       card.classList.remove('over-limit');
-      void card.offsetWidth; // fuerza reflow para poder re-disparar la animación
+      void card.offsetWidth; // fuerza reflow para poder re-disparar el shake
       card.classList.add('over-limit');
     }
-    cardWasOverLimit = isOverLimit;
+    lastCardState = state;
   }
 
   /**
@@ -1319,6 +1343,7 @@
     saveVerdict({ total, answer: canPay });
     $('modal-overlay').classList.remove('show');
     showVerdictBanner(canPay, total, getLimite());
+    updateCardEmblem();
     if (!canPay) showToast('💡 Revisa tus gastos del mes para cuadrar el pago');
   }
 
@@ -1337,6 +1362,7 @@
   function resetVerdict() {
     saveVerdict(null);
     $('verdict-banner').classList.remove('show');
+    updateCardEmblem();
     checkLimitAndPrompt();
   }
 

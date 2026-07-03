@@ -1168,7 +1168,11 @@
       updateCountdown();
       renderFechasPagoCards();
       checkLimitAndPrompt();
-      checkDepositoPrompt();
+      // checkDepositoPrompt() NO va aquí a propósito: loadData() corre en cada
+      // refresh manual y cada poll automático (cada 2 min) — si preguntara en
+      // cada uno, el modal se repetiría de más. Vive solo en init() (una vez
+      // por sesión) y en las respuestas del propio modal (para encadenar la
+      // segunda fecha sin esperar al próximo poll).
 
       $('last-update').textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit', timeZone: TIMEZONE });
     } catch (err) {
@@ -1270,8 +1274,13 @@
     }
 
     // Se pregunta al final, después del primer render, para no competir
-    // visualmente con el overlay de carga ni con el modal de límite/depósito.
+    // visualmente con el overlay de carga ni con el modal de límite.
+    // Ambas llamadas corren UNA VEZ por sesión (por eso viven en init y no en
+    // loadData): el aviso mensual solo tiene sentido al abrir la app, y el de
+    // depósito no debe insistir en cada refresh — solo al iniciar sesión, y
+    // luego naturalmente al abrir la app un día distinto (nueva sesión).
     await checkMonthlyPagoPrompt();
+    checkDepositoPrompt();
 
     setInterval(() => loadData(false).catch(() => {}), REFRESH_MS);
   }

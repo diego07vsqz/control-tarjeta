@@ -130,7 +130,7 @@
   .date-edit input:focus{outline:none; border-color:var(--brass);}
 
   /* ── KPIs ── */
-  .kpi-row{display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:28px;}
+  .kpi-row{display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:28px;}
   @media(max-width:860px){ .kpi-row{grid-template-columns:1fr 1fr;} }
 
   .kpi{background:var(--card); border:1px solid var(--line); border-radius:var(--r-md); padding:18px 20px; position:relative; overflow:hidden;}
@@ -158,6 +158,9 @@
   .savings-check-row{display:flex; justify-content:space-between; font-size:13px; color:var(--text-mid); margin-bottom:8px; flex-wrap:wrap; gap:6px;}
   .savings-check-row b{color:var(--text); font-family:'JetBrains Mono',monospace;}
   .savings-hint{margin-top:10px; font-size:12px; color:var(--text-dim);}
+
+  .bank-note{font-size:12px; color:var(--text-dim); margin:-14px 0 28px; padding:0 4px;}
+  .bank-note b{color:var(--text-mid); font-weight:600;}
 
   .table-toolbar{display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:16px;}
   .table-toolbar .section-title{margin:0; border:none; flex-shrink:0;}
@@ -195,8 +198,8 @@
   .note-text{font-size:11.5px; color:var(--text-dim); font-style:italic; margin-top:3px;}
 
   /* ── Analítica ── */
-  .analytics-row{display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:28px;}
-  @media(max-width:860px){ .analytics-row{grid-template-columns:1fr;} }
+  .analytics-row{display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:28px;}
+  @media(max-width:860px){ .analytics-row{grid-template-columns:1fr 1fr;} }
   .metric{background:var(--card); border:1px solid var(--line); border-radius:var(--r-md); padding:16px 20px;}
   .metric .lbl{font-size:10.5px; color:var(--text-mid); text-transform:uppercase; letter-spacing:.06em; margin-bottom:8px;}
   .metric .val{font-size:21px; font-weight:700; font-family:'Space Grotesk',sans-serif;}
@@ -401,7 +404,8 @@
     </div>
   </div>
 
-  <!-- ── KPIs ── -->
+  <!-- ── Grupo 1: ¿Puedo pagar? ── -->
+  <div class="section-title">¿Puedo pagar?</div>
   <div class="kpi-row">
     <div class="kpi k1">
       <div class="lbl">Total gastado (col. C)</div>
@@ -413,20 +417,31 @@
       <div class="val figures" id="kpi-limite">$0 / $200</div>
       <div class="bar-track"><div class="bar-fill" id="bar-limite" style="width:0%; background:var(--mint);"></div></div>
     </div>
-    <div class="kpi k3">
-      <div class="lbl">Límite de tarjeta (banco)</div>
-      <div class="val figures" id="kpi-banco">$0 / $0</div>
-      <div class="bar-track"><div class="bar-fill" id="bar-banco" style="width:0%; background:var(--amber);"></div></div>
-    </div>
     <div class="kpi k2">
+      <div class="lbl">Ahorro en cuenta (col. G)</div>
+      <div class="val figures" id="kpi-ahorro">$0.00</div>
+      <div class="sub" id="kpi-ahorro-sub">ingresado para pagar</div>
+    </div>
+  </div>
+
+  <!-- ── Veredicto de ahorro (compacto, sin repetir números de arriba) ── -->
+  <div class="panel" style="margin-bottom:28px;">
+    <div class="savings-check-head">
+      <div class="section-title" style="margin:0; border:none;">Veredicto: ahorro vs. pago</div>
+      <div class="verdict-pill na" id="savings-verdict">Calculando…</div>
+    </div>
+    <div class="bar-track"><div class="bar-fill" id="bar-ahorro" style="width:0%; background:var(--mint);"></div></div>
+    <div class="savings-hint" id="ahorro-hint"></div>
+  </div>
+
+  <!-- ── Grupo 2: Análisis del ciclo ── -->
+  <div class="section-title">Análisis del ciclo</div>
+  <div class="analytics-row">
+    <div class="metric">
       <div class="lbl">Gasto promedio</div>
       <div class="val figures" id="kpi-avg">$0.00</div>
       <div class="sub" id="kpi-max-sub">mayor: —</div>
     </div>
-  </div>
-
-  <!-- ── Analítica ── -->
-  <div class="analytics-row">
     <div class="metric">
       <div class="lbl">Promedio semanal</div>
       <div class="val figures" id="metric-semanal">$0.00</div>
@@ -444,19 +459,8 @@
     </div>
   </div>
 
-  <!-- ── Ahorro vs pago ── -->
-  <div class="panel" style="margin-bottom:28px;">
-    <div class="savings-check-head">
-      <div class="section-title" style="margin:0; border:none;">Cuenta de ahorro vs. pago de tarjeta</div>
-      <div class="verdict-pill na" id="savings-verdict">Calculando…</div>
-    </div>
-    <div class="savings-check-row">
-      <span>Ingresado a ahorro (col. G): <b class="figures" id="ahorro-ingresado">$0.00</b></span>
-      <span>Total a pagar (col. C): <b class="figures" id="ahorro-total">$0.00</b></span>
-    </div>
-    <div class="bar-track"><div class="bar-fill" id="bar-ahorro" style="width:0%; background:var(--mint);"></div></div>
-    <div class="savings-hint" id="ahorro-hint"></div>
-  </div>
+  <!-- ── Límite de tarjeta del banco: referencia, no acción — vive como nota, no como card ── -->
+  <div class="bank-note" id="bank-note">Límite de tarjeta (banco): <b class="figures" id="kpi-banco">$0 / $0</b></div>
 
   <!-- ── Tabla ── -->
   <div class="panel" style="margin-bottom:28px;">
@@ -1183,10 +1187,12 @@
     barLim.style.width = pctLim + '%';
     barLim.style.background = total > limite ? 'var(--rose)' : pctLim > 75 ? 'var(--amber)' : 'var(--mint)';
 
+    const ahorro = META.ahorro;
+    animateValue($('kpi-ahorro'), ahorro ?? 0);
+    $('kpi-ahorro-sub').textContent = ahorro === null ? 'sin dato en col. G' : 'ingresado para pagar';
+
     const limiteBanco = META.limiteBanco || 0;
     $('kpi-banco').textContent = `${fmt(total)} / ${fmt(limiteBanco)}`;
-    const pctBanco = limiteBanco ? Math.min((total / limiteBanco) * 100, 100) : 0;
-    $('bar-banco').style.width = pctBanco + '%';
 
     if (EXPENSES.length) {
       animateValue($('kpi-avg'), total / EXPENSES.length);
@@ -1199,9 +1205,10 @@
   }
 
   /**
-   * Pinta la card "Cuenta de ahorro vs. pago de tarjeta": compara lo ingresado
-   * a la cuenta de ahorro (columna G) contra el total a pagar del ciclo,
-   * y da un veredicto claro de si alcanza o no.
+   * Pinta el veredicto "ahorro vs. pago": compara lo ingresado a la cuenta de
+   * ahorro (columna G, ya mostrado en su propio KPI) contra el total del ciclo,
+   * y resuelve si alcanza o no. Solo pinta la pastilla + barra + texto — los
+   * montos en sí ya viven en el KPI "Ahorro en cuenta", no se repiten aquí.
    */
   function renderSavingsCheck() {
     const total = totalTarjeta();
@@ -1209,10 +1216,7 @@
     const pill = $('savings-verdict');
     const bar = $('bar-ahorro');
 
-    $('ahorro-total').textContent = fmt(total);
-
     if (ahorro === null) {
-      $('ahorro-ingresado').textContent = '—';
       pill.textContent = 'Sin datos';
       pill.className = 'verdict-pill na';
       bar.style.width = '0%';
@@ -1220,7 +1224,6 @@
       return;
     }
 
-    $('ahorro-ingresado').textContent = fmt(ahorro);
     const pct = total > 0 ? Math.min((ahorro / total) * 100, 100) : 100;
     bar.style.width = pct + '%';
 

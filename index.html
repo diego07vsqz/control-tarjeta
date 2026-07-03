@@ -354,7 +354,7 @@
   .note-text{font-size:11.5px; color:var(--text-dim); font-style:italic; margin-top:3px;}
 
   /* ── Analítica ── */
-  .analytics-row{display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:28px;}
+  .analytics-row{display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:28px;}
   @media(max-width:860px){ .analytics-row{grid-template-columns:1fr 1fr;} }
   .metric{border-radius:var(--r-md); padding:16px 20px;}
   .metric .lbl{font-size:10.5px; color:var(--text-mid); text-transform:uppercase; letter-spacing:.06em; margin-bottom:8px;}
@@ -621,11 +621,6 @@
       <div class="val figures" id="metric-racha">—</div>
       <div class="sub" id="metric-racha-sub">desde el último gasto</div>
     </div>
-    <div class="metric">
-      <div class="lbl">Vs. ciclo anterior</div>
-      <div class="val figures" id="metric-comparar">—</div>
-      <div class="sub" id="metric-comparar-sub">sin datos históricos aún</div>
-    </div>
   </div>
 
   <!-- ── Límite de tarjeta del banco: referencia, no acción — vive como nota, no como card ── -->
@@ -743,7 +738,6 @@
     VEREDICTO: 'tarjeta:veredicto',
     THEME: 'tarjeta:theme',
     NOTAS: 'tarjeta:notas',
-    HISTORIAL: 'tarjeta:historial-ciclos',
   };
 
   // ┌──────────────────────────────────────────────────────────────────────┐
@@ -761,9 +755,6 @@
 
   /** Índice de la tarjeta activa dentro de CARDS. */
   let activeCardIndex = 0;
-
-  /** Historial de totales por ciclo cerrado, para la comparación "vs. mes anterior". */
-  let HISTORIAL = [];
 
   /** Notas de texto libre por movimiento, indexadas por una clave derivada del propio movimiento. */
   let NOTAS = {};
@@ -950,6 +941,11 @@
    * julio válido en un ciclo que arrancó en junio. Si el Sheet aún no tiene
    * corte/pago, cae a un rango de respaldo basado en el propio historial de
    * gastos (primer a último gasto ±5 días).
+   *
+   * Si la MAYORÍA de los gastos cae fuera del rango, no son typos — es que
+   * corte/pago ya avanzaron al siguiente ciclo mientras el Sheet todavía
+   * conserva filas del ciclo cerrado. En ese caso no tiene sentido marcar
+   * casi todo como "error", así que la alerta se omite por completo.
    * @returns {{fila:number, fecha:string, gasto:string, monto:number, rango:string}[]}
    */
   function detectDateAnomalies() {
@@ -964,9 +960,10 @@
       fin = fin || addDays(fechas[fechas.length - 1], 5);
     }
 
-    return EXPENSES
-      .filter((e) => e.fecha < inicio || e.fecha > fin)
-      .map((e) => ({ ...e, rango: `${fmtDateShort(inicio)} – ${fmtDateShort(fin)}` }));
+    const anomalias = EXPENSES.filter((e) => e.fecha < inicio || e.fecha > fin);
+    if (anomalias.length === 0 || anomalias.length >= EXPENSES.length / 2) return [];
+
+    return anomalias.map((e) => ({ ...e, rango: `${fmtDateShort(inicio)} – ${fmtDateShort(fin)}` }));
   }
 
   /** Suma (o resta, con n negativo) días a una fecha ISO "YYYY-MM-DD". */
@@ -1102,36 +1099,6 @@
     VERDICT = v;
     try {
       await storage.set(skey(STORAGE_KEYS.VEREDICTO), JSON.stringify(v));
-    } catch (e) { /* falla silenciosa */ }
-  }
-
-  /** Carga el historial de totales por ciclo (para comparar contra el mes anterior). */
-  async function loadHistorial() {
-    try {
-      const saved = await storage.get(skey(STORAGE_KEYS.HISTORIAL));
-      HISTORIAL = saved && saved.value ? JSON.parse(saved.value) : [];
-    } catch (e) {
-      HISTORIAL = [];
-    }
-  }
-
-  /**
-   * Actualiza (o crea) la entrada del ciclo actual en el historial, con su
-   * total más reciente. Cada ciclo se identifica por su fecha de corte — así,
-   * cuando el corte cambie de valor (nuevo ciclo), la entrada anterior queda
-   * congelada con su total final, lista para comparar.
-   */
-  async function upsertHistorial(cicloKey, total) {
-    if (!cicloKey) return;
-    const idx = HISTORIAL.findIndex((h) => h.ciclo === cicloKey);
-    if (idx >= 0) HISTORIAL[idx].total = total;
-    else HISTORIAL.push({ ciclo: cicloKey, total });
-
-    HISTORIAL.sort((a, b) => a.ciclo.localeCompare(b.ciclo));
-    if (HISTORIAL.length > 12) HISTORIAL = HISTORIAL.slice(-12); // no crece indefinidamente
-
-    try {
-      await storage.set(skey(STORAGE_KEYS.HISTORIAL), JSON.stringify(HISTORIAL));
     } catch (e) { /* falla silenciosa */ }
   }
 
@@ -1471,26 +1438,6 @@
     const dias = daysSinceLastExpense();
     $('metric-racha').textContent = dias === null ? '—' : `${dias} día${dias === 1 ? '' : 's'}`;
     $('metric-racha-sub').textContent = dias === null ? 'sin movimientos aún' : dias === 0 ? 'hubo gasto hoy' : 'sin registrar gastos';
-
-    const cicloActual = $('input-corte').value;
-    const anteriores = HISTORIAL.filter((h) => h.ciclo !== cicloActual).sort((a, b) => b.ciclo.localeCompare(a.ciclo));
-    const compEl = $('metric-comparar');
-    const compSub = $('metric-comparar-sub');
-
-    if (anteriores.length === 0) {
-      compEl.textContent = '—';
-      compEl.className = 'val figures';
-      compSub.textContent = 'primer ciclo registrado';
-    } else {
-      const anterior = anteriores[0].total;
-      const actual = totalTarjeta();
-      const diff = actual - anterior;
-      const pct = anterior > 0 ? (diff / anterior) * 100 : 0;
-      compEl.textContent = (diff >= 0 ? '+' : '') + fmt(diff);
-      compEl.className = 'val figures ' + (diff > 0 ? '' : '');
-      compEl.style.color = diff > 0 ? 'var(--rose)' : diff < 0 ? 'var(--mint)' : '';
-      compSub.textContent = `${pct >= 0 ? '+' : ''}${pct.toFixed(0)}% vs. ${fmt(anterior)} del ciclo anterior`;
-    }
   }
 
   /**
@@ -1611,10 +1558,6 @@
       renderDateAlert();
       updateCountdown();
 
-      // El ciclo se identifica por su fecha de corte; al cerrar (cambiar de
-      // corte) la entrada anterior queda congelada en el historial, lista
-      // para la comparación "vs. ciclo anterior".
-      await upsertHistorial(corte, totalTarjeta());
       renderAnalytics();
 
       checkLimitAndPrompt();
@@ -1644,11 +1587,9 @@
   async function switchCard(idx) {
     activeCardIndex = idx;
     EXPENSES = [];
-    HISTORIAL = [];
     NOTAS = {};
     await loadLimite();
     await loadVerdict();
-    await loadHistorial();
     await loadNotas();
     loadData(true).then(() => showToast(`💳 Cambiado a ${activeCard().nombre}`));
   }
@@ -1750,7 +1691,6 @@
     // guardado antes del primer render con datos del Sheet.
     await loadLimite();
     await loadVerdict();
-    await loadHistorial();
     await loadNotas();
 
     try {

@@ -141,34 +141,66 @@
   .card-emblem svg{width:100%; height:100%;}
   .card-emblem .ring{fill:none; stroke:#ffffff; stroke-width:2;}
   .card-emblem .spiral{fill:none; stroke:#ffffff; stroke-width:3; stroke-linecap:round;}
-  .card-emblem .crack{fill:none; stroke:var(--rose); stroke-width:3.5; stroke-linecap:round; opacity:0; stroke-dasharray:60; stroke-dashoffset:60; transition:opacity .25s ease, stroke-dashoffset .45s cubic-bezier(.2,.8,.2,1);}
+  .card-emblem .crack{fill:none; stroke:var(--rose); stroke-width:4; stroke-linecap:round; opacity:0; stroke-dasharray:60; stroke-dashoffset:60; transition:opacity .25s ease, stroke-dashoffset .45s cubic-bezier(.2,.8,.2,1);}
   .card-emblem .crack:nth-of-type(2){transition-delay:.08s;}
   .card-emblem .crack:nth-of-type(3){transition-delay:.16s;}
   .card-emblem .crack:nth-of-type(4){transition-delay:.24s;}
 
-  /* Viñeta roja de fondo — se enciende junto con el estado excedido, refuerza la sensación de alerta. */
-  .card-alert-glow{position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity .4s ease; background:radial-gradient(ellipse at 78% 85%, rgba(226,83,107,.35), transparent 65%);}
+  /* Viñeta roja de fondo — pulsa junto con el estado excedido. */
+  .card-alert-glow{position:absolute; inset:0; pointer-events:none; opacity:0; background:radial-gradient(ellipse at 78% 85%, rgba(226,83,107,.5), transparent 60%);}
 
-  .card-visual.over-limit{animation:card-alert-shake .5s cubic-bezier(.36,.07,.19,.97) 1, card-alert-breathe 1.8s ease-in-out .5s infinite;}
-  .card-visual.over-limit .card-alert-glow{opacity:1;}
-  .card-visual.over-limit .card-emblem{opacity:.85; filter:drop-shadow(0 0 16px rgba(226,83,107,.9)); animation:emblem-flicker 2.6s ease-in-out infinite;}
+  /* Barrido tipo scanline — cruza la tarjeta, refuerza la idea de señal dañada/interferencia. */
+  .card-scanline{position:absolute; left:0; right:0; height:40%; pointer-events:none; opacity:0; background:linear-gradient(180deg, transparent, rgba(226,83,107,.18), transparent);}
+
+  .card-visual{border-width:1px; border-style:solid; border-color:var(--line); transition:transform .5s cubic-bezier(.2,.8,.2,1), box-shadow .5s ease, border-color .4s ease;}
+  .card-visual.over-limit{
+    border-color:rgba(226,83,107,.55);
+    animation:card-alert-shake .4s cubic-bezier(.36,.07,.19,.97) 1, card-alert-breathe 1.4s ease-in-out .4s infinite, card-alert-glitch 3.2s linear .4s infinite;
+  }
+  .card-visual.over-limit .card-alert-glow{opacity:1; animation:glow-pulse 1.6s ease-in-out infinite;}
+  .card-visual.over-limit .card-scanline{opacity:1; animation:scanline-sweep 2.4s ease-in-out infinite;}
+  .card-visual.over-limit .card-emblem{
+    opacity:.9;
+    filter:drop-shadow(0 0 18px rgba(226,83,107,.95)) drop-shadow(2px 0 0 rgba(226,83,107,.6)) drop-shadow(-2px 0 0 rgba(79,209,255,.35));
+    animation:emblem-flicker 2.2s ease-in-out infinite;
+  }
   .card-visual.over-limit .card-emblem .ring, .card-visual.over-limit .card-emblem .spiral{stroke:var(--rose);}
   .card-visual.over-limit .card-emblem .crack{opacity:1; stroke-dashoffset:0;}
-  .card-visual.over-limit::before{background:repeating-linear-gradient(115deg, rgba(226,83,107,.08) 0 2px, transparent 2px 40px);}
+  .card-visual.over-limit::before{background:repeating-linear-gradient(115deg, rgba(226,83,107,.1) 0 2px, transparent 2px 40px);}
+
   @keyframes card-alert-shake{
     10%,90%{transform:translateX(-1px) rotateZ(-.3deg);}
     20%,80%{transform:translateX(2px) rotateZ(.4deg);}
     30%,50%,70%{transform:translateX(-3px) rotateZ(-.5deg);}
     40%,60%{transform:translateX(3px) rotateZ(.5deg);}
   }
-  /* Respiración lenta 3D: la tarjeta "late" mientras sigue excedida, no solo en el instante del cruce. */
+  /* Respiración 3D continua mientras sigue excedida. */
   @keyframes card-alert-breathe{
     0%,100%{transform:rotateX(0deg) rotateY(0deg) scale(1);}
-    50%{transform:rotateX(1.5deg) rotateY(-2deg) scale(1.008);}
+    50%{transform:rotateX(2deg) rotateY(-2.5deg) scale(1.01);}
   }
-  /* Parpadeo tipo "señal dañada" en el emblema — refuerza la idea de algo rompiéndose. */
+  /* Micro-saltos tipo glitch: la tarjeta "tartamudea" cada pocos segundos, como señal cortándose. */
+  @keyframes card-alert-glitch{
+    0%,92%,100%{transform:translate(0,0);}
+    93%{transform:translate(-2px,1px);}
+    94%{transform:translate(2px,-1px);}
+    95%{transform:translate(-1px,0);}
+    96%{transform:translate(1px,1px);}
+    97%{transform:translate(0,0);}
+  }
+  @keyframes glow-pulse{0%,100%{opacity:.55;} 50%{opacity:1;}}
+  @keyframes scanline-sweep{0%{transform:translateY(-120%);} 100%{transform:translateY(220%);}}
+  /* Parpadeo agresivo tipo "señal dañada", con salto de posición además de opacidad. */
   @keyframes emblem-flicker{
-    0%,100%{opacity:.85;} 42%{opacity:.85;} 44%{opacity:.45;} 46%{opacity:.85;} 72%{opacity:.85;} 74%{opacity:.55;} 76%{opacity:.85;}
+    0%,100%{opacity:.9; transform:translate(0,0);}
+    38%{opacity:.9; transform:translate(0,0);}
+    40%{opacity:.3; transform:translate(1.5px,0);}
+    42%{opacity:.9; transform:translate(-1px,0);}
+    43%{opacity:.4;}
+    45%{opacity:.9; transform:translate(0,0);}
+    70%{opacity:.9;}
+    71%{opacity:.35; transform:translate(-1.5px,.5px);}
+    73%{opacity:.9; transform:translate(0,0);}
   }
 
   .contactless{opacity:.8;}
@@ -413,6 +445,7 @@
         </svg>
       </div>
       <div class="card-alert-glow" aria-hidden="true"></div>
+      <div class="card-scanline" aria-hidden="true"></div>
       <div class="card-top">
         <div class="card-issuer">Banco Cuscatlán</div>
         <div style="display:flex; align-items:center; gap:10px;">

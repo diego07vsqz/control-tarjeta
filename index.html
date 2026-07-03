@@ -400,6 +400,18 @@
   .verdict-banner b{color:var(--text);}
   .verdict-banner button{margin-left:auto; background:none; border:1px solid currentColor; color:inherit; border-radius:7px; padding:5px 12px; font-size:11.5px; cursor:pointer; font-family:inherit;}
 
+  /* ── Alerta de fechas sospechosas ── */
+  .date-alert{
+    display:none; flex-direction:column; gap:8px; padding:14px 20px; border-radius:var(--r-md);
+    margin-bottom:20px; font-size:12.5px; background:var(--amber-soft); border:1px solid rgba(226,165,62,.4); color:var(--amber);
+  }
+  .date-alert.show{display:flex;}
+  .date-alert-head{display:flex; align-items:center; gap:10px; font-weight:600;}
+  .date-alert-head button{margin-left:auto; background:none; border:1px solid currentColor; color:inherit; border-radius:7px; padding:4px 11px; font-size:11px; cursor:pointer; font-family:inherit;}
+  .date-alert-list{list-style:none; display:flex; flex-direction:column; gap:4px; color:var(--text-mid);}
+  .date-alert-list li{font-family:'JetBrains Mono',monospace; font-size:11.5px;}
+  .date-alert-list b{color:var(--text); font-family:'Inter',sans-serif;}
+
   .toast{position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 20px; font-size:13px; opacity:0; pointer-events:none; transition:all .3s; z-index:600; box-shadow:0 10px 30px rgba(0,0,0,.4);}
   .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
 
@@ -475,6 +487,15 @@
     <span id="verdict-icon">✅</span>
     <span id="verdict-text"></span>
     <button id="btn-reset-verdict">Volver a preguntar</button>
+  </div>
+
+  <div class="date-alert" id="date-alert">
+    <div class="date-alert-head">
+      <span>📅⚠️</span>
+      <span id="date-alert-summary"></span>
+      <button id="btn-dismiss-date-alert">Ocultar</button>
+    </div>
+    <ul class="date-alert-list" id="date-alert-list"></ul>
   </div>
 
   <!-- ── HERO ── -->
@@ -859,7 +880,7 @@
     const expenses = [];
     let corte = null, pago = null, limiteBanco = null, ahorro = null;
 
-    rows.forEach((row) => {
+    rows.forEach((row, idx) => {
       const cells = row.c || [];
       const cell = (i) => (cells[i] ? (cells[i].f ?? cells[i].v ?? null) : null);
 
@@ -874,7 +895,9 @@
       if (!ahorro) ahorro = parseMoney(cell(6)); // columna G
 
       if (fecha && gasto && monto !== null) {
-        expenses.push({ fecha, gasto: String(gasto).trim(), monto });
+        // idx+2: la fila 1 del Sheet es el encabezado (headers=1), así que la
+        // primera fila de datos (idx 0) corresponde a la fila 2 real del Sheet.
+        expenses.push({ fecha, gasto: String(gasto).trim(), monto, fila: idx + 2 });
       }
     });
 
@@ -917,6 +940,29 @@
   /** Un gasto es "inusual" si supera OUTLIER_THRESHOLD ($100). */
   function isOutlier(monto) {
     return monto > OUTLIER_THRESHOLD;
+  }
+
+  /**
+   * Detecta gastos con fecha probablemente mal digitada en el Sheet: mes o
+   * año distinto al del resto del ciclo (típico error: escribir el año
+   * pasado por costumbre, o un mes que no corresponde). Compara cada gasto
+   * contra el mes-año que más se repite entre todos los movimientos — no
+   * contra "hoy", porque el ciclo puede no ser el mes calendario actual.
+   * @returns {{fila:number, fecha:string, gasto:string, monto:number, esperado:string}[]}
+   */
+  function detectDateAnomalies() {
+    if (EXPENSES.length < 2) return [];
+
+    const conteo = {};
+    EXPENSES.forEach((e) => {
+      const ym = e.fecha.slice(0, 7); // "YYYY-MM"
+      conteo[ym] = (conteo[ym] || 0) + 1;
+    });
+    const [ymEsperado] = Object.entries(conteo).sort((a, b) => b[1] - a[1])[0];
+
+    return EXPENSES
+      .filter((e) => e.fecha.slice(0, 7) !== ymEsperado)
+      .map((e) => ({ ...e, esperado: ymEsperado }));
   }
 
   /**
@@ -1437,6 +1483,29 @@
   }
 
   /**
+   * Pinta el banner de fechas sospechosas: lista cada gasto cuyo mes/año no
+   * coincide con el resto del ciclo, con su número de fila real del Sheet
+   * para que sea fácil ir a corregirlo.
+   */
+  function renderDateAlert() {
+    const anomalias = detectDateAnomalies();
+    const banner = $('date-alert');
+
+    if (anomalias.length === 0) {
+      banner.classList.remove('show');
+      return;
+    }
+
+    banner.classList.add('show');
+    $('date-alert-summary').textContent =
+      `${anomalias.length} fecha${anomalias.length === 1 ? '' : 's'} no coincide${anomalias.length === 1 ? '' : 'n'} con el resto del ciclo — revisa si están bien escritas`;
+
+    $('date-alert-list').innerHTML = anomalias.map((a) => `
+      <li>Fila ${a.fila}: <b>${a.gasto}</b> — ${fmtDateShort(a.fecha)} (el resto del ciclo es ${a.esperado})</li>
+    `).join('');
+  }
+
+  /**
    * Compara el total gastado contra el límite personal y decide qué mostrar:
    * nada (si vas bien), el banner con la última respuesta guardada, o el
    * modal preguntando si podrás pagar (solo la primera vez que se cruza el límite).
@@ -1528,6 +1597,7 @@
       renderTable();
       renderKpis();
       renderSavingsCheck();
+      renderDateAlert();
       updateCountdown();
 
       // El ciclo se identifica por su fecha de corte; al cerrar (cambiar de
@@ -1581,6 +1651,7 @@
     $('btn-refresh').addEventListener('click', manualRefresh);
     $('btn-theme').addEventListener('click', toggleTheme);
     $('btn-reset-verdict').addEventListener('click', resetVerdict);
+    $('btn-dismiss-date-alert').addEventListener('click', () => $('date-alert').classList.remove('show'));
     $('btn-answer-no').addEventListener('click', () => answerVerdict(false));
     $('btn-answer-yes').addEventListener('click', () => answerVerdict(true));
 

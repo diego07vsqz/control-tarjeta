@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -133,6 +132,26 @@
   /* ── KPIs ── */
   .kpi-row{display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:28px;}
   @media(max-width:860px){ .kpi-row{grid-template-columns:1fr 1fr;} }
+
+  .pago-row{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:28px;}
+  @media(max-width:640px){ .pago-row{grid-template-columns:1fr;} }
+  .pago-card{background:var(--card); border:1px solid var(--line); border-radius:var(--r-md); padding:16px 18px;}
+  .pago-card-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;}
+  .pago-card-label{font-size:10.5px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.08em;}
+  .pago-card-days{font-size:11px; font-weight:600; font-family:'JetBrains Mono',monospace; color:var(--text-mid);}
+  .pago-card input[type="date"]{
+    width:100%; background:var(--bg-2); border:1px solid var(--line); border-radius:8px; color:var(--text);
+    font-family:'JetBrains Mono',monospace; font-size:14px; padding:8px 10px; margin-bottom:10px; color-scheme:dark;
+  }
+  .pago-card input[type="date"]:focus{outline:none; border-color:var(--brass);}
+  .pago-card-status{
+    font-size:11.5px; padding:5px 11px; border-radius:20px; display:inline-flex; align-items:center; gap:6px; font-weight:600;
+    background:var(--bg-2); color:var(--text-mid);
+  }
+  .pago-card-status.pendiente{background:var(--amber-soft); color:var(--amber);}
+  .pago-card-status.confirmado{background:var(--mint-soft); color:var(--mint);}
+  .pago-card-status.cancelado{background:var(--line-soft); color:var(--text-dim);}
+  .pago-card-status.vencido{background:var(--rose-soft); color:var(--rose);}
   .kpi{background:var(--card); border:1px solid var(--line); border-radius:var(--r-md); padding:18px 20px; position:relative; overflow:hidden;}
   .kpi::before{content:''; position:absolute; left:0; top:0; bottom:0; width:3px;}
   .kpi.k1::before{background:var(--brass);} .kpi.k2::before{background:var(--mint);}
@@ -190,12 +209,19 @@
   .modal h3{font-size:17px; margin-bottom:8px;}
   .modal p{font-size:13.5px; color:var(--text-mid); line-height:1.6; margin-bottom:22px;}
   .modal p .figures{color:var(--text); font-weight:700;}
-  .modal-actions{display:flex; gap:12px;}
-  .btn{border:none; border-radius:9px; font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:13.5px; padding:11px 20px; cursor:pointer; transition:transform .15s, background .2s; flex:1;}
+  .modal input[type="date"], .modal input[type="number"]{
+    width:100%; margin-bottom:18px; background:var(--bg-2); border:1px solid var(--line); border-radius:8px;
+    color:var(--text); font-family:'JetBrains Mono',monospace; font-size:14px; padding:9px 10px;
+  }
+  .modal input[type="date"]:focus, .modal input[type="number"]:focus{outline:none; border-color:var(--brass);}
+  .modal-actions{display:flex; gap:10px; flex-wrap:wrap;}
+  .btn{border:none; border-radius:9px; font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:13px; padding:11px 16px; cursor:pointer; transition:transform .15s, background .2s; flex:1;}
   .btn-yes{background:var(--mint); color:#0a1a15;}
   .btn-yes:hover{background:#68e0c0; transform:translateY(-1px);}
   .btn-no{background:var(--rose); color:#2a0a0f;}
   .btn-no:hover{background:#ea6f83; transform:translateY(-1px);}
+  .btn-later{background:var(--amber-soft); color:var(--amber); border:1px solid rgba(226,165,62,.35);}
+  .btn-later:hover{background:rgba(226,165,62,.22); transform:translateY(-1px);}
 
   .verdict-banner{
     display:none; align-items:center; gap:14px; padding:14px 20px; border-radius:var(--r-md);
@@ -317,6 +343,26 @@
     </div>
   </div>
 
+  <!-- ── Fechas de pago del mes (2) ── -->
+  <div class="pago-row">
+    <div class="pago-card" id="pago-card-1">
+      <div class="pago-card-head">
+        <span class="pago-card-label">Pago 1 de 2</span>
+        <span class="pago-card-days" id="pago1-days">— días</span>
+      </div>
+      <input type="date" id="input-fecha1">
+      <div class="pago-card-status" id="pago1-status">Sin definir</div>
+    </div>
+    <div class="pago-card" id="pago-card-2">
+      <div class="pago-card-head">
+        <span class="pago-card-label">Pago 2 de 2</span>
+        <span class="pago-card-days" id="pago2-days">— días</span>
+      </div>
+      <input type="date" id="input-fecha2">
+      <div class="pago-card-status" id="pago2-status">Sin definir</div>
+    </div>
+  </div>
+
   <!-- ── Tabla ── -->
   <div class="panel" style="margin-bottom:28px;">
     <div class="table-toolbar">
@@ -347,6 +393,40 @@
     <div class="modal-actions">
       <button class="btn btn-no" id="btn-answer-no">No, cuidado</button>
       <button class="btn btn-yes" id="btn-answer-yes">Sí, puedo pagarlo</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-mes-overlay">
+  <div class="modal">
+    <div class="modal-icon" style="background:var(--brass-soft);">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brass)" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+    </div>
+    <h3>¿Qué fechas de pago tocan este mes?</h3>
+    <p>Este mes tienes 2 fechas de pago. Ingresa ambas — puedes cambiarlas luego desde las tarjetas de abajo.</p>
+    <label style="display:block; font-size:10.5px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.08em; margin-bottom:6px;">Primera fecha de pago</label>
+    <input type="date" id="input-mes-fecha1">
+    <label style="display:block; font-size:10.5px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.08em; margin-bottom:6px;">Segunda fecha de pago</label>
+    <input type="date" id="input-mes-fecha2">
+    <div class="modal-actions">
+      <button class="btn btn-no" id="btn-mes-saltar">Ahora no</button>
+      <button class="btn btn-yes" id="btn-mes-guardar">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-deposito-overlay">
+  <div class="modal">
+    <div class="modal-icon" style="background:var(--mint-soft);">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--mint)" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+    </div>
+    <h3 id="deposito-titulo">¿Vas a depositar este pago?</h3>
+    <p id="deposito-msg">Hoy es la fecha de pago. ¿Cuánto vas a depositar?</p>
+    <input type="number" id="input-deposito-monto" placeholder="$0.00" step="0.01">
+    <div class="modal-actions">
+      <button class="btn btn-no" id="btn-deposito-cancelar">Cancelar</button>
+      <button class="btn btn-later" id="btn-deposito-luego">Preguntar más tarde</button>
+      <button class="btn btn-yes" id="btn-deposito-si">Sí, depositar</button>
     </div>
   </div>
 </div>
@@ -403,12 +483,18 @@
   const DUE_SOON_DAYS = 3;
   const DUE_WARNING_DAYS = 7;
 
+  /** Zona horaria fija de El Salvador — todo cálculo de "hoy" pasa por aquí,
+      sin importar en qué huso horario esté configurado el navegador del usuario. */
+  const TIMEZONE = 'America/El_Salvador';
+
   /** Claves de window.storage — centralizadas para evitar strings mágicos repetidos. */
   const STORAGE_KEYS = {
     FECHAS_MANUAL: 'tarjeta:fechas-manual',
     LIMITE: 'tarjeta:limite-pago',
     VEREDICTO: 'tarjeta:veredicto',
     THEME: 'tarjeta:theme',
+    FECHAS_MES: 'tarjeta:fechas-mes',
+    DEPOSITOS: 'tarjeta:depositos',
   };
 
   // ┌──────────────────────────────────────────────────────────────────────┐
@@ -423,6 +509,15 @@
 
   /** Última respuesta guardada al modal "¿podrás pagar?". @type {{total:number, answer:boolean}|null} */
   let VERDICT = null;
+
+  /** Las 2 fechas de pago del mes en curso, ingresadas manualmente por el usuario. */
+  let FECHAS_MES = { mes: null, fecha1: null, fecha2: null };
+
+  /** Depósitos guardados, uno por cada fecha de pago (clave = fecha ISO). @type {Object<string,{status:string, monto?:number, snoozedOn?:string}>} */
+  let DEPOSITOS = {};
+
+  /** Fecha ISO que el modal de depósito está preguntando en este momento. */
+  let depositoTarget = null;
 
   /** Texto actual del buscador de la tabla (case-insensitive, filtra por nombre de gasto). */
   let TABLE_FILTER = '';
@@ -446,6 +541,16 @@
 
   /** Formatea un número como moneda USD: 1234.5 → "$1,234.50". */
   const fmt = (n) => '$' + (n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  /**
+   * "Hoy" en formato ISO YYYY-MM-DD, calculado en la zona horaria de El Salvador
+   * (TIMEZONE), no en la del navegador. Así los recordatorios no se desincronizan
+   * si el usuario abre el dashboard viajando o con el reloj del equipo mal puesto.
+   */
+  const todayInSV = () => new Date().toLocaleDateString('en-CA', { timeZone: TIMEZONE });
+
+  /** Mes actual "YYYY-MM" en la misma zona horaria — usado para el aviso de inicio de mes. */
+  const currentMonthInSV = () => todayInSV().slice(0, 7);
 
   const MESES_LARGO = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
   const MESES_CORTO = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -627,14 +732,14 @@
   }
 
   /** Persiste las fechas de corte/pago cuando el Sheet aún no las trae. */
-  async function saveManualDates() {
+  async function saveManualDates(silent = false) {
     const corte = $('input-corte').value;
     const pago = $('input-pago').value;
     try {
       await window.storage.set(STORAGE_KEYS.FECHAS_MANUAL, JSON.stringify({ corte, pago }));
     } catch (e) { /* falla silenciosa: no es crítico, el usuario puede reintentar */ }
     updateCountdown();
-    showToast('💾 Fecha guardada localmente');
+    if (!silent) showToast('💾 Fecha guardada localmente');
   }
 
   /** Carga la última respuesta guardada al modal "¿podrás pagar?". */
@@ -652,6 +757,42 @@
     VERDICT = v;
     try {
       await window.storage.set(STORAGE_KEYS.VEREDICTO, JSON.stringify(v));
+    } catch (e) { /* falla silenciosa */ }
+  }
+
+  /** Carga las 2 fechas de pago guardadas del mes en curso (si existen). */
+  async function loadFechasMes() {
+    try {
+      const saved = await window.storage.get(STORAGE_KEYS.FECHAS_MES);
+      FECHAS_MES = saved && saved.value ? JSON.parse(saved.value) : { mes: null, fecha1: null, fecha2: null };
+    } catch (e) {
+      FECHAS_MES = { mes: null, fecha1: null, fecha2: null };
+    }
+  }
+
+  /** Persiste las 2 fechas de pago del mes. */
+  async function saveFechasMes(data) {
+    FECHAS_MES = data;
+    try {
+      await window.storage.set(STORAGE_KEYS.FECHAS_MES, JSON.stringify(data));
+    } catch (e) { /* falla silenciosa */ }
+  }
+
+  /** Carga el mapa de depósitos guardados, uno por cada fecha de pago. */
+  async function loadDepositos() {
+    try {
+      const saved = await window.storage.get(STORAGE_KEYS.DEPOSITOS);
+      DEPOSITOS = saved && saved.value ? JSON.parse(saved.value) : {};
+    } catch (e) {
+      DEPOSITOS = {};
+    }
+  }
+
+  /** Persiste el depósito de una fecha específica dentro del mapa DEPOSITOS. */
+  async function saveDepositoFor(fecha, data) {
+    DEPOSITOS[fecha] = data;
+    try {
+      await window.storage.set(STORAGE_KEYS.DEPOSITOS, JSON.stringify(DEPOSITOS));
     } catch (e) { /* falla silenciosa */ }
   }
 
@@ -736,7 +877,7 @@
       return;
     }
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayInSV();
     const diff = daysBetween(today, pago);
     daysLeftEl.textContent = diff >= 0 ? diff : '0';
 
@@ -842,6 +983,155 @@
     checkLimitAndPrompt();
   }
 
+  /** true si alguno de los 3 modales de la app ya está abierto (evita apilar overlays uno sobre otro). */
+  const isAnyModalOpen = () =>
+    ['modal-overlay', 'modal-mes-overlay', 'modal-deposito-overlay'].some((id) => $(id).classList.contains('show'));
+
+  /**
+   * Al inicio de cada mes (según la fecha de El Salvador), pregunta las 2 fechas
+   * de pago del ciclo si todavía no se han configurado este mes. Se vuelve a
+   * mostrar en cada visita del mes hasta que el usuario las guarde o las salte.
+   */
+  async function checkMonthlyPagoPrompt() {
+    if (isAnyModalOpen()) return;
+    if (FECHAS_MES.mes === currentMonthInSV()) return; // ya configurado este mes
+
+    $('input-mes-fecha1').value = FECHAS_MES.fecha1 || '';
+    $('input-mes-fecha2').value = FECHAS_MES.fecha2 || '';
+    $('modal-mes-overlay').classList.add('show');
+  }
+
+  /** Guarda las 2 fechas de pago ingresadas en el modal mensual y no vuelve a preguntar este mes. */
+  async function guardarFechaMensual() {
+    const fecha1 = $('input-mes-fecha1').value;
+    const fecha2 = $('input-mes-fecha2').value;
+    if (!fecha1 || !fecha2) { showToast('⚠️ Ingresa ambas fechas de pago'); return; }
+
+    await saveFechasMes({ mes: currentMonthInSV(), fecha1, fecha2 });
+    $('input-fecha1').value = fecha1;
+    $('input-fecha2').value = fecha2;
+
+    $('modal-mes-overlay').classList.remove('show');
+    showToast('📅 Fechas de pago del mes guardadas');
+    renderFechasPagoCards();
+    checkDepositoPrompt(); // por si alguna fecha ingresada ya venció
+  }
+
+  /** "Ahora no": no vuelve a insistir con el aviso mensual hasta el próximo mes. */
+  async function saltarPromptMensual() {
+    await saveFechasMes({ ...FECHAS_MES, mes: currentMonthInSV() });
+    $('modal-mes-overlay').classList.remove('show');
+  }
+
+  /** Persiste una fecha editada directamente desde su tarjeta (sin pasar por el modal mensual). */
+  async function editarFechaCard(cual) {
+    const fecha = $(`input-fecha${cual}`).value;
+    await saveFechasMes({ ...FECHAS_MES, mes: currentMonthInSV(), [`fecha${cual}`]: fecha });
+    renderFechasPagoCards();
+    showToast('💾 Fecha guardada');
+    checkDepositoPrompt();
+  }
+
+  /** Pinta las 2 tarjetas: fecha, días restantes y estado del depósito de cada una. */
+  function renderFechasPagoCards() {
+    const today = todayInSV();
+    [1, 2].forEach((n) => {
+      const fecha = FECHAS_MES[`fecha${n}`];
+      $(`input-fecha${n}`).value = fecha || '';
+
+      const daysEl = $(`pago${n}-days`);
+      const statusEl = $(`pago${n}-status`);
+
+      if (!fecha) {
+        daysEl.textContent = '— días';
+        statusEl.textContent = 'Sin definir';
+        statusEl.className = 'pago-card-status';
+        return;
+      }
+
+      const diff = daysBetween(today, fecha);
+      daysEl.textContent = diff > 0 ? `en ${diff} día${diff === 1 ? '' : 's'}` : diff === 0 ? 'hoy' : `venció hace ${-diff} día${diff === -1 ? '' : 's'}`;
+
+      const dep = DEPOSITOS[fecha];
+      if (dep && dep.status === 'confirmado') {
+        statusEl.textContent = `✅ Depositado ${fmt(dep.monto)}`;
+        statusEl.className = 'pago-card-status confirmado';
+      } else if (dep && dep.status === 'cancelado') {
+        statusEl.textContent = '— Cancelado';
+        statusEl.className = 'pago-card-status cancelado';
+      } else if (today >= fecha) {
+        statusEl.textContent = '⏳ Pendiente de depósito';
+        statusEl.className = 'pago-card-status pendiente';
+      } else {
+        statusEl.textContent = 'Programado';
+        statusEl.className = 'pago-card-status';
+      }
+    });
+  }
+
+  /**
+   * Revisa las 2 fechas de pago del mes en orden; la primera que ya llegó y
+   * todavía no tiene una respuesta resuelta dispara el modal de depósito.
+   * "Preguntar más tarde" solo pospone hasta el día siguiente (zona horaria de
+   * El Salvador) — sigue preguntando cada día hasta que se ingrese el monto o
+   * se cancele. Si ambas fechas están pendientes, se preguntan una tras otra.
+   */
+  function checkDepositoPrompt() {
+    if (isAnyModalOpen()) return;
+
+    const today = todayInSV();
+    const fechas = [FECHAS_MES.fecha1, FECHAS_MES.fecha2].filter(Boolean).sort();
+
+    for (const fecha of fechas) {
+      if (today < fecha) continue; // todavía no llega esta fecha
+
+      const dep = DEPOSITOS[fecha];
+      const yaResuelto = dep && (dep.status === 'confirmado' || dep.status === 'cancelado');
+      if (yaResuelto) continue;
+
+      const pospuestoHoy = dep && dep.status === 'pendiente' && dep.snoozedOn === today;
+      if (pospuestoHoy) continue;
+
+      depositoTarget = fecha;
+      const cual = fecha === FECHAS_MES.fecha1 ? '1ra' : '2da';
+      $('deposito-titulo').textContent = `¿Vas a depositar el pago ${cual}?`;
+      $('deposito-msg').textContent = today === fecha
+        ? `Hoy es la fecha de pago (${cual}). ¿Cuánto vas a depositar?`
+        : `La fecha de pago ${cual} (${fmtDate(fecha)}) ya pasó. ¿Cuánto vas a depositar?`;
+      $('input-deposito-monto').value = '';
+      $('modal-deposito-overlay').classList.add('show');
+      return; // una pregunta a la vez
+    }
+  }
+
+  /** Botón "Sí, depositar": valida el monto y cierra el ciclo de preguntas para esta fecha. */
+  async function confirmarDeposito() {
+    const monto = parseFloat($('input-deposito-monto').value);
+    if (isNaN(monto) || monto <= 0) { showToast('⚠️ Ingresa un monto válido'); return; }
+
+    await saveDepositoFor(depositoTarget, { status: 'confirmado', monto });
+    $('modal-deposito-overlay').classList.remove('show');
+    showToast(`✅ Depósito de ${fmt(monto)} registrado`);
+    renderFechasPagoCards();
+    checkDepositoPrompt(); // por si la otra fecha también está pendiente
+  }
+
+  /** Botón "Preguntar más tarde": pospone hasta el día siguiente, no hasta nunca. */
+  async function posponerDeposito() {
+    await saveDepositoFor(depositoTarget, { status: 'pendiente', snoozedOn: todayInSV() });
+    $('modal-deposito-overlay').classList.remove('show');
+    checkDepositoPrompt(); // por si la otra fecha ya está lista para preguntar
+  }
+
+  /** Botón "Cancelar": deja de preguntar para esta fecha de pago específica. */
+  async function cancelarDeposito() {
+    await saveDepositoFor(depositoTarget, { status: 'cancelado' });
+    $('modal-deposito-overlay').classList.remove('show');
+    showToast('Depósito marcado como cancelado para esta fecha');
+    renderFechasPagoCards();
+    checkDepositoPrompt();
+  }
+
   /** Muestra un mensaje flotante breve en la esquina inferior. */
   function showToast(msg) {
     const t = $('toast');
@@ -876,9 +1166,11 @@
       renderTable();
       renderKpis();
       updateCountdown();
+      renderFechasPagoCards();
       checkLimitAndPrompt();
+      checkDepositoPrompt();
 
-      $('last-update').textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' });
+      $('last-update').textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit', timeZone: TIMEZONE });
     } catch (err) {
       console.error(err);
       $('last-update').textContent = 'Error de conexión';
@@ -906,8 +1198,17 @@
     $('btn-answer-no').addEventListener('click', () => answerVerdict(false));
     $('btn-answer-yes').addEventListener('click', () => answerVerdict(true));
 
-    $('input-corte').addEventListener('change', saveManualDates);
-    $('input-pago').addEventListener('change', saveManualDates);
+    $('input-corte').addEventListener('change', () => saveManualDates());
+    $('input-pago').addEventListener('change', () => saveManualDates());
+
+    $('btn-mes-guardar').addEventListener('click', guardarFechaMensual);
+    $('btn-mes-saltar').addEventListener('click', saltarPromptMensual);
+    $('btn-deposito-si').addEventListener('click', confirmarDeposito);
+    $('btn-deposito-luego').addEventListener('click', posponerDeposito);
+    $('btn-deposito-cancelar').addEventListener('click', cancelarDeposito);
+
+    $('input-fecha1').addEventListener('change', () => editarFechaCard(1));
+    $('input-fecha2').addEventListener('change', () => editarFechaCard(2));
 
     $('input-limite').addEventListener('change', () => {
       saveLimite();
@@ -951,6 +1252,9 @@
     // guardado antes del primer render con datos del Sheet.
     await loadLimite();
     await loadVerdict();
+    await loadFechasMes();
+    await loadDepositos();
+    renderFechasPagoCards();
 
     try {
       await loadData(false);
@@ -964,6 +1268,10 @@
       overlay.classList.add('fade-out');
       setTimeout(() => overlay.remove(), 500);
     }
+
+    // Se pregunta al final, después del primer render, para no competir
+    // visualmente con el overlay de carga ni con el modal de límite/depósito.
+    await checkMonthlyPagoPrompt();
 
     setInterval(() => loadData(false).catch(() => {}), REFRESH_MS);
   }

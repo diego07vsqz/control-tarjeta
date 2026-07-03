@@ -400,17 +400,17 @@
   .verdict-banner b{color:var(--text);}
   .verdict-banner button{margin-left:auto; background:none; border:1px solid currentColor; color:inherit; border-radius:7px; padding:5px 12px; font-size:11.5px; cursor:pointer; font-family:inherit;}
 
-  /* ── Alerta de fechas sospechosas ── */
-  .date-alert{
-    display:none; flex-direction:column; gap:8px; padding:14px 20px; border-radius:var(--r-md);
-    margin-bottom:20px; font-size:12.5px; background:var(--amber-soft); border:1px solid rgba(226,165,62,.4); color:var(--amber);
-  }
-  .date-alert.show{display:flex;}
-  .date-alert-head{display:flex; align-items:center; gap:10px; font-weight:600;}
-  .date-alert-head button{margin-left:auto; background:none; border:1px solid currentColor; color:inherit; border-radius:7px; padding:4px 11px; font-size:11px; cursor:pointer; font-family:inherit;}
-  .date-alert-list{list-style:none; display:flex; flex-direction:column; gap:4px; color:var(--text-mid);}
-  .date-alert-list li{font-family:'JetBrains Mono',monospace; font-size:11.5px;}
-  .date-alert-list b{color:var(--text); font-family:'Inter',sans-serif;}
+  /* ── Mes pasado vs este mes ── */
+  .month-compare{display:flex; align-items:center; gap:24px; flex-wrap:wrap;}
+  .month-col{flex:1; min-width:120px;}
+  .month-col .lbl{font-size:11px; color:var(--text-mid); text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px;}
+  .month-col .val{font-size:22px; font-weight:700; font-family:'Space Grotesk',sans-serif;}
+  .month-diff{text-align:center; padding:0 8px;}
+  .month-diff .arrow{font-size:20px; line-height:1;}
+  .month-diff .pct{font-size:13px; font-weight:700; font-family:'JetBrains Mono',monospace; margin-top:2px;}
+  .month-diff .pct.up{color:var(--rose);}
+  .month-diff .pct.down{color:var(--mint);}
+  .month-diff .sub{font-size:10.5px; color:var(--text-dim); margin-top:2px;}
 
   .toast{position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 20px; font-size:13px; opacity:0; pointer-events:none; transition:all .3s; z-index:600; box-shadow:0 10px 30px rgba(0,0,0,.4);}
   .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
@@ -487,15 +487,6 @@
     <span id="verdict-icon">✅</span>
     <span id="verdict-text"></span>
     <button id="btn-reset-verdict">Volver a preguntar</button>
-  </div>
-
-  <div class="date-alert" id="date-alert">
-    <div class="date-alert-head">
-      <span>📅⚠️</span>
-      <span id="date-alert-summary"></span>
-      <button id="btn-dismiss-date-alert">Ocultar</button>
-    </div>
-    <ul class="date-alert-list" id="date-alert-list"></ul>
   </div>
 
   <!-- ── HERO ── -->
@@ -620,6 +611,26 @@
       <div class="lbl">Racha sin gastar</div>
       <div class="val figures" id="metric-racha">—</div>
       <div class="sub" id="metric-racha-sub">desde el último gasto</div>
+    </div>
+  </div>
+
+  <!-- ── Mes pasado vs este mes ── -->
+  <div class="panel" style="margin-bottom:28px;">
+    <div class="section-title">Gastos: mes pasado vs. este mes</div>
+    <div class="month-compare">
+      <div class="month-col">
+        <div class="lbl" id="month-prev-label">Mes pasado</div>
+        <div class="val figures" id="month-prev-total">$0.00</div>
+      </div>
+      <div class="month-diff">
+        <div class="arrow" id="month-diff-arrow">—</div>
+        <div class="pct" id="month-diff-pct">—</div>
+        <div class="sub" id="month-diff-sub"></div>
+      </div>
+      <div class="month-col">
+        <div class="lbl" id="month-this-label">Este mes</div>
+        <div class="val figures" id="month-this-total">$0.00</div>
+      </div>
     </div>
   </div>
 
@@ -933,44 +944,21 @@
     return monto > OUTLIER_THRESHOLD;
   }
 
-  /**
-   * Detecta gastos con fecha probablemente mal digitada en el Sheet: fuera
-   * del rango real del ciclo (corte → pago). Un ciclo cruza normalmente de
-   * un mes calendario a otro (ej. corte 25 jun, pago 25 jul), así que NO se
-   * compara contra "el mes más común" — eso marcaba como error un gasto de
-   * julio válido en un ciclo que arrancó en junio. Si el Sheet aún no tiene
-   * corte/pago, cae a un rango de respaldo basado en el propio historial de
-   * gastos (primer a último gasto ±5 días).
-   *
-   * Si la MAYORÍA de los gastos cae fuera del rango, no son typos — es que
-   * corte/pago ya avanzaron al siguiente ciclo mientras el Sheet todavía
-   * conserva filas del ciclo cerrado. En ese caso no tiene sentido marcar
-   * casi todo como "error", así que la alerta se omite por completo.
-   * @returns {{fila:number, fecha:string, gasto:string, monto:number, rango:string}[]}
-   */
-  function detectDateAnomalies() {
-    if (EXPENSES.length < 2) return [];
+  /** Nombres de mes en español, para las etiquetas "Junio" / "Julio" del comparativo. */
+  const MESES_COMPLETO = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
-    let inicio = META.corte;
-    let fin = META.pago;
-
-    if (!inicio || !fin) {
-      const fechas = EXPENSES.map((e) => e.fecha).sort();
-      inicio = inicio || addDays(fechas[0], -5);
-      fin = fin || addDays(fechas[fechas.length - 1], 5);
-    }
-
-    const anomalias = EXPENSES.filter((e) => e.fecha < inicio || e.fecha > fin);
-    if (anomalias.length === 0 || anomalias.length >= EXPENSES.length / 2) return [];
-
-    return anomalias.map((e) => ({ ...e, rango: `${fmtDateShort(inicio)} – ${fmtDateShort(fin)}` }));
+  /** "YYYY-MM" desplazado n meses (n negativo = hacia atrás). Ej: addMonths('2026-01', -1) → '2025-12'. */
+  function addMonths(ym, n) {
+    let [y, m] = ym.split('-').map(Number);
+    m += n;
+    while (m < 1) { m += 12; y -= 1; }
+    while (m > 12) { m -= 12; y += 1; }
+    return `${y}-${String(m).padStart(2, '0')}`;
   }
 
-  /** Suma (o resta, con n negativo) días a una fecha ISO "YYYY-MM-DD". */
-  function addDays(iso, n) {
-    const d = new Date(iso + 'T00:00:00');
-    d.setDate(d.getDate() + n);
-    return d.toISOString().slice(0, 10);
+  /** Suma el gasto de todos los movimientos cuyo mes-año ("YYYY-MM") coincide con el dado. */
+  function totalDelMes(ym) {
+    return EXPENSES.filter((e) => e.fecha.slice(0, 7) === ym).reduce((sum, e) => sum + e.monto, 0);
   }
 
   /**
@@ -1440,27 +1428,37 @@
     $('metric-racha-sub').textContent = dias === null ? 'sin movimientos aún' : dias === 0 ? 'hubo gasto hoy' : 'sin registrar gastos';
   }
 
-  /**
-   * Pinta el banner de fechas sospechosas: lista cada gasto cuyo mes/año no
-   * coincide con el resto del ciclo, con su número de fila real del Sheet
-   * para que sea fácil ir a corregirlo.
-   */
-  function renderDateAlert() {
-    const anomalias = detectDateAnomalies();
-    const banner = $('date-alert');
+  /** Pinta el comparativo "mes pasado vs. este mes", agrupando EXPENSES por mes calendario real. */
+  function renderMonthCompare() {
+    const thisYM = todayInSV().slice(0, 7);
+    const prevYM = addMonths(thisYM, -1);
 
-    if (anomalias.length === 0) {
-      banner.classList.remove('show');
+    const thisTotal = totalDelMes(thisYM);
+    const prevTotal = totalDelMes(prevYM);
+    const diff = thisTotal - prevTotal;
+    const pct = prevTotal > 0 ? (diff / prevTotal) * 100 : (thisTotal > 0 ? 100 : 0);
+
+    $('month-prev-label').textContent = MESES_COMPLETO[+prevYM.slice(5, 7) - 1];
+    $('month-this-label').textContent = MESES_COMPLETO[+thisYM.slice(5, 7) - 1];
+    animateValue($('month-prev-total'), prevTotal);
+    animateValue($('month-this-total'), thisTotal);
+
+    const arrowEl = $('month-diff-arrow');
+    const pctEl = $('month-diff-pct');
+    const subEl = $('month-diff-sub');
+
+    if (prevTotal === 0 && thisTotal === 0) {
+      arrowEl.textContent = '—'; arrowEl.style.color = '';
+      pctEl.textContent = '—'; pctEl.className = 'pct';
+      subEl.textContent = 'sin gastos en ninguno de los dos meses';
       return;
     }
 
-    banner.classList.add('show');
-    $('date-alert-summary').textContent =
-      `${anomalias.length} fecha${anomalias.length === 1 ? '' : 's'} no coincide${anomalias.length === 1 ? '' : 'n'} con el resto del ciclo — revisa si están bien escritas`;
-
-    $('date-alert-list').innerHTML = anomalias.map((a) => `
-      <li>Fila ${a.fila}: <b>${a.gasto}</b> — ${fmtDateShort(a.fecha)} (fuera del ciclo actual: ${a.rango})</li>
-    `).join('');
+    arrowEl.textContent = diff > 0 ? '▲' : diff < 0 ? '▼' : '＝';
+    arrowEl.style.color = diff > 0 ? 'var(--rose)' : diff < 0 ? 'var(--mint)' : 'var(--text-mid)';
+    pctEl.textContent = `${diff >= 0 ? '+' : ''}${pct.toFixed(0)}%`;
+    pctEl.className = 'pct ' + (diff > 0 ? 'up' : diff < 0 ? 'down' : '');
+    subEl.textContent = `${diff >= 0 ? '+' : ''}${fmt(diff)} vs. mes pasado`;
   }
 
   /**
@@ -1555,7 +1553,7 @@
       renderTable();
       renderKpis();
       renderSavingsCheck();
-      renderDateAlert();
+      renderMonthCompare();
       updateCountdown();
 
       renderAnalytics();
@@ -1603,7 +1601,6 @@
     $('btn-refresh').addEventListener('click', manualRefresh);
     $('btn-theme').addEventListener('click', toggleTheme);
     $('btn-reset-verdict').addEventListener('click', resetVerdict);
-    $('btn-dismiss-date-alert').addEventListener('click', () => $('date-alert').classList.remove('show'));
     $('btn-answer-no').addEventListener('click', () => answerVerdict(false));
     $('btn-answer-yes').addEventListener('click', () => answerVerdict(true));
 

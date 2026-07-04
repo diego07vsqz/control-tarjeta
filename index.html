@@ -191,10 +191,12 @@
 
   .card-visual.over-limit{
     border-color:rgba(226,83,107,.55);
-    animation:card-alert-shake .4s cubic-bezier(.36,.07,.19,.97) 1, card-alert-breathe 1.4s ease-in-out .4s infinite, card-alert-glitch 3.2s linear .4s infinite;
+    animation:card-alert-shake .4s cubic-bezier(.36,.07,.19,.97) 1, card-alert-breathe 1.4s ease-in-out .4s infinite,
+      card-alert-glitch 3.2s steps(1) .4s infinite, card-rgb-split 3.2s steps(1) .4s infinite;
   }
   .card-visual.over-limit .card-alert-glow{opacity:1; animation:glow-pulse 1.6s ease-in-out infinite;}
   .card-visual.over-limit .card-scanline{opacity:1; animation:scanline-sweep 2.4s ease-in-out infinite;}
+  .card-visual.over-limit .card-glitch-lines{opacity:1; animation:glitch-lines-flicker 3.2s steps(1) .4s infinite;}
   .card-visual.over-limit .card-emblem{
     opacity:.9;
     filter:drop-shadow(0 0 18px rgba(226,83,107,.95)) drop-shadow(2px 0 0 rgba(226,83,107,.6)) drop-shadow(-2px 0 0 rgba(79,209,255,.35));
@@ -203,6 +205,12 @@
   .card-visual.over-limit .card-emblem .ring, .card-visual.over-limit .card-emblem .spiral{stroke:var(--rose);}
   .card-visual.over-limit .card-emblem .crack{opacity:1; stroke-dashoffset:0;}
   .card-visual.over-limit::before{background:repeating-linear-gradient(115deg, rgba(226,83,107,.1) 0 2px, transparent 2px 40px);}
+
+  /* Franjas de corte tipo VHS/glitch — bandas finas que aparecen y se cortan de golpe, no en degradado suave. */
+  .card-glitch-lines{
+    position:absolute; inset:0; opacity:0; pointer-events:none; z-index:2; mix-blend-mode:screen;
+    background:repeating-linear-gradient(0deg, transparent 0 6px, rgba(226,83,107,.5) 6px 7px, transparent 7px 18px, rgba(79,212,255,.4) 18px 19px, transparent 19px 34px);
+  }
 
   /* Grieta de tarjeta completa — "destrozada", diseño propio, no logo de nadie. */
   .card-tear{position:absolute; inset:0; opacity:0; pointer-events:none; transition:opacity .5s ease; z-index:1;}
@@ -241,14 +249,34 @@
     0%,100%{transform:rotateX(0deg) rotateY(0deg) scale(1);}
     50%{transform:rotateX(2deg) rotateY(-2.5deg) scale(1.01);}
   }
-  /* Micro-saltos tipo glitch: la tarjeta "tartamudea" cada pocos segundos, como señal cortándose. */
+  /* Micro-cortes tipo VHS: salto seco (steps), no deslizado — así se siente "señal rota", no un temblor suave. */
   @keyframes card-alert-glitch{
-    0%,92%,100%{transform:translate(0,0);}
-    93%{transform:translate(-2px,1px);}
-    94%{transform:translate(2px,-1px);}
-    95%{transform:translate(-1px,0);}
-    96%{transform:translate(1px,1px);}
+    0%,91%,100%{transform:translate(0,0) scale(1);}
+    92%{transform:translate(-4px,1px) scale(1.002);}
+    93%{transform:translate(3px,-2px);}
+    94%{transform:translate(0,0);}
+    95%{transform:translate(-3px,1px);}
+    96%{transform:translate(2px,0);}
     97%{transform:translate(0,0);}
+  }
+  /* Separación de canal tipo RGB-split — silueta cian/rojo desfasada, un instante, no constante. */
+  @keyframes card-rgb-split{
+    0%,91%,100%{box-shadow:var(--shadow-card);}
+    92%{box-shadow:var(--shadow-card), -3px 0 0 rgba(79,212,255,.55), 3px 0 0 rgba(226,83,107,.55);}
+    93%{box-shadow:var(--shadow-card), 3px 1px 0 rgba(79,212,255,.5), -3px -1px 0 rgba(226,83,107,.5);}
+    94%{box-shadow:var(--shadow-card);}
+    95%{box-shadow:var(--shadow-card), -2px 0 0 rgba(79,212,255,.5), 2px 0 0 rgba(226,83,107,.5);}
+    96%,97%{box-shadow:var(--shadow-card);}
+  }
+  /* Franjas horizontales que aparecen/desaparecen de golpe, como una toma de VHS perdiendo señal. */
+  @keyframes glitch-lines-flicker{
+    0%,90%,100%{opacity:0;}
+    91%{opacity:.8; transform:translateY(0);}
+    92%{opacity:0;}
+    93%{opacity:.7; transform:translateY(3px);}
+    94%{opacity:0;}
+    95%{opacity:.6; transform:translateY(-2px);}
+    96%,97%{opacity:0;}
   }
   @keyframes glow-pulse{0%,100%{opacity:.55;} 50%{opacity:1;}}
   @keyframes scanline-sweep{0%{transform:translateY(-120%);} 100%{transform:translateY(220%);}}
@@ -606,6 +634,7 @@
         </div>
         <div class="card-alert-glow" aria-hidden="true"></div>
         <div class="card-scanline" aria-hidden="true"></div>
+        <div class="card-glitch-lines" aria-hidden="true"></div>
         <div class="card-tear" id="card-tear" aria-hidden="true">
           <svg viewBox="0 0 200 126" preserveAspectRatio="none">
             <path class="tear-line" d="M12 20 L48 42 L34 60 L74 84 L58 100 L100 118"/>

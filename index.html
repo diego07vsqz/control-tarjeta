@@ -360,7 +360,14 @@
   /* ── Analítica ── */
   .analytics-row{display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:28px;}
   @media(max-width:860px){ .analytics-row{grid-template-columns:1fr 1fr;} }
-  .metric{border-radius:var(--r-md); padding:16px 20px;}
+  .metric{border-radius:var(--r-md); padding:16px 20px; position:relative; overflow:hidden;}
+  .metric::before{content:''; position:absolute; left:0; top:0; bottom:0; width:3px;}
+  .metric.m1::before{background:var(--brass);}
+  .metric.m2::before{background:var(--mint);}
+  .metric.m3::before{background:var(--amber);}
+  .metric .val .n{color:var(--text);}
+  .metric .val .tag-si{color:var(--amber);}
+  .metric .val .tag-no{color:var(--mint);}
   .metric .lbl{font-size:10.5px; color:var(--text-mid); text-transform:uppercase; letter-spacing:.06em; margin-bottom:8px;}
   .metric .val{font-size:21px; font-weight:700; font-family:'Space Grotesk',sans-serif;}
   .metric .sub{font-size:11px; color:var(--text-dim); margin-top:4px;}
@@ -601,17 +608,17 @@
   <!-- ── Grupo 2: Análisis del ciclo ── -->
   <div class="section-title">Análisis del ciclo</div>
   <div class="analytics-row">
-    <div class="metric">
+    <div class="metric m1">
       <div class="lbl">Gasto promedio</div>
       <div class="val figures" id="kpi-avg">$0.00</div>
       <div class="sub" id="kpi-max-sub">mayor: —</div>
     </div>
-    <div class="metric">
+    <div class="metric m2">
       <div class="lbl">Promedio semanal</div>
       <div class="val figures" id="metric-semanal">$0.00</div>
       <div class="sub">esta semana del ciclo</div>
     </div>
-    <div class="metric">
+    <div class="metric m3">
       <div class="lbl">Compras a cuotas</div>
       <div class="val figures" id="metric-cuotas">0 SI / 0 NO</div>
       <div class="sub" id="metric-cuotas-sub">del total de movimientos</div>
@@ -1461,7 +1468,8 @@
     animateValue($('metric-semanal'), weeklyAverage());
 
     const { si, no } = contarCuotas();
-    $('metric-cuotas').textContent = `${si} SI / ${no} NO`;
+    $('metric-cuotas').innerHTML =
+      `<span class="n">${si}</span> <span class="tag-si">SI</span> / <span class="n">${no}</span> <span class="tag-no">NO</span>`;
     const totalConDato = si + no;
     $('metric-cuotas-sub').textContent = totalConDato === 0
       ? 'sin datos en columna D'

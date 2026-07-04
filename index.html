@@ -256,29 +256,47 @@
   .card-brandmark{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:15px; font-style:italic; color:var(--brass);}
 
   .hero-right{display:flex; flex-direction:column; gap:16px;}
-  .countdown-card{border-radius:var(--r-lg); padding:20px 24px; display:flex; align-items:center; gap:24px; flex:1; position:relative; overflow:hidden;}
+  .countdown-card{
+    border-radius:var(--r-lg); padding:20px 24px; display:flex; align-items:center; gap:24px; flex:1;
+    position:relative; overflow:hidden; --glow:rgba(79,209,174,.35);
+  }
   .countdown-card::after{
     content:''; position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity .4s ease;
-    background:radial-gradient(ellipse at 15% 50%, currentColor, transparent 65%);
+    background:radial-gradient(ellipse at 15% 50%, var(--glow), transparent 65%);
   }
-  .countdown-card.ok{color:rgba(79,209,174,.14);}
-  .countdown-card.warning{color:rgba(226,165,62,.16);}
-  .countdown-card.urgent{color:rgba(226,83,107,.2);}
-  .countdown-card.ok::after, .countdown-card.warning::after, .countdown-card.urgent::after{opacity:1;}
+  .countdown-card::before{
+    content:''; position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity .4s ease;
+    background:repeating-linear-gradient(180deg, rgba(255,255,255,.025) 0 1px, transparent 1px 3px);
+  }
+  .countdown-card.ok{--glow:rgba(79,209,174,.3);}
+  .countdown-card.warning{--glow:rgba(226,165,62,.35);}
+  .countdown-card.urgent{--glow:rgba(226,83,107,.4);}
+  .countdown-card.ok::after, .countdown-card.warning::after, .countdown-card.urgent::after,
+  .countdown-card.ok::before, .countdown-card.warning::before, .countdown-card.urgent::before{opacity:1;}
   .countdown-card.warning{animation:countdown-breathe 2.2s ease-in-out infinite;}
   .countdown-card.urgent{animation:countdown-breathe 1.3s ease-in-out infinite;}
-  @keyframes countdown-breathe{0%,100%{box-shadow:var(--shadow-card);} 50%{box-shadow:var(--shadow-card), 0 0 26px -6px currentColor;}}
+  @keyframes countdown-breathe{0%,100%{box-shadow:var(--shadow-card);} 50%{box-shadow:var(--shadow-card), 0 0 30px -4px var(--glow);}}
 
-  .ring-wrap{position:relative; width:96px; height:96px; flex-shrink:0;}
-  .ring-wrap svg{transform:rotate(-90deg);}
-  #ring-progress{transition:stroke-dashoffset .6s cubic-bezier(.2,.8,.2,1), stroke 1.5s ease;}
-  .countdown-card.urgent #ring-progress{filter:drop-shadow(0 0 6px var(--rose));}
+  /* ── Anillo tipo HUD/"status window" — números grandes con glow, marcas digitales, no logo de nadie ── */
+  .ring-wrap{position:relative; width:104px; height:104px; flex-shrink:0; z-index:1;}
+  .ring-wrap svg{transform:rotate(-90deg); overflow:visible;}
+  #ring-track{stroke:rgba(255,255,255,.08);}
+  #ring-ticks{opacity:.5;}
+  #ring-progress{transition:stroke-dashoffset .6s cubic-bezier(.2,.8,.2,1), stroke 1.5s ease, filter .4s ease;}
   .ring-num{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;}
-  .ring-num .n{font-size:24px; font-weight:700; display:inline-block; transition:transform .3s cubic-bezier(.34,1.56,.64,1);}
+  .ring-num .n{
+    font-family:'JetBrains Mono',monospace; font-size:30px; font-weight:700; display:inline-block; letter-spacing:-.02em;
+    transition:transform .3s cubic-bezier(.34,1.56,.64,1), text-shadow .4s ease; text-shadow:0 0 12px currentColor;
+  }
   .ring-num .n.pop{transform:scale(1.22);}
-  .ring-num .u{font-size:9px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.08em;}
-  .countdown-text .k{font-size:12px; color:var(--text-mid); margin-bottom:6px;}
-  .countdown-text .v{font-size:18px; font-weight:600;}
+  .ring-num .u{font-size:8.5px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.15em; margin-top:1px;}
+  .countdown-card.ok .ring-num .n{color:var(--mint);}
+  .countdown-card.warning .ring-num .n{color:var(--amber);}
+  .countdown-card.urgent .ring-num .n{color:var(--rose);}
+
+  .countdown-text{position:relative; z-index:1;}
+  .countdown-text .k{font-size:10.5px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.1em; margin-bottom:6px;}
+  .countdown-text .v{font-size:19px; font-weight:700; color:var(--text); letter-spacing:.01em;}
   .countdown-text .status{display:inline-flex; align-items:center; gap:6px; margin-top:10px; font-size:11.5px; padding:5px 12px; border-radius:20px; font-weight:600; transition:background-color .3s, color .3s;}
 
   .dates-row{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
@@ -568,8 +586,14 @@
     <div class="hero-right">
       <div class="countdown-card" id="countdown-card">
         <div class="ring-wrap">
-          <svg width="96" height="96" viewBox="0 0 104 104">
-            <circle cx="52" cy="52" r="46" fill="none" stroke="#242a38" stroke-width="8"/>
+          <svg width="104" height="104" viewBox="0 0 104 104">
+            <circle id="ring-track" cx="52" cy="52" r="46" fill="none" stroke-width="8"/>
+            <g id="ring-ticks" stroke="rgba(255,255,255,.3)" stroke-width="1.5">
+              <line x1="52" y1="4" x2="52" y2="10"/>
+              <line x1="52" y1="94" x2="52" y2="100"/>
+              <line x1="4" y1="52" x2="10" y2="52"/>
+              <line x1="94" y1="52" x2="100" y2="52"/>
+            </g>
             <circle id="ring-progress" cx="52" cy="52" r="46" fill="none" stroke="var(--brass)" stroke-width="8" stroke-linecap="round" stroke-dasharray="289" stroke-dashoffset="289"/>
           </svg>
           <div class="ring-num"><div class="n" id="days-left">—</div><div class="u">días</div></div>
@@ -1326,6 +1350,8 @@
       badge.style.background = 'var(--bg-2)';
       badge.style.color = 'var(--text-mid)';
       ring.style.strokeDashoffset = RING_CIRCUMFERENCE;
+      ring.style.stroke = 'var(--brass)';
+      ring.style.filter = 'none';
       return;
     }
 
@@ -1339,19 +1365,23 @@
     if (diff < 0) {
       setDays('0', 'urgent');
       msgEl.textContent = 'Fecha de pago vencida';
-      badge.textContent = '⚠ Vencido'; badge.style.background = 'var(--rose-soft)'; badge.style.color = 'var(--rose)'; ring.style.stroke = 'var(--rose)';
+      badge.textContent = '⚠ Vencido'; badge.style.background = 'var(--rose-soft)'; badge.style.color = 'var(--rose)';
+      ring.style.stroke = 'var(--rose)'; ring.style.filter = 'drop-shadow(0 0 6px var(--rose))';
     } else if (diff <= DUE_SOON_DAYS) {
       setDays(diff, 'urgent');
       msgEl.textContent = `Vence el ${fmtDate(pago)}`;
-      badge.textContent = '🔴 Pago próximo'; badge.style.background = 'var(--rose-soft)'; badge.style.color = 'var(--rose)'; ring.style.stroke = 'var(--rose)';
+      badge.textContent = '🔴 Pago próximo'; badge.style.background = 'var(--rose-soft)'; badge.style.color = 'var(--rose)';
+      ring.style.stroke = 'var(--rose)'; ring.style.filter = 'drop-shadow(0 0 6px var(--rose))';
     } else if (diff <= DUE_WARNING_DAYS) {
       setDays(diff, 'warning');
       msgEl.textContent = `Vence el ${fmtDate(pago)}`;
-      badge.textContent = '🟡 Se acerca'; badge.style.background = 'var(--amber-soft)'; badge.style.color = 'var(--amber)'; ring.style.stroke = 'var(--amber)';
+      badge.textContent = '🟡 Se acerca'; badge.style.background = 'var(--amber-soft)'; badge.style.color = 'var(--amber)';
+      ring.style.stroke = 'var(--amber)'; ring.style.filter = 'drop-shadow(0 0 5px var(--amber))';
     } else {
       setDays(diff, 'ok');
       msgEl.textContent = `Vence el ${fmtDate(pago)}`;
-      badge.textContent = '🟢 Al día'; badge.style.background = 'var(--mint-soft)'; badge.style.color = 'var(--mint)'; ring.style.stroke = 'var(--mint)';
+      badge.textContent = '🟢 Al día'; badge.style.background = 'var(--mint-soft)'; badge.style.color = 'var(--mint)';
+      ring.style.stroke = 'var(--mint)'; ring.style.filter = 'drop-shadow(0 0 5px var(--mint))';
     }
   }
 

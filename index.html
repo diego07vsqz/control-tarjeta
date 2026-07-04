@@ -76,6 +76,12 @@
     display:none; max-width:480px; text-align:center; color:var(--rose); font-size:13px;
     background:var(--rose-soft); border:1px solid var(--rose); border-radius:12px; padding:18px 22px; line-height:1.6;
   }
+  #btn-retry-load{
+    background:var(--brass-soft); border:1px solid rgba(201,162,75,.4); color:var(--brass); border-radius:30px;
+    font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:12px; padding:9px 22px; cursor:pointer;
+    text-transform:uppercase; letter-spacing:.05em; transition:transform .2s, background .2s;
+  }
+  #btn-retry-load:hover{background:rgba(201,162,75,.22); transform:translateY(-1px) scale(1.03);}
 
   header{
     border-bottom:1px solid var(--line); padding:18px 40px;
@@ -466,9 +472,10 @@
 <body>
 
 <div id="loading-overlay">
-  <div class="spinner"></div>
+  <div class="spinner" id="loading-spinner"></div>
   <div class="loading-msg" id="loading-msg">Conectando con Google Sheets…</div>
   <div id="sheet-error"></div>
+  <button id="btn-retry-load" style="display:none;">Reintentar</button>
 </div>
 
 <header>
@@ -735,6 +742,12 @@
   /** Cada cuánto se vuelve a consultar el Sheet automáticamente (ms). */
   const REFRESH_MS = 120000; // 2 minutos
 
+  /** Si el Sheet no responde en este tiempo, se aborta el fetch en vez de colgar la carga para siempre. */
+  const FETCH_TIMEOUT_MS = 15000;
+
+  /** Red de seguridad: si por cualquier motivo el overlay de carga sigue visible después de esto, se fuerza a ocultar. */
+  const LOADING_WATCHDOG_MS = 20000;
+
   /** Límite de pago personal usado la primera vez que se abre el dashboard. */
   const DEFAULT_LIMITE = 200;
 
@@ -902,7 +915,24 @@
   async function fetchSheet() {
     const { sheetId, sheetName } = activeCard();
     const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}&headers=1&_=${Date.now()}`;
-    const res = await fetch(url);
+
+    // AbortController con timeout: sin esto, si Google no responde nunca,
+    // el fetch queda pendiente para siempre y la pantalla de carga se congela.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+    let res;
+    try {
+      res = await fetch(url, { signal: controller.signal });
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        throw new Error(`El Sheet no respondió en ${FETCH_TIMEOUT_MS / 1000}s — revisa tu conexión e intenta de nuevo.`);
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
     if (!res.ok) throw new Error('No se pudo leer la hoja (¿está compartida como "Cualquiera con el enlace"?)');
 
     const text = await res.text();
@@ -1720,41 +1750,80 @@
   // └──────────────────────────────────────────────────────────────────────┘
 
   /** Punto de entrada: carga preferencias guardadas, conecta eventos, trae datos, arranca el polling. */
+  /**
+   * Punto de entrada. Todo el arranque vive dentro de un único try/finally:
+   * así, sin importar QUÉ falle (bindEvents, un id faltante, el fetch al
+   * Sheet, storage bloqueado, lo que sea), el overlay de carga siempre se
+   * termina de ocultar — nunca se queda congelado en "Conectando…".
+   */
   async function init() {
-    bindEvents();
-
-    // Selector de tarjeta: solo se muestra si hay más de una configurada en CARDS.
-    if (CARDS.length > 1) {
-      $('card-select').innerHTML = CARDS.map((c, i) => `<option value="${i}">${c.nombre}</option>`).join('');
-      $('card-select').style.display = 'block';
-    }
-
-    // El tema se aplica primero para evitar cualquier parpadeo de color al cargar.
-    await loadTheme();
-
-    // Preferencias del usuario primero — así los inputs ya tienen su valor
-    // guardado antes del primer render con datos del Sheet.
-    await loadLimite();
-    await loadVerdict();
-    await loadNotas();
+    let hadError = false;
 
     try {
+      bindEvents();
+
+      // Selector de tarjeta: solo se muestra si hay más de una configurada en CARDS.
+      if (CARDS.length > 1) {
+        $('card-select').innerHTML = CARDS.map((c, i) => `<option value="${i}">${c.nombre}</option>`).join('');
+        $('card-select').style.display = 'block';
+      }
+
+      // El tema se aplica primero para evitar cualquier parpadeo de color al cargar.
+      await loadTheme();
+
+      // Preferencias del usuario primero — así los inputs ya tienen su valor
+      // guardado antes del primer render con datos del Sheet.
+      await loadLimite();
+      await loadVerdict();
+      await loadNotas();
+
       await loadData(false);
     } catch (err) {
-      $('sheet-error').style.display = 'block';
-      $('sheet-error').textContent =
-        'No se pudo conectar con la hoja "TARJETA". Verifica que el archivo de Google Sheets esté compartido como "Cualquiera con el enlace — Lector".';
+      hadError = true;
+      console.error('Error de inicialización:', err);
+      $('loading-spinner').style.display = 'none';
       $('loading-msg').style.display = 'none';
+      $('sheet-error').style.display = 'block';
+      $('sheet-error').textContent = err && err.message
+        ? err.message
+        : 'No se pudo conectar con la hoja "TARJETA". Verifica que el archivo de Google Sheets esté compartido como "Cualquiera con el enlace — Lector".';
+      $('btn-retry-load').style.display = 'inline-block';
     } finally {
-      const overlay = $('loading-overlay');
-      overlay.classList.add('fade-out');
-      setTimeout(() => overlay.remove(), 500);
+      // Solo se cierra el overlay si todo salió bien. Si hubo error, se queda
+      // visible CON el mensaje — antes se borraba solo a los 500ms y el
+      // usuario nunca llegaba a leer por qué falló.
+      if (!hadError) hideLoadingOverlay();
     }
 
-    setInterval(() => loadData(false).catch(() => {}), REFRESH_MS);
+    setInterval(() => loadData(false).catch((err) => console.error('Error en refresco automático:', err)), REFRESH_MS);
+  }
+
+  /** Oculta (con fade) y elimina el overlay de carga. Segura de llamar más de una vez. */
+  function hideLoadingOverlay() {
+    const overlay = $('loading-overlay');
+    if (!overlay) return; // ya se quitó antes (ej. el watchdog se disparó primero)
+    overlay.classList.add('fade-out');
+    setTimeout(() => overlay.remove(), 500);
   }
 
   window.addEventListener('DOMContentLoaded', init);
+  window.addEventListener('DOMContentLoaded', () => {
+    $('btn-retry-load').addEventListener('click', () => window.location.reload());
+  });
+
+  // Red de seguridad final: si por cualquier razón init() nunca llega a su
+  // finally (ej. un bug futuro que cuelgue el hilo antes del try), esto
+  // garantiza que la pantalla de carga no se quede congelada indefinidamente.
+  window.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+      const overlay = document.getElementById('loading-overlay');
+      if (overlay && !overlay.classList.contains('fade-out') && $('sheet-error').style.display !== 'block') {
+        console.warn('Watchdog: el overlay de carga seguía visible tras', LOADING_WATCHDOG_MS, 'ms — se fuerza a ocultar.');
+        overlay.classList.add('fade-out');
+        setTimeout(() => overlay.remove(), 500);
+      }
+    }, LOADING_WATCHDOG_MS);
+  });
 })();
 </script>
 </body>

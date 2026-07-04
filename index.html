@@ -256,15 +256,30 @@
   .card-brandmark{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:15px; font-style:italic; color:var(--brass);}
 
   .hero-right{display:flex; flex-direction:column; gap:16px;}
-  .countdown-card{border-radius:var(--r-lg); padding:20px 24px; display:flex; align-items:center; gap:24px; flex:1;}
+  .countdown-card{border-radius:var(--r-lg); padding:20px 24px; display:flex; align-items:center; gap:24px; flex:1; position:relative; overflow:hidden;}
+  .countdown-card::after{
+    content:''; position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity .4s ease;
+    background:radial-gradient(ellipse at 15% 50%, currentColor, transparent 65%);
+  }
+  .countdown-card.ok{color:rgba(79,209,174,.14);}
+  .countdown-card.warning{color:rgba(226,165,62,.16);}
+  .countdown-card.urgent{color:rgba(226,83,107,.2);}
+  .countdown-card.ok::after, .countdown-card.warning::after, .countdown-card.urgent::after{opacity:1;}
+  .countdown-card.warning{animation:countdown-breathe 2.2s ease-in-out infinite;}
+  .countdown-card.urgent{animation:countdown-breathe 1.3s ease-in-out infinite;}
+  @keyframes countdown-breathe{0%,100%{box-shadow:var(--shadow-card);} 50%{box-shadow:var(--shadow-card), 0 0 26px -6px currentColor;}}
+
   .ring-wrap{position:relative; width:96px; height:96px; flex-shrink:0;}
   .ring-wrap svg{transform:rotate(-90deg);}
+  #ring-progress{transition:stroke-dashoffset .6s cubic-bezier(.2,.8,.2,1), stroke 1.5s ease;}
+  .countdown-card.urgent #ring-progress{filter:drop-shadow(0 0 6px var(--rose));}
   .ring-num{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;}
-  .ring-num .n{font-size:24px; font-weight:700;}
+  .ring-num .n{font-size:24px; font-weight:700; display:inline-block; transition:transform .3s cubic-bezier(.34,1.56,.64,1);}
+  .ring-num .n.pop{transform:scale(1.22);}
   .ring-num .u{font-size:9px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.08em;}
   .countdown-text .k{font-size:12px; color:var(--text-mid); margin-bottom:6px;}
   .countdown-text .v{font-size:18px; font-weight:600;}
-  .countdown-text .status{display:inline-flex; align-items:center; gap:6px; margin-top:10px; font-size:11.5px; padding:5px 12px; border-radius:20px; font-weight:600;}
+  .countdown-text .status{display:inline-flex; align-items:center; gap:6px; margin-top:10px; font-size:11.5px; padding:5px 12px; border-radius:20px; font-weight:600; transition:background-color .3s, color .3s;}
 
   .dates-row{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
   .date-edit{border-radius:var(--r-md); padding:14px 18px;}
@@ -551,7 +566,7 @@
     </div>
 
     <div class="hero-right">
-      <div class="countdown-card">
+      <div class="countdown-card" id="countdown-card">
         <div class="ring-wrap">
           <svg width="96" height="96" viewBox="0 0 104 104">
             <circle cx="52" cy="52" r="46" fill="none" stroke="#242a38" stroke-width="8"/>
@@ -1286,13 +1301,26 @@
     $('card-corte-val').textContent = corte ? fmtDate(corte) : '— — —';
     $('card-pago-val').textContent = pago ? fmtDate(pago) : '— — —';
 
+    const card = $('countdown-card');
     const ring = $('ring-progress');
     const daysLeftEl = $('days-left');
     const msgEl = $('countdown-msg');
     const badge = $('status-badge');
 
+    /** Aplica la clase de estado a la card (para el brillo/pulso) y anima el número si cambió. */
+    const setDays = (texto, estado) => {
+      card.classList.remove('ok', 'warning', 'urgent');
+      if (estado) card.classList.add(estado);
+      if (daysLeftEl.textContent !== String(texto)) {
+        daysLeftEl.textContent = texto;
+        daysLeftEl.classList.remove('pop');
+        void daysLeftEl.offsetWidth; // fuerza reflow para poder re-disparar la animación
+        daysLeftEl.classList.add('pop');
+      }
+    };
+
     if (!pago) {
-      daysLeftEl.textContent = '—';
+      setDays('—', null);
       msgEl.textContent = 'Sin fecha de pago aún';
       badge.textContent = 'Sin definir';
       badge.style.background = 'var(--bg-2)';
@@ -1303,22 +1331,25 @@
 
     const today = todayInSV();
     const diff = daysBetween(today, pago);
-    daysLeftEl.textContent = diff >= 0 ? diff : '0';
 
     const cicloTotal = corte ? Math.max(daysBetween(corte, pago), 1) : 30;
     const pct = Math.min(Math.max(diff / cicloTotal, 0), 1);
     ring.style.strokeDashoffset = RING_CIRCUMFERENCE - RING_CIRCUMFERENCE * pct;
 
     if (diff < 0) {
+      setDays('0', 'urgent');
       msgEl.textContent = 'Fecha de pago vencida';
       badge.textContent = '⚠ Vencido'; badge.style.background = 'var(--rose-soft)'; badge.style.color = 'var(--rose)'; ring.style.stroke = 'var(--rose)';
     } else if (diff <= DUE_SOON_DAYS) {
+      setDays(diff, 'urgent');
       msgEl.textContent = `Vence el ${fmtDate(pago)}`;
       badge.textContent = '🔴 Pago próximo'; badge.style.background = 'var(--rose-soft)'; badge.style.color = 'var(--rose)'; ring.style.stroke = 'var(--rose)';
     } else if (diff <= DUE_WARNING_DAYS) {
+      setDays(diff, 'warning');
       msgEl.textContent = `Vence el ${fmtDate(pago)}`;
       badge.textContent = '🟡 Se acerca'; badge.style.background = 'var(--amber-soft)'; badge.style.color = 'var(--amber)'; ring.style.stroke = 'var(--amber)';
     } else {
+      setDays(diff, 'ok');
       msgEl.textContent = `Vence el ${fmtDate(pago)}`;
       badge.textContent = '🟢 Al día'; badge.style.background = 'var(--mint-soft)'; badge.style.color = 'var(--mint)'; ring.style.stroke = 'var(--mint)';
     }

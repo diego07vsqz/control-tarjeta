@@ -580,63 +580,43 @@
   </div>
 
   <!-- ── Grupo 1: ¿Puedo pagar? ── -->
-  <div class="section-title">¿Puedo pagar?</div>
+  <div class="section-title">¿Puedo pagar este ciclo?</div>
   <div class="kpi-row">
     <div class="kpi k1">
-      <div class="lbl">Total gastado (col. C)</div>
+      <div class="lbl">Gastado este ciclo</div>
       <div class="val figures" id="kpi-total">$0.00</div>
-      <div class="sub" id="kpi-total-sub">— movimientos</div>
+      <div class="sub" id="kpi-total-sub">— movimientos · col. C</div>
     </div>
     <div class="kpi k4">
       <div class="lbl">Mi límite de pago <input type="number" id="input-limite"></div>
       <div class="val figures" id="kpi-limite">$0 / $200</div>
       <div class="bar-track"><div class="bar-fill" id="bar-limite" style="width:0%; background:var(--mint);"></div></div>
     </div>
+    <div class="kpi k2">
+      <div class="lbl">Ahorro para el pago</div>
+      <div class="val figures" id="kpi-ahorro">$0.00</div>
+      <div class="sub" id="kpi-ahorro-sub">ingresado a la cuenta · col. H</div>
+    </div>
     <div class="kpi k3">
-      <div class="lbl">Límite de tarjeta (banco, col. G)</div>
+      <div class="lbl">Límite del banco</div>
       <div class="val figures" id="kpi-banco">$0 / $0</div>
       <div class="bar-track"><div class="bar-fill" id="bar-banco" style="width:0%; background:var(--amber);"></div></div>
-    </div>
-    <div class="kpi k2">
-      <div class="lbl">Ahorro en cuenta (col. H)</div>
-      <div class="val figures" id="kpi-ahorro">$0.00</div>
-      <div class="sub" id="kpi-ahorro-sub">ingresado para pagar</div>
     </div>
   </div>
 
   <!-- ── Veredicto de ahorro (compacto, sin repetir números de arriba) ── -->
   <div class="panel" style="margin-bottom:28px;">
     <div class="savings-check-head">
-      <div class="section-title" style="margin:0; border:none;">Veredicto: ahorro vs. pago</div>
+      <div class="section-title" style="margin:0; border:none;">¿Tu ahorro alcanza para pagar?</div>
       <div class="verdict-pill na" id="savings-verdict">Calculando…</div>
     </div>
     <div class="bar-track"><div class="bar-fill" id="bar-ahorro" style="width:0%; background:var(--mint);"></div></div>
     <div class="savings-hint" id="ahorro-hint"></div>
   </div>
 
-  <!-- ── Grupo 2: Análisis del ciclo ── -->
-  <div class="section-title">Análisis del ciclo</div>
-  <div class="analytics-row">
-    <div class="metric m1">
-      <div class="lbl">Gasto promedio</div>
-      <div class="val figures" id="kpi-avg">$0.00</div>
-      <div class="sub" id="kpi-max-sub">mayor: —</div>
-    </div>
-    <div class="metric m2">
-      <div class="lbl">Promedio semanal</div>
-      <div class="val figures" id="metric-semanal">$0.00</div>
-      <div class="sub">esta semana del ciclo</div>
-    </div>
-    <div class="metric m3">
-      <div class="lbl">Compras a cuotas</div>
-      <div class="val figures" id="metric-cuotas">0 SI / 0 NO</div>
-      <div class="sub" id="metric-cuotas-sub">del total de movimientos</div>
-    </div>
-  </div>
-
   <!-- ── Mes pasado vs este mes ── -->
   <div class="panel" style="margin-bottom:28px;">
-    <div class="section-title">Gastos: mes pasado vs. este mes</div>
+    <div class="section-title">¿Gasté más o menos que el mes pasado?</div>
     <div class="month-compare">
       <div class="month-col">
         <div class="lbl" id="month-prev-label">Mes pasado</div>
@@ -651,6 +631,26 @@
         <div class="lbl" id="month-this-label">Este mes</div>
         <div class="val figures" id="month-this-total">$0.00</div>
       </div>
+    </div>
+  </div>
+
+  <!-- ── Grupo 2: Análisis del ciclo ── -->
+  <div class="section-title">Cómo se ve mi ciclo</div>
+  <div class="analytics-row">
+    <div class="metric m1">
+      <div class="lbl">Gasto promedio por compra</div>
+      <div class="val figures" id="kpi-avg">$0.00</div>
+      <div class="sub" id="kpi-max-sub">mayor: —</div>
+    </div>
+    <div class="metric m2">
+      <div class="lbl">Ritmo de gasto semanal</div>
+      <div class="val figures" id="metric-semanal">$0.00</div>
+      <div class="sub">promedio por semana transcurrida</div>
+    </div>
+    <div class="metric m3">
+      <div class="lbl">Compras a cuotas</div>
+      <div class="val figures" id="metric-cuotas">0 SI / 0 NO</div>
+      <div class="sub" id="metric-cuotas-sub">del total de movimientos</div>
     </div>
   </div>
 
@@ -1351,7 +1351,7 @@
     const limite = getLimite();
 
     animateValue($('kpi-total'), total);
-    $('kpi-total-sub').textContent = `${EXPENSES.length} movimientos`;
+    $('kpi-total-sub').textContent = `${EXPENSES.length} movimientos · col. C`;
 
     $('kpi-limite').textContent = `${fmt(total)} / ${fmt(limite)}`;
     const pctLim = Math.min((total / limite) * 100, 100);

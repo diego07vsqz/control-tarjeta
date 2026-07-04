@@ -8,18 +8,21 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#0f1117; --bg-2:#191d27; --card:rgba(27,32,44,.6); --card-hover:rgba(35,41,56,.75);
-    --line:rgba(255,255,255,.08); --line-soft:rgba(255,255,255,.05);
-    --brass:#c9a24b; --brass-soft:rgba(201,162,75,.14);
-    --rose:#e2536b; --rose-soft:rgba(226,83,107,.14);
-    --mint:#4fd1ae; --mint-soft:rgba(79,209,174,.14);
-    --amber:#e2a53e; --amber-soft:rgba(226,165,62,.14);
-    --text:#eef0f4; --text-mid:#9aa1b0; --text-dim:#68707f;
-    --r-sm:10px; --r-md:18px; --r-lg:26px;
-    --glass-blur:18px;
-    --shadow-card:0 1px 1px rgba(0,0,0,.2), 0 8px 24px -12px rgba(0,0,0,.5);
-    --shadow-hover:0 1px 1px rgba(0,0,0,.25), 0 16px 40px -14px rgba(0,0,0,.6);
+    --bg:#050810; --bg-2:#0a1220; --card:rgba(8,16,28,.65); --card-hover:rgba(14,26,42,.8);
+    --line:rgba(74,212,255,.22); --line-soft:rgba(74,212,255,.1);
+    --brass:#4ad4ff; --brass-soft:rgba(74,212,255,.14);
+    --rose:#ff4d6a; --rose-soft:rgba(255,77,106,.14);
+    --mint:#3ef2b0; --mint-soft:rgba(62,242,176,.14);
+    --amber:#ffc857; --amber-soft:rgba(255,200,87,.14);
+    --text:#e8f6ff; --text-mid:#8fa8bd; --text-dim:#5a7086;
+    --r-sm:2px; --r-md:2px; --r-lg:2px;
+    --notch:14px;
+    --glass-blur:16px;
+    --shadow-card:0 1px 1px rgba(0,0,0,.3), 0 0 0 1px rgba(74,212,255,.05) inset, 0 8px 24px -12px rgba(0,0,0,.6);
+    --shadow-hover:0 1px 1px rgba(0,0,0,.3), 0 0 18px -2px rgba(74,212,255,.4), 0 16px 40px -14px rgba(0,0,0,.7);
   }
+  /* Recorte angular tipo HUD/system-window — el clip-path corta también el borde, así que el borde sale ya "cortado" sin trucos extra. */
+  .hud-cut{clip-path:polygon(var(--notch) 0, 100% 0, 100% calc(100% - var(--notch)), calc(100% - var(--notch)) 100%, 0 100%, 0 var(--notch));}
   /* ── Tema claro — el header y la tarjeta visual se mantienen oscuros
      a propósito (identidad de marca), solo cambia el cuerpo del dashboard. */
   [data-theme="light"]{
@@ -42,8 +45,9 @@
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   body{
     background:
-      radial-gradient(circle at 15% 0%, rgba(201,162,75,.06), transparent 40%),
-      radial-gradient(circle at 85% 10%, rgba(79,209,174,.04), transparent 35%),
+      repeating-linear-gradient(180deg, rgba(74,212,255,.02) 0 1px, transparent 1px 3px),
+      radial-gradient(circle at 15% 0%, rgba(74,212,255,.08), transparent 40%),
+      radial-gradient(circle at 85% 10%, rgba(62,242,176,.05), transparent 35%),
       var(--bg);
     color:var(--text); font-family:'Inter',sans-serif; line-height:1.5;
     -webkit-font-smoothing:antialiased; min-height:100vh; padding-bottom:60px;
@@ -56,12 +60,13 @@
     background:var(--card); border:1px solid var(--line);
     backdrop-filter:blur(var(--glass-blur)); -webkit-backdrop-filter:blur(var(--glass-blur));
     box-shadow:var(--shadow-card);
+    clip-path:polygon(var(--notch) 0, 100% 0, 100% calc(100% - var(--notch)), calc(100% - var(--notch)) 100%, 0 100%, 0 var(--notch));
     transition:transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .25s ease, background-color .25s ease, border-color .25s ease;
   }
   .kpi:hover, .panel:hover, .metric:hover, .countdown-card:hover{
     transform:translateY(-3px);
     box-shadow:var(--shadow-hover);
-    border-color:rgba(201,162,75,.28);
+    border-color:rgba(74,212,255,.5);
   }
 
   #loading-overlay{
@@ -86,14 +91,15 @@
   header{
     border-bottom:1px solid var(--line); padding:18px 40px;
     display:flex; align-items:center; justify-content:space-between;
-    position:sticky; top:0; z-index:50; background:rgba(15,17,23,.72);
+    position:sticky; top:0; z-index:50; background:rgba(5,8,16,.75);
     backdrop-filter:blur(20px) saturate(160%); -webkit-backdrop-filter:blur(20px) saturate(160%);
+    box-shadow:0 1px 12px -2px rgba(74,212,255,.25);
   }
   .brand{display:flex; align-items:center; gap:14px;}
-  .brand-mark{width:38px; height:26px; border-radius:8px; background:linear-gradient(135deg,var(--brass),#8a6f2e); position:relative; flex-shrink:0; box-shadow:0 2px 10px rgba(201,162,75,.3);}
-  .brand-mark::after{content:''; position:absolute; left:5px; top:8px; width:14px; height:10px; border-radius:3px; background:rgba(15,17,23,.55);}
-  .brand-name{font-size:15px; font-weight:700; letter-spacing:.02em;}
-  .brand-sub{font-size:10.5px; color:var(--text-dim); letter-spacing:.08em; text-transform:uppercase; margin-top:2px;}
+  .brand-mark{width:38px; height:26px; background:linear-gradient(135deg,var(--brass),#0a7ba8); position:relative; flex-shrink:0; box-shadow:0 0 14px rgba(74,212,255,.55); clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px);}
+  .brand-mark::after{content:''; position:absolute; left:5px; top:8px; width:14px; height:10px; background:rgba(5,8,16,.65);}
+  .brand-name{font-size:15px; font-weight:700; letter-spacing:.06em; text-shadow:0 0 12px rgba(74,212,255,.4);}
+  .brand-sub{font-size:10.5px; color:var(--text-dim); letter-spacing:.1em; text-transform:uppercase; margin-top:2px;}
   .header-right{display:flex; gap:10px; align-items:center;}
   .pill{
     font-size:11px; padding:7px 14px; border-radius:30px; border:1px solid var(--line); color:var(--text-mid);
@@ -103,21 +109,23 @@
   .dot-live{width:6px;height:6px;border-radius:50%;background:var(--mint); animation:pulse 1.6s ease-in-out infinite; box-shadow:0 0 8px var(--mint);}
   @keyframes pulse{0%,100%{opacity:.4} 50%{opacity:1}}
   .btn-refresh{
-    display:flex; align-items:center; gap:7px; background:var(--brass-soft); border:1px solid rgba(201,162,75,.3);
-    border-radius:30px; color:var(--brass); font-size:11px; font-weight:600; padding:8px 17px; cursor:pointer;
-    transition:transform .2s cubic-bezier(.2,.8,.2,1), background .2s; font-family:inherit; text-transform:uppercase; letter-spacing:.05em;
+    display:flex; align-items:center; gap:7px; background:var(--brass-soft); border:1px solid rgba(74,212,255,.35);
+    color:var(--brass); font-size:11px; font-weight:600; padding:8px 17px; cursor:pointer;
+    transition:transform .2s cubic-bezier(.2,.8,.2,1), background .2s, box-shadow .2s; font-family:inherit; text-transform:uppercase; letter-spacing:.05em;
+    clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px);
   }
-  .btn-refresh:hover{background:rgba(201,162,75,.22); transform:translateY(-1px) scale(1.03);}
+  .btn-refresh:hover{background:rgba(74,212,255,.22); transform:translateY(-1px) scale(1.03); box-shadow:0 0 14px -2px var(--brass);}
   .btn-refresh:active{transform:translateY(0) scale(.97);}
   .btn-refresh svg{transition:transform .5s;}
   .btn-refresh.spin svg{transform:rotate(360deg);}
 
   .btn-theme{
     display:flex; align-items:center; justify-content:center; width:34px; height:34px;
-    background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1);
-    border-radius:50%; color:rgba(255,255,255,.75); cursor:pointer; transition:transform .2s cubic-bezier(.2,.8,.2,1), background .2s;
+    background:rgba(74,212,255,.06); border:1px solid rgba(74,212,255,.2);
+    color:rgba(232,246,255,.75); cursor:pointer; transition:transform .2s cubic-bezier(.2,.8,.2,1), background .2s;
+    clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px);
   }
-  .btn-theme:hover{background:rgba(255,255,255,.14); transform:rotate(15deg) scale(1.08);}
+  .btn-theme:hover{background:rgba(74,212,255,.16); transform:rotate(15deg) scale(1.08);}
   .btn-theme svg{display:block;}
 
   main{max-width:1240px; margin:0 auto; padding:34px 40px;}
@@ -246,7 +254,7 @@
   }
 
   .contactless{opacity:.8;}
-  .chip{width:38px;height:28px;border-radius:5px;background:linear-gradient(135deg,var(--brass),#8a6f2e); position:relative; z-index:1;}
+  .chip{width:38px;height:28px;border-radius:5px;background:linear-gradient(135deg,#d4b46a,#8a6f2e); position:relative; z-index:1;}
   .card-top{display:flex; justify-content:space-between; align-items:flex-start; position:relative; z-index:1;}
   .card-issuer{font-size:11px; letter-spacing:.12em; color:rgba(255,255,255,.65); text-transform:uppercase;}
   .card-number{font-family:'JetBrains Mono',monospace; font-size:17px; letter-spacing:.14em; color:rgba(255,255,255,.8); margin-top:14px; position:relative; z-index:1;}
@@ -331,7 +339,7 @@
   }
   @keyframes shimmer{0%{transform:translateX(-100%);} 100%{transform:translateX(100%);}}
 
-  .section-title{display:flex; align-items:center; gap:10px; margin:0 0 16px; font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:var(--text-mid);}
+  .section-title{display:flex; align-items:center; gap:10px; margin:0 0 16px; font-size:13px; text-transform:uppercase; letter-spacing:.12em; color:var(--text-mid); text-shadow:0 0 10px rgba(74,212,255,.25);}
   .section-title::after{content:''; flex:1; height:1px; background:var(--line);}
 
   .savings-check-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;}
@@ -414,32 +422,56 @@
     color:var(--text); font-size:11.5px; padding:6px 10px; font-family:inherit; cursor:pointer;
   }
 
-  /* ── Modal ── */
+  /* ── Modal tipo "notificación de sistema" — marco angular, esquinas HUD, encendido animado ── */
   .modal-overlay{
-    position:fixed; inset:0; background:rgba(10,11,15,.75); backdrop-filter:blur(4px);
+    position:fixed; inset:0; background:rgba(2,4,10,.8); backdrop-filter:blur(6px);
     display:none; align-items:center; justify-content:center; z-index:500; padding:20px;
   }
   .modal-overlay.show{display:flex;}
   .modal{
-    background:var(--card); border:1px solid var(--line); border-radius:var(--r-lg); padding:30px 32px;
-    max-width:420px; width:100%; box-shadow:0 30px 70px -20px rgba(0,0,0,.7);
-    animation:modalIn .25s ease;
+    position:relative; background:linear-gradient(160deg, rgba(10,20,36,.92), rgba(5,10,20,.95));
+    border:1px solid rgba(74,212,255,.4); padding:32px 34px;
+    max-width:420px; width:100%;
+    box-shadow:0 0 0 1px rgba(74,212,255,.08) inset, 0 0 40px -6px rgba(74,212,255,.35), 0 30px 70px -20px rgba(0,0,0,.8);
+    clip-path:polygon(18px 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%, 0 18px);
+    animation:modalPowerOn .45s cubic-bezier(.2,.8,.2,1);
   }
-  @keyframes modalIn{from{opacity:0; transform:translateY(12px) scale(.97);} to{opacity:1; transform:translateY(0) scale(1);}}
-  .modal-icon{width:46px; height:46px; border-radius:12px; background:var(--rose-soft); display:flex; align-items:center; justify-content:center; margin-bottom:16px;}
-  .modal h3{font-size:17px; margin-bottom:8px;}
+  @keyframes modalPowerOn{
+    0%{opacity:0; transform:scaleY(.02); filter:brightness(3);}
+    45%{opacity:1; transform:scaleY(1); filter:brightness(2);}
+    60%{filter:brightness(.6);}
+    100%{filter:brightness(1);}
+  }
+  .modal .corner{position:absolute; width:16px; height:16px; border:2px solid var(--brass); filter:drop-shadow(0 0 4px var(--brass)); opacity:.85;}
+  .modal .corner.tl{top:-1px; left:-1px; border-right:none; border-bottom:none;}
+  .modal .corner.tr{top:-1px; right:-1px; border-left:none; border-bottom:none;}
+  .modal .corner.bl{bottom:-1px; left:-1px; border-right:none; border-top:none;}
+  .modal .corner.br{bottom:-1px; right:-1px; border-left:none; border-top:none;}
+  .modal-head{display:flex; align-items:center; gap:12px; margin-bottom:6px;}
+  .modal-icon{
+    width:34px; height:34px; flex-shrink:0; border:1px solid rgba(255,77,106,.5); background:var(--rose-soft);
+    display:flex; align-items:center; justify-content:center;
+    clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px);
+  }
+  .modal h3{font-size:14px; text-transform:uppercase; letter-spacing:.15em; font-weight:700; color:var(--brass); text-shadow:0 0 10px rgba(74,212,255,.5);}
+  .modal-sub{font-size:16.5px; font-weight:600; color:var(--text); margin-bottom:10px;}
   .modal p{font-size:13.5px; color:var(--text-mid); line-height:1.6; margin-bottom:22px;}
   .modal p .figures{color:var(--text); font-weight:700;}
   .modal-actions{display:flex; gap:12px;}
-  .btn{border:none; border-radius:9px; font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:13.5px; padding:11px 20px; cursor:pointer; transition:transform .15s, background .2s; flex:1;}
-  .btn-yes{background:var(--mint); color:#0a1a15;}
-  .btn-yes:hover{background:#68e0c0; transform:translateY(-1px);}
-  .btn-no{background:var(--rose); color:#2a0a0f;}
-  .btn-no:hover{background:#ea6f83; transform:translateY(-1px);}
+  .btn{
+    border:1px solid transparent; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:14px; letter-spacing:.08em;
+    padding:11px 20px; cursor:pointer; transition:transform .15s, background .2s, box-shadow .2s; flex:1;
+    clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px);
+  }
+  .btn-yes{background:var(--mint-soft); color:var(--mint); border-color:rgba(62,242,176,.5);}
+  .btn-yes:hover{background:rgba(62,242,176,.25); transform:translateY(-1px); box-shadow:0 0 16px -2px var(--mint);}
+  .btn-no{background:var(--rose-soft); color:var(--rose); border-color:rgba(255,77,106,.5);}
+  .btn-no:hover{background:rgba(255,77,106,.25); transform:translateY(-1px); box-shadow:0 0 16px -2px var(--rose);}
 
   .verdict-banner{
-    display:none; align-items:center; gap:14px; padding:14px 20px; border-radius:var(--r-md);
+    display:none; align-items:center; gap:14px; padding:14px 20px;
     margin-bottom:20px; font-size:13px;
+    clip-path:polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
   }
   .verdict-banner.show{display:flex;}
   .verdict-banner.yes{background:var(--mint-soft); border:1px solid rgba(79,209,174,.35); color:var(--mint);}
@@ -459,7 +491,12 @@
   .month-diff .pct.down{color:var(--mint);}
   .month-diff .sub{font-size:10.5px; color:var(--text-dim); margin-top:2px;}
 
-  .toast{position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 20px; font-size:13px; opacity:0; pointer-events:none; transition:all .3s; z-index:600; box-shadow:0 10px 30px rgba(0,0,0,.4);}
+  .toast{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--card);
+    border:1px solid var(--line); padding:12px 20px; font-size:13px; opacity:0; pointer-events:none; transition:all .3s;
+    z-index:600; box-shadow:0 0 20px -4px rgba(74,212,255,.4), 0 10px 30px rgba(0,0,0,.4);
+    clip-path:polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+  }
   .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
 
   footer{text-align:center; padding:30px; color:var(--text-dim); font-size:11.5px;}
@@ -723,14 +760,19 @@
 
 <div class="modal-overlay" id="modal-overlay">
   <div class="modal">
-    <div class="modal-icon">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#e2536b" stroke-width="2"><path d="M12 9v4M12 17h.01M10.29 3.86l-8.18 14.18A2 2 0 0 0 3.82 21h16.36a2 2 0 0 0 1.71-2.96L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+    <span class="corner tl"></span><span class="corner tr"></span>
+    <span class="corner bl"></span><span class="corner br"></span>
+    <div class="modal-head">
+      <div class="modal-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--rose)" stroke-width="2"><path d="M12 9v4M12 17h.01M10.29 3.86l-8.18 14.18A2 2 0 0 0 3.82 21h16.36a2 2 0 0 0 1.71-2.96L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+      </div>
+      <h3>Alerta del sistema</h3>
     </div>
-    <h3>Superaste tu límite de pago</h3>
+    <p class="modal-sub">Superaste tu límite de pago</p>
     <p>Este ciclo llevas <span class="figures" id="modal-total">$0.00</span>, por encima de tu límite mensual de <span class="figures" id="modal-limite">$200.00</span>. ¿Podrás pagar este monto completo?</p>
     <div class="modal-actions">
-      <button class="btn btn-no" id="btn-answer-no">No, cuidado</button>
-      <button class="btn btn-yes" id="btn-answer-yes">Sí, puedo pagarlo</button>
+      <button class="btn btn-no" id="btn-answer-no">NO</button>
+      <button class="btn btn-yes" id="btn-answer-yes">SÍ</button>
     </div>
   </div>
 </div>

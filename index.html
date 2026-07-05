@@ -135,7 +135,8 @@
   .btn-theme:hover{background:rgba(74,212,255,.16); transform:rotate(15deg) scale(1.08);}
   .btn-theme svg{display:block;}
 
-  main{max-width:1240px; margin:0 auto; padding:34px 40px;}
+  main{max-width:1240px; margin:0 auto; padding:34px 40px; opacity:0; transform:translateY(10px);}
+  main.ready{opacity:1; transform:translateY(0); transition:opacity .5s cubic-bezier(.2,.8,.2,1), transform .5s cubic-bezier(.2,.8,.2,1);}
 
   .hero{display:grid; grid-template-columns:340px 1fr; gap:28px; margin-bottom:28px;}
   .card-column{display:flex; flex-direction:column;}
@@ -287,16 +288,30 @@
   }
   .hud-bar{position:absolute; left:14px; right:14px; height:10px; pointer-events:none; opacity:.55;}
 
-  /* ── Franja "ventana de estado" — decorativa, estática (sin animación, no afecta scroll) ── */
+  /* ── Franja "ventana de estado" — ahora interactiva: click despliega un resumen ── */
   .status-strip{
-    position:relative; height:34px; margin-bottom:22px; display:flex; align-items:center; justify-content:center; gap:10px;
+    position:relative; width:100%; height:34px; margin-bottom:0; display:flex; align-items:center; justify-content:center; gap:10px;
     border-top:1px solid rgba(155,92,255,.35); border-bottom:1px solid rgba(155,92,255,.35);
     background:linear-gradient(90deg, transparent, rgba(155,92,255,.06), transparent);
+    cursor:pointer; font-family:inherit; padding:0;
+    transition:background-color .25s ease, border-color .25s ease;
   }
+  .status-strip:hover{background:linear-gradient(90deg, transparent, rgba(155,92,255,.14), transparent); border-color:rgba(155,92,255,.55);}
   .status-strip .hud-bar{left:0; right:0; top:auto; bottom:auto; height:100%; opacity:.35;}
   .status-strip-title{font-size:10.5px; font-weight:700; letter-spacing:.25em; color:#c77dff; text-shadow:0 0 10px rgba(199,125,255,.6); z-index:1;}
-  .status-strip-dot{width:5px; height:5px; border-radius:50%; background:var(--mint); box-shadow:0 0 6px var(--mint); z-index:1;}
+  .status-strip-dot{width:5px; height:5px; border-radius:50%; background:var(--mint); box-shadow:0 0 6px var(--mint); z-index:1; animation:tick-pulse 2s ease-in-out infinite;}
+  .status-strip-chevron{z-index:1; transition:transform .35s cubic-bezier(.34,1.56,.64,1);}
+  .status-strip[aria-expanded="true"] .status-strip-chevron{transform:rotate(180deg);}
   .status-strip .corner{width:10px; height:10px; border-color:#c77dff; filter:drop-shadow(0 0 3px #c77dff);}
+
+  .status-summary{
+    max-height:0; opacity:0; overflow:hidden; margin:0 auto 22px; max-width:640px;
+    transition:max-height .4s cubic-bezier(.2,.8,.2,1), opacity .35s ease, margin .4s ease;
+  }
+  .status-summary.show{max-height:120px; opacity:1; margin:14px auto 22px;}
+  .status-summary-row{display:flex; justify-content:space-between; align-items:center; padding:0 4px; font-size:12.5px; color:var(--text-mid);}
+  .status-summary-val{color:var(--text); font-weight:700; font-size:15px;}
+  .status-summary .bar-track{margin:8px 4px 12px;}
   .hud-bar.top{top:4px;}
   .hud-bar.bottom{bottom:4px;}
   .hud-bar svg{width:100%; height:100%; filter:drop-shadow(0 0 3px rgba(155,92,255,.6));}
@@ -603,12 +618,24 @@
 
 <main>
 
-  <div class="status-strip" aria-hidden="true">
+  <button class="status-strip" id="status-strip" aria-expanded="false">
     <span class="corner tl"></span><span class="corner tr"></span>
     <span class="corner bl"></span><span class="corner br"></span>
     <div class="hud-bar top"><svg viewBox="0 0 300 14" preserveAspectRatio="none"><path d="M0 7 Q40 1 80 7 T160 7 Q200 13 240 7 T300 7" stroke="url(#hudGradStrip)" stroke-width="1.4" fill="none"/><defs><linearGradient id="hudGradStrip" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#9b5cff" stop-opacity="0"/><stop offset=".5" stop-color="#c77dff"/><stop offset="1" stop-color="#9b5cff" stop-opacity="0"/></linearGradient></defs></svg></div>
     <span class="status-strip-title">ESTADO DEL SISTEMA</span>
     <span class="status-strip-dot"></span>
+    <svg class="status-strip-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#c77dff" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+  </button>
+  <div class="status-summary" id="status-summary">
+    <div class="status-summary-row">
+      <span class="status-summary-lbl">Gastado este ciclo</span>
+      <span class="status-summary-val figures" id="summary-total">$0.00</span>
+    </div>
+    <div class="bar-track"><div class="bar-fill" id="summary-bar" style="width:0%; background:var(--mint);"></div></div>
+    <div class="status-summary-row">
+      <span class="status-summary-lbl">Mi límite de pago</span>
+      <span class="status-summary-val figures" id="summary-limite">$0.00</span>
+    </div>
   </div>
 
   <div class="verdict-banner" id="verdict-banner">
@@ -1516,6 +1543,12 @@
     barLim.style.width = pctLim + '%';
     barLim.style.background = total > limite ? 'var(--rose)' : pctLim > 75 ? 'var(--amber)' : 'var(--mint)';
 
+    // Resumen del menú "Estado del sistema" — mismos números, sin recalcular.
+    animateValue($('summary-total'), total);
+    $('summary-limite').textContent = fmt(limite);
+    $('summary-bar').style.width = pctLim + '%';
+    $('summary-bar').style.background = barLim.style.background;
+
     const ahorro = META.ahorro;
     animateValue($('kpi-ahorro'), ahorro ?? 0);
     $('kpi-ahorro-sub').textContent = ahorro === null ? 'sin dato en col. H' : 'ingresado para pagar';
@@ -1840,6 +1873,14 @@
     $('btn-answer-no').addEventListener('click', () => answerVerdict(false));
     $('btn-answer-yes').addEventListener('click', () => answerVerdict(true));
 
+    // Menú interactivo "Estado del sistema": click alterna el resumen desplegable.
+    $('status-strip').addEventListener('click', () => {
+      const strip = $('status-strip');
+      const expanded = strip.getAttribute('aria-expanded') === 'true';
+      strip.setAttribute('aria-expanded', String(!expanded));
+      $('status-summary').classList.toggle('show', !expanded);
+    });
+
     $('input-corte').addEventListener('change', () => saveManualDates());
     $('input-pago').addEventListener('change', () => saveManualDates());
 
@@ -1947,6 +1988,7 @@
         : 'No se pudo conectar con la hoja "TARJETA". Verifica que el archivo de Google Sheets esté compartido como "Cualquiera con el enlace — Lector".';
       $('btn-retry-load').style.display = 'inline-block';
     } finally {
+      document.querySelector('main').classList.add('ready');
       // Solo se cierra el overlay si todo salió bien. Si hubo error, se queda
       // visible CON el mensaje — antes se borraba solo a los 500ms y el
       // usuario nunca llegaba a leer por qué falló.
@@ -1956,33 +1998,4 @@
     setInterval(() => loadData(false).catch((err) => console.error('Error en refresco automático:', err)), REFRESH_MS);
   }
 
-  /** Oculta (con fade) y elimina el overlay de carga. Segura de llamar más de una vez. */
-  function hideLoadingOverlay() {
-    const overlay = $('loading-overlay');
-    if (!overlay) return; // ya se quitó antes (ej. el watchdog se disparó primero)
-    overlay.classList.add('fade-out');
-    setTimeout(() => overlay.remove(), 500);
-  }
-
-  window.addEventListener('DOMContentLoaded', init);
-  window.addEventListener('DOMContentLoaded', () => {
-    $('btn-retry-load').addEventListener('click', () => window.location.reload());
-  });
-
-  // Red de seguridad final: si por cualquier razón init() nunca llega a su
-  // finally (ej. un bug futuro que cuelgue el hilo antes del try), esto
-  // garantiza que la pantalla de carga no se quede congelada indefinidamente.
-  window.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => {
-      const overlay = document.getElementById('loading-overlay');
-      if (overlay && !overlay.classList.contains('fade-out') && $('sheet-error').style.display !== 'block') {
-        console.warn('Watchdog: el overlay de carga seguía visible tras', LOADING_WATCHDOG_MS, 'ms — se fuerza a ocultar.');
-        overlay.classList.add('fade-out');
-        setTimeout(() => overlay.remove(), 500);
-      }
-    }, LOADING_WATCHDOG_MS);
-  });
-})();
-</script>
-</body>
-</html>
+  /** 

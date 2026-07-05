@@ -113,7 +113,7 @@
     display:flex; align-items:center; gap:6px; background:rgba(255,255,255,.03);
     backdrop-filter:blur(8px); transition:.2s;
   }
-  .dot-live{width:6px;height:6px;border-radius:50%;background:var(--mint); box-shadow:0 0 8px var(--mint);}
+  .dot-live{width:6px;height:6px;border-radius:50%;background:var(--mint); animation:pulse 1.6s ease-in-out infinite; box-shadow:0 0 8px var(--mint);}
   @keyframes pulse{0%,100%{opacity:.4} 50%{opacity:1}}
   .btn-refresh{
     display:flex; align-items:center; gap:7px; background:var(--brass-soft); border:1px solid rgba(74,212,255,.35);
@@ -177,8 +177,8 @@
   .card-visual{border-width:1px; border-style:solid; border-color:var(--line); transition:transform .5s cubic-bezier(.2,.8,.2,1), box-shadow .5s ease, border-color .4s ease;}
 
   /* Estado "warn" — excedido pero el usuario confirmó que sí puede pagar: alarma suave, ámbar, sin glitch ni grietas. */
-  .card-visual.card-warn{border-color:rgba(226,165,62,.5);}
-  .card-visual.card-warn .card-alert-glow{opacity:.6; background:radial-gradient(ellipse at 78% 85%, rgba(226,165,62,.28), transparent 62%);}
+  .card-visual.card-warn{border-color:rgba(226,165,62,.5); animation:card-warn-pulse 2.4s ease-in-out infinite;}
+  .card-visual.card-warn .card-alert-glow{opacity:1; background:radial-gradient(ellipse at 78% 85%, rgba(226,165,62,.28), transparent 62%); animation:glow-pulse-amber 2.4s ease-in-out infinite;}
   .card-visual.card-warn .card-emblem{opacity:.35; filter:drop-shadow(0 0 8px rgba(226,165,62,.55));}
   .card-visual.card-warn .card-emblem .ring, .card-visual.card-warn .card-emblem .spiral{stroke:var(--amber);}
   @keyframes card-warn-pulse{0%,100%{box-shadow:0 20px 50px -20px rgba(0,0,0,.7);} 50%{box-shadow:0 20px 50px -20px rgba(0,0,0,.7), 0 0 22px -4px rgba(226,165,62,.5);}}
@@ -186,15 +186,16 @@
 
   .card-visual.over-limit{
     border-color:rgba(226,83,107,.55);
-    animation:card-alert-shake .4s cubic-bezier(.36,.07,.19,.97) 1;
+    animation:card-alert-shake .4s cubic-bezier(.36,.07,.19,.97) 1, card-alert-breathe 1.4s ease-in-out .4s infinite,
+      card-alert-glitch 3.2s steps(1) .4s infinite;
   }
-  .card-visual.over-limit .card-alert-glow{opacity:.75;}
-  .card-visual.over-limit .card-scanline{opacity:.4;}
+  .card-visual.over-limit .card-alert-glow{opacity:1; animation:glow-pulse 1.6s ease-in-out infinite;}
+  .card-visual.over-limit .card-scanline{opacity:1; animation:scanline-sweep 2.4s ease-in-out infinite;}
   .card-visual.over-limit .card-glitch-lines{opacity:.5;}
   .card-visual.over-limit .card-emblem{
     opacity:.9;
     filter:drop-shadow(0 0 14px rgba(226,83,107,.85));
-    /* sin animación: parpadeo quitado por estabilidad */
+    animation:emblem-flicker 2.2s ease-in-out infinite;
   }
   .card-visual.over-limit .card-emblem .ring, .card-visual.over-limit .card-emblem .spiral{stroke:var(--rose);}
   .card-visual.over-limit .card-emblem .crack{opacity:1; stroke-dashoffset:0;}
@@ -215,7 +216,7 @@
   .card-visual.over-limit .card-tear{opacity:1; filter:drop-shadow(0 0 4px rgba(226,83,107,.65));}
 
   /* Estado "ok" — dentro del límite: brillo verde tranquilo, respiración lenta, nada agresivo. */
-  .card-visual.card-ok .card-alert-glow{opacity:.45; background:radial-gradient(ellipse at 78% 85%, rgba(79,209,174,.2), transparent 62%);}
+  .card-visual.card-ok .card-alert-glow{opacity:1; background:radial-gradient(ellipse at 78% 85%, rgba(79,209,174,.2), transparent 62%); animation:glow-pulse-mint 3.4s ease-in-out infinite;}
   .card-visual.card-ok .card-emblem{opacity:.14;}
   @keyframes glow-pulse-mint{0%,100%{opacity:.35;} 50%{opacity:.75;}}
 
@@ -230,7 +231,7 @@
   .due-sub{font-size:10.5px; margin-top:2px; opacity:.92;}
   .card-due-notice.ok{background:var(--mint-soft); color:var(--mint); border:1px solid rgba(79,209,174,.4);}
   .card-due-notice.warn{background:var(--amber-soft); color:var(--amber); border:1px solid rgba(226,165,62,.45);}
-  .card-due-notice.critical{background:rgba(226,83,107,.22); color:var(--rose); border:1px solid rgba(226,83,107,.5);}
+  .card-due-notice.critical{background:var(--rose-soft); color:var(--rose); border:1px solid rgba(226,83,107,.5); animation:due-pulse-critical 1.6s ease-in-out infinite;}
   @keyframes due-pulse-critical{0%,100%{background:var(--rose-soft);} 50%{background:rgba(226,83,107,.22);}}
 
   @keyframes card-alert-shake{
@@ -284,35 +285,6 @@
     border-radius:var(--r-lg); padding:20px 24px; display:flex; align-items:center; gap:24px; flex:1;
     position:relative; overflow:hidden; --glow:rgba(79,209,174,.35); clip-path:none;
   }
-  .hud-bar{position:absolute; left:14px; right:14px; height:10px; pointer-events:none; opacity:.55;}
-
-  /* ── Franja "ventana de estado" — ahora interactiva: click despliega un resumen ── */
-  .status-strip{
-    position:relative; width:100%; height:34px; margin-bottom:0; display:flex; align-items:center; justify-content:center; gap:10px;
-    border-top:1px solid rgba(155,92,255,.35); border-bottom:1px solid rgba(155,92,255,.35);
-    background:linear-gradient(90deg, transparent, rgba(155,92,255,.06), transparent);
-    cursor:pointer; font-family:inherit; padding:0;
-    transition:background-color .25s ease, border-color .25s ease;
-  }
-  .status-strip:hover{background:linear-gradient(90deg, transparent, rgba(155,92,255,.14), transparent); border-color:rgba(155,92,255,.55);}
-  .status-strip .hud-bar{left:0; right:0; top:auto; bottom:auto; height:100%; opacity:.35;}
-  .status-strip-title{font-size:10.5px; font-weight:700; letter-spacing:.25em; color:#c77dff; text-shadow:0 0 10px rgba(199,125,255,.6); z-index:1;}
-  .status-strip-dot{width:5px; height:5px; border-radius:50%; background:var(--mint); box-shadow:0 0 6px var(--mint); z-index:1;}
-  .status-strip-chevron{z-index:1; transition:transform .35s cubic-bezier(.34,1.56,.64,1);}
-  .status-strip[aria-expanded="true"] .status-strip-chevron{transform:rotate(180deg);}
-  .status-strip .corner{width:10px; height:10px; border-color:#c77dff; filter:drop-shadow(0 0 3px #c77dff);}
-
-  .status-summary{
-    max-height:0; opacity:0; overflow:hidden; margin:0 auto 22px; max-width:640px;
-    transition:max-height .4s cubic-bezier(.2,.8,.2,1), opacity .35s ease, margin .4s ease;
-  }
-  .status-summary.show{max-height:120px; opacity:1; margin:14px auto 22px;}
-  .status-summary-row{display:flex; justify-content:space-between; align-items:center; padding:0 4px; font-size:12.5px; color:var(--text-mid);}
-  .status-summary-val{color:var(--text); font-weight:700; font-size:15px;}
-  .status-summary .bar-track{margin:8px 4px 12px;}
-  .hud-bar.top{top:4px;}
-  .hud-bar.bottom{bottom:4px;}
-  .hud-bar svg{width:100%; height:100%; filter:drop-shadow(0 0 3px rgba(155,92,255,.6));}
   .countdown-card::after{
     content:''; position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity .4s ease;
     background:radial-gradient(ellipse at 15% 50%, var(--glow), transparent 65%);
@@ -326,8 +298,8 @@
   .countdown-card.urgent{--glow:rgba(226,83,107,.4);}
   .countdown-card.ok::after, .countdown-card.warning::after, .countdown-card.urgent::after,
   .countdown-card.ok::before, .countdown-card.warning::before, .countdown-card.urgent::before{opacity:1;}
-  
-  
+  .countdown-card.warning{animation:countdown-breathe 2.2s ease-in-out infinite;}
+  .countdown-card.urgent{animation:countdown-breathe 1.3s ease-in-out infinite;}
   @keyframes countdown-breathe{0%,100%{box-shadow:var(--shadow-card);} 50%{box-shadow:var(--shadow-card), 0 0 30px -4px var(--glow);}}
 
   /* ── Anillo tipo HUD/"status window" — números grandes con glow, marcas digitales, no logo de nadie ── */
@@ -377,11 +349,15 @@
   .kpi .sub{font-size:11px; color:var(--text-dim); margin-top:4px;}
   .bar-track{height:6px; background:var(--bg-2); border-radius:10px; margin-top:10px; overflow:hidden; position:relative;}
   .bar-fill{height:100%; border-radius:10px; transition:width .6s cubic-bezier(.2,.8,.2,1); position:relative; overflow:hidden;}
-  /* shimmer quitado por estabilidad: sin ::after animado en las barras */
+  .bar-fill::after{
+    content:''; position:absolute; inset:0;
+    background:linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent);
+    animation:shimmer 2.2s ease-in-out infinite;
+  }
   @keyframes shimmer{0%{transform:translateX(-100%);} 100%{transform:translateX(100%);}}
 
   .section-title{display:flex; align-items:center; gap:10px; margin:0 0 16px; font-size:13px; text-transform:uppercase; letter-spacing:.12em; color:var(--text-mid); text-shadow:0 0 10px rgba(74,212,255,.25);}
-  .section-title::before{content:'◆'; color:var(--brass); font-size:9px; text-shadow:0 0 8px var(--brass);}
+  .section-title::before{content:'◆'; color:var(--brass); font-size:9px; text-shadow:0 0 8px var(--brass); animation:tick-pulse 2s ease-in-out infinite;}
   @keyframes tick-pulse{0%,100%{opacity:.5;} 50%{opacity:1;}}
   .section-title::after{content:''; flex:1; height:1px; background:var(--line);}
 
@@ -612,26 +588,6 @@
 
 <main>
 
-  <button class="status-strip" id="status-strip" aria-expanded="false">
-    <span class="corner tl"></span><span class="corner tr"></span>
-    <span class="corner bl"></span><span class="corner br"></span>
-    <div class="hud-bar top"><svg viewBox="0 0 300 14" preserveAspectRatio="none"><path d="M0 7 Q40 1 80 7 T160 7 Q200 13 240 7 T300 7" stroke="url(#hudGradStrip)" stroke-width="1.4" fill="none"/><defs><linearGradient id="hudGradStrip" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#9b5cff" stop-opacity="0"/><stop offset=".5" stop-color="#c77dff"/><stop offset="1" stop-color="#9b5cff" stop-opacity="0"/></linearGradient></defs></svg></div>
-    <span class="status-strip-title">ESTADO DEL SISTEMA</span>
-    <span class="status-strip-dot"></span>
-    <svg class="status-strip-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#c77dff" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
-  </button>
-  <div class="status-summary" id="status-summary">
-    <div class="status-summary-row">
-      <span class="status-summary-lbl">Gastado este ciclo</span>
-      <span class="status-summary-val figures" id="summary-total">$0.00</span>
-    </div>
-    <div class="bar-track"><div class="bar-fill" id="summary-bar" style="width:0%; background:var(--mint);"></div></div>
-    <div class="status-summary-row">
-      <span class="status-summary-lbl">Mi límite de pago</span>
-      <span class="status-summary-val figures" id="summary-limite">$0.00</span>
-    </div>
-  </div>
-
   <div class="verdict-banner" id="verdict-banner">
     <span id="verdict-icon">✅</span>
     <span id="verdict-text"></span>
@@ -687,9 +643,6 @@
 
     <div class="hero-right">
       <div class="countdown-card" id="countdown-card">
-        <div class="hud-bar top" aria-hidden="true">
-          <svg viewBox="0 0 300 14" preserveAspectRatio="none"><path d="M0 7 Q30 2 60 7 T120 7 Q150 12 180 7 T240 7 Q270 3 300 7" stroke="url(#hudGrad1)" stroke-width="1.4" fill="none"/><defs><linearGradient id="hudGrad1" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#9b5cff" stop-opacity="0"/><stop offset=".5" stop-color="#c77dff"/><stop offset="1" stop-color="#9b5cff" stop-opacity="0"/></linearGradient></defs></svg>
-        </div>
         <span class="corner tl"></span><span class="corner tr"></span>
         <span class="corner bl"></span><span class="corner br"></span>
         <div class="ring-wrap">
@@ -709,9 +662,6 @@
           <div class="k">Para la fecha de pago</div>
           <div class="v" id="countdown-msg">Sin fecha de pago aún</div>
           <div class="status" id="status-badge" style="background:var(--bg-2); color:var(--text-mid);">Sin definir</div>
-        </div>
-        <div class="hud-bar bottom" aria-hidden="true">
-          <svg viewBox="0 0 300 14" preserveAspectRatio="none"><path d="M0 7 Q30 12 60 7 T120 7 Q150 2 180 7 T240 7 Q270 11 300 7" stroke="url(#hudGrad2)" stroke-width="1.4" fill="none"/><defs><linearGradient id="hudGrad2" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#9b5cff" stop-opacity="0"/><stop offset=".5" stop-color="#c77dff"/><stop offset="1" stop-color="#9b5cff" stop-opacity="0"/></linearGradient></defs></svg>
         </div>
       </div>
 
@@ -1537,12 +1487,6 @@
     barLim.style.width = pctLim + '%';
     barLim.style.background = total > limite ? 'var(--rose)' : pctLim > 75 ? 'var(--amber)' : 'var(--mint)';
 
-    // Resumen del menú "Estado del sistema" — mismos números, sin recalcular.
-    animateValue($('summary-total'), total);
-    $('summary-limite').textContent = fmt(limite);
-    $('summary-bar').style.width = pctLim + '%';
-    $('summary-bar').style.background = barLim.style.background;
-
     const ahorro = META.ahorro;
     animateValue($('kpi-ahorro'), ahorro ?? 0);
     $('kpi-ahorro-sub').textContent = ahorro === null ? 'sin dato en col. H' : 'ingresado para pagar';
@@ -1867,14 +1811,6 @@
     $('btn-answer-no').addEventListener('click', () => answerVerdict(false));
     $('btn-answer-yes').addEventListener('click', () => answerVerdict(true));
 
-    // Menú interactivo "Estado del sistema": click alterna el resumen desplegable.
-    $('status-strip').addEventListener('click', () => {
-      const strip = $('status-strip');
-      const expanded = strip.getAttribute('aria-expanded') === 'true';
-      strip.setAttribute('aria-expanded', String(!expanded));
-      $('status-summary').classList.toggle('show', !expanded);
-    });
-
     $('input-corte').addEventListener('change', () => saveManualDates());
     $('input-pago').addEventListener('change', () => saveManualDates());
 
@@ -1982,7 +1918,6 @@
         : 'No se pudo conectar con la hoja "TARJETA". Verifica que el archivo de Google Sheets esté compartido como "Cualquiera con el enlace — Lector".';
       $('btn-retry-load').style.display = 'inline-block';
     } finally {
-      document.querySelector('main').classList.add('ready');
       // Solo se cierra el overlay si todo salió bien. Si hubo error, se queda
       // visible CON el mensaje — antes se borraba solo a los 500ms y el
       // usuario nunca llegaba a leer por qué falló.
@@ -2011,4 +1946,14 @@
   window.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
       const overlay = document.getElementById('loading-overlay');
-      if (overlay && !overlay.classList.contains('fade-out') && $('sheet-error').style.display !== 'bloc
+      if (overlay && !overlay.classList.contains('fade-out') && $('sheet-error').style.display !== 'block') {
+        console.warn('Watchdog: el overlay de carga seguía visible tras', LOADING_WATCHDOG_MS, 'ms — se fuerza a ocultar.');
+        overlay.classList.add('fade-out');
+        setTimeout(() => overlay.remove(), 500);
+      }
+    }, LOADING_WATCHDOG_MS);
+  });
+})();
+</script>
+</body>
+</html>

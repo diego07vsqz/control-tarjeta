@@ -113,7 +113,7 @@
     display:flex; align-items:center; gap:6px; background:rgba(255,255,255,.03);
     backdrop-filter:blur(8px); transition:.2s;
   }
-  .dot-live{width:6px;height:6px;border-radius:50%;background:var(--mint); animation:pulse 1.6s ease-in-out infinite; box-shadow:0 0 8px var(--mint);}
+  .dot-live{width:6px;height:6px;border-radius:50%;background:var(--mint); box-shadow:0 0 8px var(--mint);}
   @keyframes pulse{0%,100%{opacity:.4} 50%{opacity:1}}
   .btn-refresh{
     display:flex; align-items:center; gap:7px; background:var(--brass-soft); border:1px solid rgba(74,212,255,.35);
@@ -135,8 +135,7 @@
   .btn-theme:hover{background:rgba(74,212,255,.16); transform:rotate(15deg) scale(1.08);}
   .btn-theme svg{display:block;}
 
-  main{max-width:1240px; margin:0 auto; padding:34px 40px; opacity:0; transform:translateY(10px);}
-  main.ready{opacity:1; transform:translateY(0); transition:opacity .5s cubic-bezier(.2,.8,.2,1), transform .5s cubic-bezier(.2,.8,.2,1);}
+  main{max-width:1240px; margin:0 auto; padding:34px 40px;}
 
   .hero{display:grid; grid-template-columns:340px 1fr; gap:28px; margin-bottom:28px;}
   .card-column{display:flex; flex-direction:column;}
@@ -178,8 +177,8 @@
   .card-visual{border-width:1px; border-style:solid; border-color:var(--line); transition:transform .5s cubic-bezier(.2,.8,.2,1), box-shadow .5s ease, border-color .4s ease;}
 
   /* Estado "warn" — excedido pero el usuario confirmó que sí puede pagar: alarma suave, ámbar, sin glitch ni grietas. */
-  .card-visual.card-warn{border-color:rgba(226,165,62,.5); animation:card-warn-pulse 2.4s ease-in-out infinite;}
-  .card-visual.card-warn .card-alert-glow{opacity:1; background:radial-gradient(ellipse at 78% 85%, rgba(226,165,62,.28), transparent 62%); animation:glow-pulse-amber 2.4s ease-in-out infinite;}
+  .card-visual.card-warn{border-color:rgba(226,165,62,.5);}
+  .card-visual.card-warn .card-alert-glow{opacity:.6; background:radial-gradient(ellipse at 78% 85%, rgba(226,165,62,.28), transparent 62%);}
   .card-visual.card-warn .card-emblem{opacity:.35; filter:drop-shadow(0 0 8px rgba(226,165,62,.55));}
   .card-visual.card-warn .card-emblem .ring, .card-visual.card-warn .card-emblem .spiral{stroke:var(--amber);}
   @keyframes card-warn-pulse{0%,100%{box-shadow:0 20px 50px -20px rgba(0,0,0,.7);} 50%{box-shadow:0 20px 50px -20px rgba(0,0,0,.7), 0 0 22px -4px rgba(226,165,62,.5);}}
@@ -187,16 +186,15 @@
 
   .card-visual.over-limit{
     border-color:rgba(226,83,107,.55);
-    animation:card-alert-shake .4s cubic-bezier(.36,.07,.19,.97) 1, card-alert-breathe 1.4s ease-in-out .4s infinite,
-      card-alert-glitch 3.2s steps(1) .4s infinite;
+    animation:card-alert-shake .4s cubic-bezier(.36,.07,.19,.97) 1;
   }
-  .card-visual.over-limit .card-alert-glow{opacity:1; animation:glow-pulse 1.6s ease-in-out infinite;}
-  .card-visual.over-limit .card-scanline{opacity:1; animation:scanline-sweep 2.4s ease-in-out infinite;}
+  .card-visual.over-limit .card-alert-glow{opacity:.75;}
+  .card-visual.over-limit .card-scanline{opacity:.4;}
   .card-visual.over-limit .card-glitch-lines{opacity:.5;}
   .card-visual.over-limit .card-emblem{
     opacity:.9;
     filter:drop-shadow(0 0 14px rgba(226,83,107,.85));
-    animation:emblem-flicker 2.2s ease-in-out infinite;
+    /* sin animación: parpadeo quitado por estabilidad */
   }
   .card-visual.over-limit .card-emblem .ring, .card-visual.over-limit .card-emblem .spiral{stroke:var(--rose);}
   .card-visual.over-limit .card-emblem .crack{opacity:1; stroke-dashoffset:0;}
@@ -217,7 +215,7 @@
   .card-visual.over-limit .card-tear{opacity:1; filter:drop-shadow(0 0 4px rgba(226,83,107,.65));}
 
   /* Estado "ok" — dentro del límite: brillo verde tranquilo, respiración lenta, nada agresivo. */
-  .card-visual.card-ok .card-alert-glow{opacity:1; background:radial-gradient(ellipse at 78% 85%, rgba(79,209,174,.2), transparent 62%); animation:glow-pulse-mint 3.4s ease-in-out infinite;}
+  .card-visual.card-ok .card-alert-glow{opacity:.45; background:radial-gradient(ellipse at 78% 85%, rgba(79,209,174,.2), transparent 62%);}
   .card-visual.card-ok .card-emblem{opacity:.14;}
   @keyframes glow-pulse-mint{0%,100%{opacity:.35;} 50%{opacity:.75;}}
 
@@ -232,7 +230,7 @@
   .due-sub{font-size:10.5px; margin-top:2px; opacity:.92;}
   .card-due-notice.ok{background:var(--mint-soft); color:var(--mint); border:1px solid rgba(79,209,174,.4);}
   .card-due-notice.warn{background:var(--amber-soft); color:var(--amber); border:1px solid rgba(226,165,62,.45);}
-  .card-due-notice.critical{background:var(--rose-soft); color:var(--rose); border:1px solid rgba(226,83,107,.5); animation:due-pulse-critical 1.6s ease-in-out infinite;}
+  .card-due-notice.critical{background:rgba(226,83,107,.22); color:var(--rose); border:1px solid rgba(226,83,107,.5);}
   @keyframes due-pulse-critical{0%,100%{background:var(--rose-soft);} 50%{background:rgba(226,83,107,.22);}}
 
   @keyframes card-alert-shake{
@@ -299,7 +297,7 @@
   .status-strip:hover{background:linear-gradient(90deg, transparent, rgba(155,92,255,.14), transparent); border-color:rgba(155,92,255,.55);}
   .status-strip .hud-bar{left:0; right:0; top:auto; bottom:auto; height:100%; opacity:.35;}
   .status-strip-title{font-size:10.5px; font-weight:700; letter-spacing:.25em; color:#c77dff; text-shadow:0 0 10px rgba(199,125,255,.6); z-index:1;}
-  .status-strip-dot{width:5px; height:5px; border-radius:50%; background:var(--mint); box-shadow:0 0 6px var(--mint); z-index:1; animation:tick-pulse 2s ease-in-out infinite;}
+  .status-strip-dot{width:5px; height:5px; border-radius:50%; background:var(--mint); box-shadow:0 0 6px var(--mint); z-index:1;}
   .status-strip-chevron{z-index:1; transition:transform .35s cubic-bezier(.34,1.56,.64,1);}
   .status-strip[aria-expanded="true"] .status-strip-chevron{transform:rotate(180deg);}
   .status-strip .corner{width:10px; height:10px; border-color:#c77dff; filter:drop-shadow(0 0 3px #c77dff);}
@@ -328,8 +326,8 @@
   .countdown-card.urgent{--glow:rgba(226,83,107,.4);}
   .countdown-card.ok::after, .countdown-card.warning::after, .countdown-card.urgent::after,
   .countdown-card.ok::before, .countdown-card.warning::before, .countdown-card.urgent::before{opacity:1;}
-  .countdown-card.warning{animation:countdown-breathe 2.2s ease-in-out infinite;}
-  .countdown-card.urgent{animation:countdown-breathe 1.3s ease-in-out infinite;}
+  
+  
   @keyframes countdown-breathe{0%,100%{box-shadow:var(--shadow-card);} 50%{box-shadow:var(--shadow-card), 0 0 30px -4px var(--glow);}}
 
   /* ── Anillo tipo HUD/"status window" — números grandes con glow, marcas digitales, no logo de nadie ── */
@@ -379,15 +377,11 @@
   .kpi .sub{font-size:11px; color:var(--text-dim); margin-top:4px;}
   .bar-track{height:6px; background:var(--bg-2); border-radius:10px; margin-top:10px; overflow:hidden; position:relative;}
   .bar-fill{height:100%; border-radius:10px; transition:width .6s cubic-bezier(.2,.8,.2,1); position:relative; overflow:hidden;}
-  .bar-fill::after{
-    content:''; position:absolute; inset:0;
-    background:linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent);
-    animation:shimmer 2.2s ease-in-out infinite;
-  }
+  /* shimmer quitado por estabilidad: sin ::after animado en las barras */
   @keyframes shimmer{0%{transform:translateX(-100%);} 100%{transform:translateX(100%);}}
 
   .section-title{display:flex; align-items:center; gap:10px; margin:0 0 16px; font-size:13px; text-transform:uppercase; letter-spacing:.12em; color:var(--text-mid); text-shadow:0 0 10px rgba(74,212,255,.25);}
-  .section-title::before{content:'◆'; color:var(--brass); font-size:9px; text-shadow:0 0 8px var(--brass); animation:tick-pulse 2s ease-in-out infinite;}
+  .section-title::before{content:'◆'; color:var(--brass); font-size:9px; text-shadow:0 0 8px var(--brass);}
   @keyframes tick-pulse{0%,100%{opacity:.5;} 50%{opacity:1;}}
   .section-title::after{content:''; flex:1; height:1px; background:var(--line);}
 
@@ -1998,4 +1992,23 @@
     setInterval(() => loadData(false).catch((err) => console.error('Error en refresco automático:', err)), REFRESH_MS);
   }
 
-  /** 
+  /** Oculta (con fade) y elimina el overlay de carga. Segura de llamar más de una vez. */
+  function hideLoadingOverlay() {
+    const overlay = $('loading-overlay');
+    if (!overlay) return; // ya se quitó antes (ej. el watchdog se disparó primero)
+    overlay.classList.add('fade-out');
+    setTimeout(() => overlay.remove(), 500);
+  }
+
+  window.addEventListener('DOMContentLoaded', init);
+  window.addEventListener('DOMContentLoaded', () => {
+    $('btn-retry-load').addEventListener('click', () => window.location.reload());
+  });
+
+  // Red de seguridad final: si por cualquier razón init() nunca llega a su
+  // finally (ej. un bug futuro que cuelgue el hilo antes del try), esto
+  // garantiza que la pantalla de carga no se quede congelada indefinidamente.
+  window.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+      const overlay = document.getElementById('loading-overlay');
+      if (overlay && !overlay.classList.contains('fade-out') && $('sheet-error').style.display !== 'bloc

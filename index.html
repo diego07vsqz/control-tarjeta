@@ -41,6 +41,19 @@
   [data-theme="light"] .date-edit input{ color-scheme:light; }
   [data-theme="light"] tbody tr:hover td{ background:rgba(0,0,0,.02); }
   body{ transition:background-color .25s ease, color .25s ease; }
+
+  /* ── Cursor personalizado — solo se activa por JS en desktop con mouse real ── */
+  .cursor-dot, .cursor-glow{
+    position:fixed; top:0; left:0; pointer-events:none; z-index:9998; border-radius:50%;
+    transform:translate(-50%,-50%); opacity:0; will-change:transform;
+  }
+  .cursor-dot{width:6px; height:6px; background:var(--brass); box-shadow:0 0 6px var(--brass);}
+  .cursor-glow{
+    width:26px; height:26px; border:1px solid rgba(74,212,255,.5); background:rgba(74,212,255,.08);
+    transition:transform .12s ease-out, opacity .3s ease; /* el retraso de esta transición ES la "estela" — sin JS extra */
+  }
+  body.custom-cursor, body.custom-cursor *{cursor:none !important;}
+  body.custom-cursor .cursor-dot, body.custom-cursor .cursor-glow{opacity:1;}
   .kpi, .panel, .countdown-card, .date-edit, .modal, .toast{ transition:background-color .25s ease, border-color .25s ease; }
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   body{
@@ -81,6 +94,13 @@
   .spinner{width:38px; height:38px; border:2.5px solid rgba(201,162,75,.2); border-top-color:var(--brass); border-radius:50%; animation:spin .8s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg);}}
   .loading-msg{font-size:11px; color:var(--text-dim); letter-spacing:.1em; text-transform:uppercase;}
+  .boot-line{
+    font-family:'JetBrains Mono',monospace; font-size:13px; letter-spacing:.08em; color:var(--brass);
+    text-shadow:0 0 8px rgba(74,212,255,.5); min-height:18px; margin-bottom:4px;
+  }
+  .boot-line::after{content:'▌'; opacity:1; animation:boot-cursor-blink .6s steps(1) infinite;}
+  .boot-line.done::after{display:none;}
+  @keyframes boot-cursor-blink{0%,50%{opacity:1;} 51%,100%{opacity:0;}}
   #sheet-error{
     display:none; max-width:480px; text-align:center; color:var(--rose); font-size:13px;
     background:var(--rose-soft); border:1px solid var(--rose); border-radius:12px; padding:18px 22px; line-height:1.6;
@@ -107,6 +127,18 @@
     background:linear-gradient(90deg, #4ad4ff, #9b8cff 60%, #4ad4ff);
     -webkit-background-clip:text; background-clip:text; color:transparent;
     filter:drop-shadow(0 0 10px rgba(155,140,255,.5));
+    display:inline-block; animation:title-glitch-in .7s cubic-bezier(.2,.8,.2,1) 1;
+  }
+  /* Un solo disparo automático al renderizar — CSS puro, sin JS, sin loop. */
+  @keyframes title-glitch-in{
+    0%{opacity:0; transform:translateX(-4px); filter:blur(2px);}
+    12%{opacity:1; transform:translateX(3px) skewX(-4deg); filter:blur(0);}
+    20%{transform:translateX(-3px) skewX(3deg);}
+    28%{transform:translateX(2px) skewX(-2deg);}
+    36%{transform:translateX(0);}
+    45%{opacity:.3; transform:translateX(-2px);}
+    52%{opacity:1; transform:translateX(1px);}
+    100%{opacity:1; transform:translateX(0) skewX(0); filter:blur(0);}
   }
   .brand-sub{font-size:10.5px; color:var(--text-dim); letter-spacing:.1em; text-transform:uppercase; margin-top:2px;}
   .header-right{display:flex; gap:10px; align-items:center;}
@@ -657,6 +689,24 @@
   }
   .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
 
+  /* ── Notificación "misión fallada" — desliza desde la derecha, un solo evento, se auto-cierra ── */
+  .quest-toast{
+    position:fixed; top:90px; right:24px; width:280px; z-index:601;
+    background:linear-gradient(160deg, rgba(20,4,10,.95), rgba(10,2,5,.97));
+    border:1px solid rgba(226,83,107,.5); padding:14px 16px;
+    box-shadow:0 0 30px -6px rgba(226,83,107,.5), 0 20px 40px -10px rgba(0,0,0,.7);
+    clip-path:polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+    transform:translateX(340px); opacity:0; pointer-events:none;
+    transition:transform .4s cubic-bezier(.2,.8,.2,1), opacity .4s ease;
+  }
+  .quest-toast.show{transform:translateX(0); opacity:1; pointer-events:auto;}
+  .quest-toast-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;}
+  .quest-toast-tag{font-size:9.5px; font-weight:800; letter-spacing:.12em; color:var(--rose); text-shadow:0 0 8px rgba(226,83,107,.6);}
+  .quest-toast-close{background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:12px; padding:2px;}
+  .quest-toast-close:hover{color:var(--text);}
+  .quest-toast-title{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:13.5px; color:var(--text); margin-bottom:4px;}
+  .quest-toast-body{font-size:11.5px; color:var(--text-mid); line-height:1.5;}
+
   footer{text-align:center; padding:26px 20px; color:var(--text-dim); font-size:11px; border-top:1px solid rgba(155,92,255,.2); margin-top:20px;}
   .footer-grid{display:flex; flex-wrap:wrap; justify-content:center; gap:8px 24px; font-family:'JetBrains Mono',monospace; letter-spacing:.02em;}
   .footer-grid b{color:var(--text-mid); font-weight:600;}
@@ -711,7 +761,11 @@
 </head>
 <body>
 
+<div class="cursor-glow" id="cursor-glow"></div>
+<div class="cursor-dot" id="cursor-dot"></div>
+
 <div id="loading-overlay">
+  <div class="boot-line" id="boot-line"></div>
   <div class="spinner" id="loading-spinner"></div>
   <div class="loading-msg" id="loading-msg">Conectando con Google Sheets…</div>
   <div id="sheet-error"></div>
@@ -736,6 +790,10 @@
       </span>
     </div>
     <div class="pill"><span class="dot-live"></span> <span id="last-update">—</span></div>
+    <button class="btn-theme" id="btn-sound" title="Sonido del sistema (apagado)">
+      <svg id="sound-icon-off" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5 6 9H2v6h4l5 4V5z"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+      <svg id="sound-icon-on" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+    </button>
     <button class="btn-theme" id="btn-compact" title="Modo compacto">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
     </button>
@@ -1037,6 +1095,15 @@
 </footer>
 <div class="toast" id="toast"></div>
 
+<div class="quest-toast" id="quest-toast">
+  <div class="quest-toast-head">
+    <span class="quest-toast-tag">⚠ MISIÓN FALLADA</span>
+    <button class="quest-toast-close" id="quest-toast-close">✕</button>
+  </div>
+  <div class="quest-toast-title">Límite de pago excedido</div>
+  <div class="quest-toast-body" id="quest-toast-body"></div>
+</div>
+
 <script>
 /**
  * ══════════════════════════════════════════════════════════════════════════
@@ -1115,6 +1182,7 @@
     THEME: 'tarjeta:theme',
     NOTAS: 'tarjeta:notas',
     COMPACT: 'tarjeta:compacto',
+    SOUND: 'tarjeta:sonido',
   };
 
   // ┌──────────────────────────────────────────────────────────────────────┐
@@ -1655,6 +1723,84 @@
     try { await storage.set(STORAGE_KEYS.COMPACT, String(next)); } catch (e) { /* falla silenciosa */ }
   }
 
+  /**
+   * Audio del sistema — sintetizado con Web Audio API, sin archivos externos
+   * (nada que descargar, nada con derechos de autor). Apagado por defecto:
+   * los navegadores bloquean audio antes de una interacción del usuario de
+   * todas formas, y así nadie se lleva un sonido sorpresa al abrir la web.
+   * El AudioContext se crea solo la primera vez que hace falta (perezoso).
+   */
+  let SOUND_ON = false;
+  let audioCtx = null;
+
+  function getAudioCtx() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  }
+
+  /** Tono corto y seco — clic metálico para aperturas de menú / botones. */
+  function playClick() {
+    if (!SOUND_ON) return;
+    try {
+      const ctx = getAudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(1200, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.05);
+      gain.gain.setValueAtTime(0.06, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.09);
+    } catch (e) { /* si el navegador bloquea audio, no pasa nada grave */ }
+  }
+
+  /** Tono descendente y áspero — para el momento "corrupto" al presionar No. */
+  function playGlitch() {
+    if (!SOUND_ON) return;
+    try {
+      const ctx = getAudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(320, ctx.currentTime);
+      osc.frequency.linearRampToValueAtTime(60, ctx.currentTime + 0.35);
+      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.42);
+    } catch (e) { /* falla silenciosa */ }
+  }
+
+  /** Carga la preferencia de sonido guardada (default: apagado). */
+  async function loadSound() {
+    let on = false;
+    try {
+      const saved = await storage.get(STORAGE_KEYS.SOUND);
+      on = saved && saved.value === 'true';
+    } catch (e) { /* primera visita: apagado por defecto */ }
+    SOUND_ON = on;
+    $('sound-icon-on').style.display = on ? 'block' : 'none';
+    $('sound-icon-off').style.display = on ? 'none' : 'block';
+    $('btn-sound').title = `Sonido del sistema (${on ? 'encendido' : 'apagado'})`;
+  }
+
+  /** Alterna el sonido del sistema y persiste la elección. */
+  async function toggleSound() {
+    SOUND_ON = !SOUND_ON;
+    $('sound-icon-on').style.display = SOUND_ON ? 'block' : 'none';
+    $('sound-icon-off').style.display = SOUND_ON ? 'none' : 'block';
+    $('btn-sound').title = `Sonido del sistema (${SOUND_ON ? 'encendido' : 'apagado'})`;
+    if (SOUND_ON) {
+      try { getAudioCtx(); } catch (e) { /* AudioContext no disponible — el sonido simplemente no sonará */ }
+      playClick(); // confirma con un clic que sí quedó activado (playClick ya tiene su propio try/catch)
+    }
+    try { await storage.set(STORAGE_KEYS.SOUND, String(SOUND_ON)); } catch (e) { /* falla silenciosa */ }
+  }
+
   // ┌──────────────────────────────────────────────────────────────────────┐
   // │ 9. RENDER LAYER — pintan el STATE actual en el DOM                   │
   // └──────────────────────────────────────────────────────────────────────┘
@@ -2180,7 +2326,23 @@
     if (lastAlertLoggedTotal !== total) {
       logEvent('⚠ Alerta de límite mostrada');
       lastAlertLoggedTotal = total;
+      showQuestToast(total, limite);
     }
+  }
+
+  /**
+   * Notificación "misión fallada" — desliza desde la derecha, se cierra
+   * sola a los 6s (o al hacer click en la X). Un solo setTimeout, sin
+   * animación continua: cero costo una vez que desaparece del DOM visual.
+   */
+  let questToastTimer = null;
+  function showQuestToast(total, limite) {
+    $('quest-toast-body').textContent = `Llevas ${fmt(total)} de tu límite de ${fmt(limite)}. Revisa tus gastos antes del pago.`;
+    const el = $('quest-toast');
+    el.classList.add('show');
+    playGlitch();
+    clearTimeout(questToastTimer);
+    questToastTimer = setTimeout(() => el.classList.remove('show'), 6000);
   }
 
   /** Handler de los botones Sí/No del modal "¿podrás pagar?". */
@@ -2233,6 +2395,29 @@
   }
 
   /** Muestra un mensaje flotante breve en la esquina inferior. */
+  /**
+   * Efecto de "terminal escribiendo" para el texto de arranque del overlay
+   * de carga. Es un setTimeout encadenado, finito (se detiene solo al
+   * llegar al final del texto) — nunca un loop infinito, así que no hay
+   * riesgo de dejar nada corriendo de fondo si el overlay se cierra antes.
+   */
+  function typeBootLine(texto) {
+    const el = document.getElementById('boot-line');
+    if (!el) return;
+    let i = 0;
+    el.textContent = '';
+    el.classList.remove('done');
+    (function tick() {
+      if (i >= texto.length) {
+        el.classList.add('done');
+        return;
+      }
+      el.textContent += texto[i];
+      i++;
+      setTimeout(tick, 28);
+    })();
+  }
+
   function showToast(msg) {
     const t = $('toast');
     t.textContent = msg;
@@ -2407,18 +2592,20 @@
   /** Registra todos los listeners de la app en un solo lugar (nada de onclick inline en el HTML). */
   function bindEvents() {
     $('btn-refresh').addEventListener('click', manualRefresh);
-    $('btn-theme').addEventListener('click', toggleTheme);
-    $('btn-compact').addEventListener('click', toggleCompact);
+    $('btn-theme').addEventListener('click', () => { toggleTheme(); playClick(); });
+    $('btn-compact').addEventListener('click', () => { toggleCompact(); playClick(); });
+    $('btn-sound').addEventListener('click', toggleSound);
+    $('quest-toast-close').addEventListener('click', () => $('quest-toast').classList.remove('show'));
 
     // Barra de filtros por ciclo: cada botón rápido recalcula EXPENSES sin volver a pedirle nada al Sheet.
     document.querySelectorAll('.filter-btn[data-mode]').forEach((btn) => {
-      btn.addEventListener('click', () => applyFilterMode(btn.dataset.mode));
+      btn.addEventListener('click', () => { applyFilterMode(btn.dataset.mode); playClick(); });
     });
-    $('filter-apply').addEventListener('click', applyManualRange);
+    $('filter-apply').addEventListener('click', () => { applyManualRange(); playClick(); });
     $('btn-export-csv').addEventListener('click', exportCSV);
     $('btn-reset-verdict').addEventListener('click', resetVerdict);
-    $('btn-answer-no').addEventListener('click', () => answerVerdict(false));
-    $('btn-answer-yes').addEventListener('click', () => answerVerdict(true));
+    $('btn-answer-no').addEventListener('click', () => { playGlitch(); answerVerdict(false); });
+    $('btn-answer-yes').addEventListener('click', () => { playClick(); answerVerdict(true); });
 
     $('input-corte').addEventListener('change', () => saveManualDates());
     $('input-pago').addEventListener('change', () => saveManualDates());
@@ -2497,6 +2684,12 @@
   async function init() {
     let hadError = false;
 
+    // Texto de arranque tipeado — puramente decorativo, corre EN PARALELO
+    // con la carga real (no la bloquea ni depende de ella). Vive dentro del
+    // mismo overlay ya auditado: si algo falla, el overlay se sigue
+    // cerrando igual por las rutas normales.
+    typeBootLine('INICIANDO SISTEMA...');
+
     try {
       bindEvents();
 
@@ -2512,6 +2705,7 @@
       // El tema se aplica primero para evitar cualquier parpadeo de color al cargar.
       await loadTheme();
       await loadCompact();
+      await loadSound();
 
       // Preferencias del usuario primero — así los inputs ya tienen su valor
       // guardado antes del primer render con datos del Sheet.
@@ -2548,7 +2742,46 @@
     setTimeout(() => overlay.remove(), 500);
   }
 
+  /**
+   * Cursor personalizado — solo se activa si el dispositivo tiene mouse de
+   * verdad (pointer:fine) y el usuario no pidió menos movimiento
+   * (prefers-reduced-motion). En touch/mobile no hace nada — ahí no existe
+   * "cursor" y es justo donde antes tuvimos problemas de rendimiento, así
+   * que se descarta por completo en vez de arriesgar.
+   *
+   * Throttle real: el mousemove solo GUARDA la posición; el trabajo de
+   * pintar se hace una vez por frame vía requestAnimationFrame, nunca más
+   * seguido que eso, sin importar cuántos eventos de mouse lleguen.
+   */
+  function initCustomCursor() {
+    const soportaMouse = window.matchMedia('(pointer: fine)').matches;
+    const prefiereMenosMovimiento = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!soportaMouse || prefiereMenosMovimiento) return;
+
+    document.body.classList.add('custom-cursor');
+    const dot = $('cursor-dot');
+    const glow = $('cursor-glow');
+
+    let x = 0, y = 0, pintarPendiente = false;
+
+    document.addEventListener('mousemove', (e) => {
+      x = e.clientX;
+      y = e.clientY;
+      if (pintarPendiente) return;
+      pintarPendiente = true;
+      requestAnimationFrame(() => {
+        dot.style.transform = `translate(${x}px, ${y}px) translate(-50%,-50%)`;
+        glow.style.transform = `translate(${x}px, ${y}px) translate(-50%,-50%)`;
+        pintarPendiente = false;
+      });
+    }, { passive: true });
+
+    document.addEventListener('mouseleave', () => { dot.style.opacity = '0'; glow.style.opacity = '0'; });
+    document.addEventListener('mouseenter', () => { dot.style.opacity = '1'; glow.style.opacity = '1'; });
+  }
+
   window.addEventListener('DOMContentLoaded', init);
+  window.addEventListener('DOMContentLoaded', initCustomCursor);
   window.addEventListener('DOMContentLoaded', () => {
     $('btn-retry-load').addEventListener('click', () => window.location.reload());
   });

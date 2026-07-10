@@ -139,6 +139,38 @@
 
   main{max-width:1240px; margin:0 auto; padding:34px 40px;}
 
+  /* ── Badge de rango (E-S) — estilo escudo, glow segun letra ── */
+  .rank-badge{
+    width:32px; height:32px; display:flex; align-items:center; justify-content:center;
+    background:rgba(155,92,255,.1); border:1px solid rgba(155,92,255,.4);
+    clip-path:polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+    font-family:'Space Grotesk',sans-serif; font-weight:800; font-size:14px; color:#c77dff;
+  }
+  .rank-badge.rank-S{color:#ffd23f; border-color:rgba(255,210,63,.6); text-shadow:0 0 8px rgba(255,210,63,.7);}
+  .rank-badge.rank-A{color:var(--mint); border-color:rgba(62,242,176,.6); text-shadow:0 0 6px rgba(62,242,176,.5);}
+  .rank-badge.rank-B{color:var(--brass); border-color:rgba(74,212,255,.6);}
+  .rank-badge.rank-C{color:var(--amber); border-color:rgba(255,200,87,.6);}
+  .rank-badge.rank-D{color:#ff9f5c; border-color:rgba(255,159,92,.6);}
+  .rank-badge.rank-E{color:var(--rose); border-color:rgba(255,77,106,.6);}
+
+  .chart-panel .spend-chart{width:100%; height:160px; display:block;}
+  .spend-chart .bar{fill:rgba(74,212,255,.5);}
+  .spend-chart .bar:hover{fill:var(--brass);}
+  .spend-chart .line{fill:none; stroke:#c77dff; stroke-width:2;}
+  .spend-chart .axis{stroke:rgba(255,255,255,.1); stroke-width:1;}
+  .spend-chart .empty-msg{fill:var(--text-dim); font-size:11px; font-family:'Inter',sans-serif;}
+
+  /* ── Modo compacto — reduce paddings, gaps y tamaños de fuente en toda la app ── */
+  body.compact .kpi, body.compact .metric, body.compact .panel, body.compact .countdown-card, body.compact .date-edit{padding:10px 14px;}
+  body.compact .kpi .val, body.compact .metric .val{font-size:18px;}
+  body.compact .kpi-row, body.compact .analytics-row, body.compact .bottom-row{gap:10px; margin-bottom:14px;}
+  body.compact main{padding:18px 24px;}
+  body.compact .hero{gap:14px; margin-bottom:14px;}
+  body.compact .section-title{margin-bottom:8px; font-size:11px;}
+  body.compact tbody td{padding:6px 10px;}
+  body.compact .card-visual{aspect-ratio:2.2/1;}
+  body.compact .status-summary.show{max-height:80px;}
+
   .hero{display:grid; grid-template-columns:340px 1fr; gap:28px; margin-bottom:28px;}
   .card-column{display:flex; flex-direction:column;}
   @media(max-width:860px){ .hero{grid-template-columns:1fr;} }
@@ -618,7 +650,13 @@
   </div>
   <div class="header-right">
     <select class="card-select" id="card-select" style="display:none;"></select>
+    <div class="rank-badge" id="rank-badge" title="Rango del ciclo">
+      <span id="rank-letter">—</span>
+    </div>
     <div class="pill"><span class="dot-live"></span> <span id="last-update">—</span></div>
+    <button class="btn-theme" id="btn-compact" title="Modo compacto">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+    </button>
     <button class="btn-theme" id="btn-theme" title="Cambiar tema">
       <svg id="theme-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
     </button>
@@ -809,10 +847,18 @@
     </div>
   </div>
 
+  <div class="panel chart-panel" style="margin-bottom:28px;">
+    <div class="section-title">Gasto diario · últimos 30 días</div>
+    <svg id="spend-chart" class="spend-chart" viewBox="0 0 600 160" preserveAspectRatio="none"></svg>
+  </div>
+
   <!-- ── Tabla ── -->
   <div class="panel" style="margin-bottom:28px;">
     <div class="table-toolbar">
       <div class="section-title">Movimientos del ciclo (en vivo desde Sheets)</div>
+      <button class="btn-theme" id="btn-export-csv" title="Exportar CSV">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      </button>
       <input type="text" class="input-search" id="input-search" placeholder="Buscar gasto…">
     </div>
     <div class="table-wrap" id="table-wrap">
@@ -964,6 +1010,7 @@
     VEREDICTO: 'tarjeta:veredicto',
     THEME: 'tarjeta:theme',
     NOTAS: 'tarjeta:notas',
+    COMPACT: 'tarjeta:compacto',
   };
 
   // ┌──────────────────────────────────────────────────────────────────────┐
@@ -1209,6 +1256,13 @@
     return Math.round((d2 - d1) / 86400000);
   }
 
+  /** Suma (o resta, si n es negativo) días a una fecha ISO "YYYY-MM-DD". */
+  function addDays(iso, n) {
+    const d = new Date(iso + 'T00:00:00');
+    d.setDate(d.getDate() + n);
+    return d.toISOString().slice(0, 10);
+  }
+
   /** Un gasto es "inusual" si supera OUTLIER_THRESHOLD ($100). */
   function isOutlier(monto) {
     return monto > OUTLIER_THRESHOLD;
@@ -1413,6 +1467,23 @@
     const next = current === 'light' ? 'dark' : 'light';
     applyTheme(next);
     try { await storage.set(STORAGE_KEYS.THEME, next); } catch (e) { /* falla silenciosa */ }
+  }
+
+  /** Carga la preferencia de modo compacto guardada (default: normal). */
+  async function loadCompact() {
+    let compact = false;
+    try {
+      const saved = await storage.get(STORAGE_KEYS.COMPACT);
+      compact = saved && saved.value === 'true';
+    } catch (e) { /* primera visita: modo normal por defecto */ }
+    document.body.classList.toggle('compact', compact);
+  }
+
+  /** Alterna el modo compacto (menos padding, más denso) y persiste la elección. */
+  async function toggleCompact() {
+    const next = !document.body.classList.contains('compact');
+    document.body.classList.toggle('compact', next);
+    try { await storage.set(STORAGE_KEYS.COMPACT, String(next)); } catch (e) { /* falla silenciosa */ }
   }
 
   // ┌──────────────────────────────────────────────────────────────────────┐
@@ -1768,6 +1839,106 @@
       : `${((si / totalConDato) * 100).toFixed(0)}% del ciclo es a cuotas`;
   }
 
+  /**
+   * Rango del ciclo (E a S), según qué tan disciplinado va el gasto contra
+   * el límite personal — entre menos porcentaje del límite se ha usado,
+   * mejor el rango. Es solo un indicador visual, no afecta ningún cálculo.
+   */
+  function renderRankBadge() {
+    const total = totalTarjeta();
+    const limite = getLimite();
+    const usado = limite > 0 ? total / limite : 0;
+
+    let letra;
+    if (usado <= 0.3) letra = 'S';
+    else if (usado <= 0.5) letra = 'A';
+    else if (usado <= 0.7) letra = 'B';
+    else if (usado <= 0.85) letra = 'C';
+    else if (usado <= 1.0) letra = 'D';
+    else letra = 'E';
+
+    const badge = $('rank-badge');
+    badge.className = 'rank-badge rank-' + letra;
+    badge.title = `Rango ${letra} — has usado ${(usado * 100).toFixed(0)}% de tu límite personal`;
+    $('rank-letter').textContent = letra;
+  }
+
+  /**
+   * Gráfica de gasto diario de los últimos 30 días — barras (gasto de ese
+   * día) + línea (acumulado), dibujada a mano en SVG, sin librerías externas.
+   */
+  function renderSpendChart() {
+    const svg = $('spend-chart');
+    const hoy = todayInSV();
+    const desde = addDays(hoy, -29);
+
+    const porDia = {};
+    EXPENSES.forEach((e) => {
+      if (e.fecha >= desde && e.fecha <= hoy) porDia[e.fecha] = (porDia[e.fecha] || 0) + e.monto;
+    });
+
+    const dias = [];
+    for (let i = 0; i < 30; i++) dias.push(addDays(desde, i));
+
+    const valores = dias.map((d) => porDia[d] || 0);
+    const max = Math.max(...valores, 1);
+
+    if (valores.every((v) => v === 0)) {
+      svg.innerHTML = '<text x="300" y="80" text-anchor="middle" class="empty-msg">Sin movimientos en los últimos 30 días</text>';
+      return;
+    }
+
+    // Acumulado día a día, normalizado contra su propio máximo (el total de los 30 días).
+    const acumulados = [];
+    let corriendo = 0;
+    valores.forEach((v) => { corriendo += v; acumulados.push(corriendo); });
+    const maxAcumulado = acumulados[acumulados.length - 1] || 1;
+
+    const W = 600, H = 160, padBottom = 16;
+    const barW = W / 30;
+
+    const bars = valores.map((v, i) => {
+      const alto = (v / max) * (H - padBottom - 10);
+      const x = i * barW + barW * 0.15;
+      const y = H - padBottom - alto;
+      return `<rect class="bar" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${(barW * 0.7).toFixed(1)}" height="${alto.toFixed(1)}"><title>${fmtDateShort(dias[i])}: ${fmt(v)}</title></rect>`;
+    }).join('');
+
+    const puntos = acumulados.map((a, i) => {
+      const py = H - padBottom - (a / maxAcumulado) * (H - padBottom - 10);
+      return `${(i * barW + barW / 2).toFixed(1)},${py.toFixed(1)}`;
+    }).join(' ');
+
+    svg.innerHTML = `
+      <line class="axis" x1="0" y1="${H - padBottom}" x2="${W}" y2="${H - padBottom}"/>
+      ${bars}
+      <polyline class="line" points="${puntos}"/>
+    `;
+  }
+
+  /** Descarga los movimientos del ciclo actual como archivo .csv. */
+  function exportCSV() {
+    if (EXPENSES.length === 0) {
+      showToast('⚠️ No hay movimientos que exportar');
+      return;
+    }
+    const filas = [['Fecha', 'Gasto', 'Cuotas', 'Monto']];
+    getVisibleExpenses().forEach((e) => filas.push([e.fecha, e.gasto, e.cuotas || '—', e.monto.toFixed(2)]));
+
+    const csv = filas.map((f) => f.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `movimientos-${todayInSV()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    logEvent('CSV exportado — ' + getVisibleExpenses().length + ' filas');
+    showToast('⬇️ CSV descargado');
+  }
+
   /** Pinta el comparativo "mes pasado vs. este mes", agrupando EXPENSES por mes calendario real. */
   function renderMonthCompare() {
     const thisYM = todayInSV().slice(0, 7);
@@ -1923,6 +2094,8 @@
       updateCountdown();
 
       renderAnalytics();
+      renderRankBadge();
+      renderSpendChart();
 
       checkLimitAndPrompt();
 
@@ -1971,6 +2144,8 @@
   function bindEvents() {
     $('btn-refresh').addEventListener('click', manualRefresh);
     $('btn-theme').addEventListener('click', toggleTheme);
+    $('btn-compact').addEventListener('click', toggleCompact);
+    $('btn-export-csv').addEventListener('click', exportCSV);
     $('btn-reset-verdict').addEventListener('click', resetVerdict);
     $('btn-answer-no').addEventListener('click', () => answerVerdict(false));
     $('btn-answer-yes').addEventListener('click', () => answerVerdict(true));
@@ -2066,6 +2241,7 @@
 
       // El tema se aplica primero para evitar cualquier parpadeo de color al cargar.
       await loadTheme();
+      await loadCompact();
 
       // Preferencias del usuario primero — así los inputs ya tienen su valor
       // guardado antes del primer render con datos del Sheet.

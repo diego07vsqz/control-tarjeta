@@ -964,18 +964,14 @@
     VEREDICTO: 'tarjeta:veredicto',
     THEME: 'tarjeta:theme',
     NOTAS: 'tarjeta:notas',
-    CYCLE_BOUNDS: 'tarjeta:cycle-bounds',
   };
 
   // ┌──────────────────────────────────────────────────────────────────────┐
   // │ 2. STATE                                                             │
   // └──────────────────────────────────────────────────────────────────────┘
 
-  /** Movimientos DEL CICLO ACTUAL únicamente (filtrados por corte→pago). Es lo que usan tabla, KPIs, totales, etc. */
+  /** Movimientos del ciclo actual, tal como vienen del Sheet. @type {{fecha:string, gasto:string, monto:number}[]} */
   let EXPENSES = [];
-
-  /** Historial COMPLETO tal como viene del Sheet, sin filtrar — solo lo usa el comparativo "mes pasado vs. este mes". */
-  let ALL_EXPENSES = [];
 
   /** Metadatos leídos del Sheet (columnas D-F): fecha de corte/pago y límite del banco. */
   let META = { corte: null, pago: null, limiteBanco: null, ahorro: null };
@@ -1213,65 +1209,6 @@
     return Math.round((d2 - d1) / 86400000);
   }
 
-  /**
-   * Filtra el historial completo a solo los movimientos del ciclo actual.
-   *
-   * OJO con la semántica: "corte" y "pago" NO son el rango donde caen los
-   * gastos — son el cierre del estado de cuenta y su vencimiento. Los gastos
-   * se acumulan HASTA el corte (no "entre corte y pago"); pago es solo la
-   * fecha límite para pagar lo que ya se cerró. Filtrar por [corte, pago]
-   * excluye TODO el historial real y deja el dashboard vacío.
-   *
-   * La ventana correcta es (corte_anterior, corte_actual]. Como el Sheet no
-   * guarda el corte anterior, se aprende solo: cada vez que el corte del
-   * Sheet cambia respecto al último que vimos, ese valor viejo se guarda
-   * como "corte_anterior" en el navegador. La primera vez que se usa el
-   * dashboard (sin corte anterior aprendido todavía) se usa un respaldo
-   * amplio de 45 días hacia atrás, para no dejar la pantalla vacía.
-   * @param {object[]} expenses
-   * @param {string|null} corte
-   * @param {string|null} prevCorte
-   */
-  function filterToCycle(expenses, corte, prevCorte) {
-    if (!corte) return expenses;
-    const inicio = prevCorte || addDays(corte, -45);
-    return expenses.filter((e) => e.fecha > inicio && e.fecha <= corte);
-  }
-
-  /** Suma (o resta, si n es negativo) días a una fecha ISO "YYYY-MM-DD". */
-  function addDays(iso, n) {
-    const d = new Date(iso + 'T00:00:00');
-    d.setDate(d.getDate() + n);
-    return d.toISOString().slice(0, 10);
-  }
-
-  /**
-   * Compara el corte actual contra el último que se vio guardado. Si cambió
-   * (nuevo ciclo), el corte viejo pasa a ser "corte_anterior" — así, la
-   * próxima vez, filterToCycle ya sabe exactamente dónde empezó este ciclo,
-   * en vez de usar el respaldo genérico de 45 días.
-   * @param {string|null} corteActual
-   * @returns {Promise<string|null>} el corte_anterior a usar como límite inferior del filtro.
-   */
-  async function resolveCyclePrevCorte(corteActual) {
-    if (!corteActual) return null;
-
-    let bounds = { lastCorte: null, prevCorte: null };
-    try {
-      const saved = await storage.get(skey(STORAGE_KEYS.CYCLE_BOUNDS));
-      if (saved && saved.value) bounds = JSON.parse(saved.value);
-    } catch (e) { /* primera visita: sin límites aprendidos todavía */ }
-
-    if (bounds.lastCorte !== corteActual) {
-      bounds = { lastCorte: corteActual, prevCorte: bounds.lastCorte };
-      try {
-        await storage.set(skey(STORAGE_KEYS.CYCLE_BOUNDS), JSON.stringify(bounds));
-      } catch (e) { /* falla silenciosa */ }
-    }
-
-    return bounds.prevCorte;
-  }
-
   /** Un gasto es "inusual" si supera OUTLIER_THRESHOLD ($100). */
   function isOutlier(monto) {
     return monto > OUTLIER_THRESHOLD;
@@ -1308,7 +1245,7 @@
 
   /** Suma el gasto de todos los movimientos (historial completo, no solo el ciclo) cuyo mes-año coincide con el dado. */
   function totalDelMes(ym) {
-    return ALL_EXPENSES.filter((e) => e.fecha.slice(0, 7) === ym).reduce((sum, e) => sum + e.monto, 0);
+    return EXPENSES.filter((e) => e.fecha.slice(0, 7) === ym).reduce((sum, e) => sum + e.monto, 0);
   }
 
   /**
@@ -1972,21 +1909,12 @@
 
     try {
       const { expenses, corte, pago, limiteBanco, ahorro } = await fetchSheet();
-      ALL_EXPENSES = expenses;
+      EXPENSES = expenses;
       META = { corte, pago, limiteBanco, ahorro };
 
       // Primero se resuelven las fuentes de verdad (Sheet > manual) para que
       // los inputs ya tengan su valor final antes de pintar cualquier KPI.
       await resolveDates();
-
-      // El ciclo actual se define por lo que quedó en los inputs (Sheet o
-      // manual, lo que haya ganado en resolveDates) — no directamente por
-      // META, para respetar también una fecha puesta a mano.
-      // El ciclo actual va desde el corte anterior aprendido hasta el corte de hoy
-      // (no "corte a pago" — ese es el vencimiento, no la ventana de gasto).
-      const corteResuelto = $('input-corte').value;
-      const prevCorte = await resolveCyclePrevCorte(corteResuelto);
-      EXPENSES = filterToCycle(ALL_EXPENSES, corteResuelto, prevCorte);
 
       renderTable();
       renderKpis();
@@ -2028,7 +1956,6 @@
   async function switchCard(idx) {
     activeCardIndex = idx;
     EXPENSES = [];
-    ALL_EXPENSES = [];
     NOTAS = {};
     await loadLimite();
     await loadVerdict();

@@ -964,6 +964,7 @@
     VEREDICTO: 'tarjeta:veredicto',
     THEME: 'tarjeta:theme',
     NOTAS: 'tarjeta:notas',
+    CYCLE_BOUNDS: 'tarjeta:cycle-bounds',
   };
 
   // ┌──────────────────────────────────────────────────────────────────────┐
@@ -1213,19 +1214,62 @@
   }
 
   /**
-   * Filtra el historial completo a solo los movimientos dentro del ciclo
-   * actual (corte → pago, ambos inclusive). Así, cuando el ciclo cierra y el
-   * Sheet arranca uno nuevo, los gastos del ciclo anterior dejan de sumarse
-   * automáticamente — sin que haya que borrar filas viejas del Sheet a mano.
-   * Si falta corte o pago (aún no definidos), no hay forma segura de saber
-   * dónde empieza/termina el ciclo, así que se devuelve todo sin filtrar.
+   * Filtra el historial completo a solo los movimientos del ciclo actual.
+   *
+   * OJO con la semántica: "corte" y "pago" NO son el rango donde caen los
+   * gastos — son el cierre del estado de cuenta y su vencimiento. Los gastos
+   * se acumulan HASTA el corte (no "entre corte y pago"); pago es solo la
+   * fecha límite para pagar lo que ya se cerró. Filtrar por [corte, pago]
+   * excluye TODO el historial real y deja el dashboard vacío.
+   *
+   * La ventana correcta es (corte_anterior, corte_actual]. Como el Sheet no
+   * guarda el corte anterior, se aprende solo: cada vez que el corte del
+   * Sheet cambia respecto al último que vimos, ese valor viejo se guarda
+   * como "corte_anterior" en el navegador. La primera vez que se usa el
+   * dashboard (sin corte anterior aprendido todavía) se usa un respaldo
+   * amplio de 45 días hacia atrás, para no dejar la pantalla vacía.
    * @param {object[]} expenses
    * @param {string|null} corte
-   * @param {string|null} pago
+   * @param {string|null} prevCorte
    */
-  function filterToCycle(expenses, corte, pago) {
-    if (!corte || !pago) return expenses;
-    return expenses.filter((e) => e.fecha >= corte && e.fecha <= pago);
+  function filterToCycle(expenses, corte, prevCorte) {
+    if (!corte) return expenses;
+    const inicio = prevCorte || addDays(corte, -45);
+    return expenses.filter((e) => e.fecha > inicio && e.fecha <= corte);
+  }
+
+  /** Suma (o resta, si n es negativo) días a una fecha ISO "YYYY-MM-DD". */
+  function addDays(iso, n) {
+    const d = new Date(iso + 'T00:00:00');
+    d.setDate(d.getDate() + n);
+    return d.toISOString().slice(0, 10);
+  }
+
+  /**
+   * Compara el corte actual contra el último que se vio guardado. Si cambió
+   * (nuevo ciclo), el corte viejo pasa a ser "corte_anterior" — así, la
+   * próxima vez, filterToCycle ya sabe exactamente dónde empezó este ciclo,
+   * en vez de usar el respaldo genérico de 45 días.
+   * @param {string|null} corteActual
+   * @returns {Promise<string|null>} el corte_anterior a usar como límite inferior del filtro.
+   */
+  async function resolveCyclePrevCorte(corteActual) {
+    if (!corteActual) return null;
+
+    let bounds = { lastCorte: null, prevCorte: null };
+    try {
+      const saved = await storage.get(skey(STORAGE_KEYS.CYCLE_BOUNDS));
+      if (saved && saved.value) bounds = JSON.parse(saved.value);
+    } catch (e) { /* primera visita: sin límites aprendidos todavía */ }
+
+    if (bounds.lastCorte !== corteActual) {
+      bounds = { lastCorte: corteActual, prevCorte: bounds.lastCorte };
+      try {
+        await storage.set(skey(STORAGE_KEYS.CYCLE_BOUNDS), JSON.stringify(bounds));
+      } catch (e) { /* falla silenciosa */ }
+    }
+
+    return bounds.prevCorte;
   }
 
   /** Un gasto es "inusual" si supera OUTLIER_THRESHOLD ($100). */
@@ -1938,7 +1982,11 @@
       // El ciclo actual se define por lo que quedó en los inputs (Sheet o
       // manual, lo que haya ganado en resolveDates) — no directamente por
       // META, para respetar también una fecha puesta a mano.
-      EXPENSES = filterToCycle(ALL_EXPENSES, $('input-corte').value, $('input-pago').value);
+      // El ciclo actual va desde el corte anterior aprendido hasta el corte de hoy
+      // (no "corte a pago" — ese es el vencimiento, no la ventana de gasto).
+      const corteResuelto = $('input-corte').value;
+      const prevCorte = await resolveCyclePrevCorte(corteResuelto);
+      EXPENSES = filterToCycle(ALL_EXPENSES, corteResuelto, prevCorte);
 
       renderTable();
       renderKpis();

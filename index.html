@@ -378,6 +378,7 @@
   .savings-check-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;}
   .verdict-pill{font-size:11.5px; padding:5px 13px; border-radius:20px; font-weight:600; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;}
   .verdict-pill.ok{background:var(--mint-soft); color:var(--mint);}
+  .verdict-pill.warn{background:var(--amber-soft); color:var(--amber);}
   .verdict-pill.bad{background:var(--rose-soft); color:var(--rose);}
   .verdict-pill.na{background:var(--bg-2); color:var(--text-dim);}
   .savings-check-row{display:flex; justify-content:space-between; font-size:13px; color:var(--text-mid); margin-bottom:8px; flex-wrap:wrap; gap:6px;}
@@ -489,6 +490,11 @@
   .corner.bl{bottom:-1px; left:-1px; border-right:none; border-top:none;}
   .corner.br{bottom:-1px; right:-1px; border-left:none; border-top:none;}
   .hud-focus{clip-path:none; position:relative;}
+  /* ── Panel de ahorro: 3 estados dinámicos, transición suave, sin animación continua (estabilidad). ── */
+  .savings-panel{transition:border-color .4s ease, box-shadow .4s ease, background-color .4s ease;}
+  .savings-panel.state-ok{border-color:rgba(62,242,176,.5); box-shadow:var(--shadow-card), 0 0 20px -6px rgba(62,242,176,.35);}
+  .savings-panel.state-close{border-color:rgba(255,200,87,.55); box-shadow:var(--shadow-card), 0 0 20px -6px rgba(255,200,87,.4);}
+  .savings-panel.state-bad{border-color:rgba(255,77,106,.55); box-shadow:var(--shadow-card), 0 0 22px -6px rgba(255,77,106,.45);}
   .modal-head{display:flex; align-items:center; gap:12px; margin-bottom:6px;}
   .modal-icon{
     width:34px; height:34px; flex-shrink:0; border:1px solid rgba(255,77,106,.5); background:var(--rose-soft);
@@ -704,7 +710,7 @@
 
       <div class="xp-bar-wrap">
         <div class="xp-bar-head">
-          <span class="xp-bar-lbl">PROGRESO DEL CICLO</span>
+          <span class="xp-bar-lbl">TIEMPO PARA EL PAGO</span>
           <span class="xp-bar-val" id="xp-bar-val">0%</span>
         </div>
         <div class="xp-bar-track">
@@ -752,7 +758,7 @@
   </div>
 
   <!-- ── Veredicto de ahorro (compacto, sin repetir números de arriba) ── -->
-  <div class="panel hud-focus" style="margin-bottom:28px;">
+  <div class="panel hud-focus savings-panel" id="savings-panel" style="margin-bottom:28px;">
     <span class="corner tl"></span><span class="corner tr"></span>
     <span class="corner bl"></span><span class="corner br"></span>
     <div class="savings-check-head">
@@ -1527,9 +1533,17 @@
     const pct = Math.min(Math.max(diff / cicloTotal, 0), 1);
     ring.style.strokeDashoffset = RING_CIRCUMFERENCE - RING_CIRCUMFERENCE * pct;
 
-    const elapsedPct = Math.round((1 - pct) * 100);
-    $('xp-bar-fill').style.width = elapsedPct + '%';
-    $('xp-bar-val').textContent = elapsedPct + '%';
+    // Ligada a "Para la fecha de pago": la barra representa tiempo RESTANTE, no transcurrido.
+    // Baja conforme se acercan los días — a diferencia del anillo, que sigue el mismo cálculo pero mostrado al revés.
+    const restantePct = Math.round(pct * 100);
+    const xpFill = $('xp-bar-fill');
+    xpFill.style.width = restantePct + '%';
+    $('xp-bar-val').textContent = restantePct + '%';
+    xpFill.style.background = diff < 0 || diff <= DUE_SOON_DAYS
+      ? 'linear-gradient(90deg, #7a1f33, var(--rose))'
+      : diff <= DUE_WARNING_DAYS
+        ? 'linear-gradient(90deg, #7a5a1f, var(--amber))'
+        : 'linear-gradient(90deg, #6a3dbf, #c77dff, #4ad4ff)';
 
     if (diff < 0) {
       setDays('0', 'urgent');
@@ -1685,16 +1699,21 @@
   }
 
   /**
-   * Pinta el veredicto "ahorro vs. pago": compara lo ingresado a la cuenta de
-   * ahorro (columna G, ya mostrado en su propio KPI) contra el total del ciclo,
-   * y resuelve si alcanza o no. Solo pinta la pastilla + barra + texto — los
-   * montos en sí ya viven en el KPI "Ahorro en cuenta", no se repiten aquí.
+   * Pinta el veredicto "ahorro vs. pago" como una alerta dinámica de 3 estados:
+   *   - alcanza: ahorro cubre el total completo.
+   *   - cerca: ahorro cubre 85% o más del total, pero no todo — avisa que está cerca.
+   *   - no alcanza: ahorro por debajo del 85% del total.
+   * El monto que falta (o sobra) siempre se muestra, sin importar el estado —
+   * es el dato que más le sirve al usuario para decidir qué hacer.
    */
   function renderSavingsCheck() {
     const total = totalTarjeta();
     const ahorro = META.ahorro;
     const pill = $('savings-verdict');
     const bar = $('bar-ahorro');
+    const panel = $('savings-panel');
+
+    panel.classList.remove('state-ok', 'state-close', 'state-bad');
 
     if (ahorro === null) {
       pill.textContent = 'Sin datos';
@@ -1707,8 +1726,11 @@
     const pct = total > 0 ? Math.min((ahorro / total) * 100, 100) : 100;
     bar.style.width = pct + '%';
 
+    const CERCA_THRESHOLD = 0.85; // 85% o más del total = "cerca de alcanzar"
+
     if (ahorro >= total) {
       const sobrante = ahorro - total;
+      panel.classList.add('state-ok');
       bar.style.background = 'var(--mint)';
       pill.textContent = '✅ Alcanza';
       pill.className = 'verdict-pill ok';
@@ -1717,10 +1739,15 @@
         : 'Cubre exactamente el total del ciclo.';
     } else {
       const faltante = total - ahorro;
-      bar.style.background = 'var(--rose)';
-      pill.textContent = '⚠ No alcanza';
-      pill.className = 'verdict-pill bad';
-      $('ahorro-hint').textContent = `Te faltan ${fmt(faltante)} para cubrir el total de este ciclo.`;
+      const cerca = total > 0 && ahorro / total >= CERCA_THRESHOLD;
+
+      panel.classList.add(cerca ? 'state-close' : 'state-bad');
+      bar.style.background = cerca ? 'var(--amber)' : 'var(--rose)';
+      pill.textContent = cerca ? '🟡 Está cerca' : '⚠ No alcanza';
+      pill.className = 'verdict-pill ' + (cerca ? 'warn' : 'bad');
+      $('ahorro-hint').textContent = cerca
+        ? `Estás cerca — te faltan solo ${fmt(faltante)} para cubrir el total de este ciclo.`
+        : `Te faltan ${fmt(faltante)} para cubrir el total de este ciclo.`;
     }
   }
 

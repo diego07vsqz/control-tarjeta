@@ -54,19 +54,6 @@
     -webkit-font-smoothing:antialiased; min-height:100vh; padding-bottom:60px;
     overflow-x:hidden;
   }
-  /* "Código cayendo" — un solo elemento, una sola animación transform (GPU), muy sutil. */
-  body::before{
-    content:''; position:absolute; top:0; left:0; right:0; height:200%; z-index:-1; pointer-events:none; opacity:.05;
-    background-image:repeating-linear-gradient(90deg,
-      transparent 0 38px,
-      rgba(74,212,255,.9) 38px 39px,
-      transparent 39px 76px,
-      rgba(155,92,255,.7) 76px 77px);
-    background-size:100% 22px;
-    animation:code-fall 14s linear infinite;
-    will-change:transform;
-  }
-  @keyframes code-fall{0%{transform:translateY(0);} 100%{transform:translateY(220px);}}
   h1,h2,h3{font-family:'Space Grotesk',sans-serif;}
   .figures{font-family:'JetBrains Mono',monospace;}
 
@@ -554,7 +541,22 @@
   }
   .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
 
-  footer{text-align:center; padding:30px; color:var(--text-dim); font-size:11.5px;}
+  footer{text-align:center; padding:26px 20px; color:var(--text-dim); font-size:11px; border-top:1px solid rgba(155,92,255,.2); margin-top:20px;}
+  .footer-grid{display:flex; flex-wrap:wrap; justify-content:center; gap:8px 24px; font-family:'JetBrains Mono',monospace; letter-spacing:.02em;}
+  .footer-grid b{color:var(--text-mid); font-weight:600;}
+
+  /* ── Fila inferior: tip + log del sistema ── */
+  .bottom-row{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:8px;}
+  @media(max-width:860px){ .bottom-row{grid-template-columns:1fr;} }
+  .tip-card, .system-log{position:relative; padding:18px 20px;}
+  .tip-card-head{display:flex; align-items:center; gap:8px; margin-bottom:10px; font-size:10px; font-weight:700; letter-spacing:.15em; color:var(--text-mid);}
+  .tip-card p{font-size:13px; color:var(--text); line-height:1.6; margin:0;}
+  .system-log-list{list-style:none; display:flex; flex-direction:column; gap:8px; font-family:'JetBrains Mono',monospace; font-size:11.5px;}
+  .system-log-list li{color:var(--text-mid); display:flex; gap:8px;}
+  .system-log-list li::before{content:'>'; color:var(--brass); flex-shrink:0;}
+  .system-log-list .log-time{color:var(--text-dim); flex-shrink:0;}
+  .system-log-empty{color:var(--text-dim); font-style:italic;}
+  .system-log-empty::before{content:''!important;}
 
   /* ── Responsive: teléfono ── */
   @media(max-width:600px){
@@ -827,6 +829,30 @@
     </div>
   </div>
 
+  <div class="bottom-row">
+    <div class="panel tip-card">
+      <span class="corner tl"></span><span class="corner tr"></span>
+      <span class="corner bl"></span><span class="corner br"></span>
+      <div class="tip-card-head">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c77dff" stroke-width="2"><path d="M9 18h6M10 22h4M15 2a6 6 0 0 0-4 10.472V16h2v-2.837A6 6 0 0 0 15 2z"/></svg>
+        <span>CONSEJO DEL SISTEMA</span>
+      </div>
+      <p id="tip-text">Cargando consejo…</p>
+    </div>
+
+    <div class="panel system-log">
+      <span class="corner tl"></span><span class="corner tr"></span>
+      <span class="corner bl"></span><span class="corner br"></span>
+      <div class="tip-card-head">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4ad4ff" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+        <span>REGISTRO DEL SISTEMA</span>
+      </div>
+      <ul class="system-log-list" id="system-log-list">
+        <li class="system-log-empty">Sin actividad todavía…</li>
+      </ul>
+    </div>
+  </div>
+
 </main>
 
 <div class="modal-overlay" id="modal-overlay">
@@ -848,7 +874,14 @@
   </div>
 </div>
 
-<footer>Datos en vivo desde Google Sheets · hoja "TARJETA" · Actualiza automáticamente cada 2 minutos</footer>
+<footer>
+  <div class="footer-grid">
+    <span>Hoja activa: <b id="footer-sheet">TARJETA</b></span>
+    <span>Última sincronización: <b id="footer-sync">—</b></span>
+    <span>Auto-refresco: <b>cada 2 min</b></span>
+    <span>Versión: <b>2.0 · sistema</b></span>
+  </div>
+</footer>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -945,6 +978,23 @@
 
   /** Notas de texto libre por movimiento, indexadas por una clave derivada del propio movimiento. */
   let NOTAS = {};
+
+  /** Últimas 3 acciones del sistema, para el mini log del footer. Solo en memoria (no persiste entre visitas). */
+  let SYSTEM_LOG = [];
+
+  /** Evita registrar la misma alerta de límite repetidamente en cada refresco mientras sigue sin respuesta. */
+  let lastAlertLoggedTotal = null;
+
+  /** Consejos financieros — se elige uno al azar por carga de página. */
+  const TIPS = [
+    'Pagar más del mínimo cada ciclo reduce los intereses que se acumulan sobre el saldo.',
+    'Revisa tu gasto promedio cada semana — es más fácil corregir a tiempo que al cierre del ciclo.',
+    'Si una compra es a cuotas, súmala igual a tu límite mensual: el compromiso ya existe, aunque se pague después.',
+    'Separar un ahorro fijo para el pago, aunque sea pequeño, evita sorpresas cerca de la fecha de corte.',
+    'Los gastos "inusuales" (muy por encima de tu promedio) son los primeros candidatos a revisar antes de pagar.',
+    'Comparar el mes actual contra el anterior te dice más sobre tus hábitos que el total de un solo ciclo.',
+    'Una tarjeta con margen amplio no es lo mismo que dinero disponible — el límite del banco no es tu presupuesto real.',
+  ];
 
   /** Texto actual del buscador de la tabla (case-insensitive, filtra por nombre de gasto). */
   let TABLE_FILTER = '';
@@ -1745,6 +1795,10 @@
     $('modal-total').textContent = fmt(total);
     $('modal-limite').textContent = fmt(limite);
     $('modal-overlay').classList.add('show');
+    if (lastAlertLoggedTotal !== total) {
+      logEvent('⚠ Alerta de límite mostrada');
+      lastAlertLoggedTotal = total;
+    }
   }
 
   /** Handler de los botones Sí/No del modal "¿podrás pagar?". */
@@ -1755,6 +1809,7 @@
     showVerdictBanner(canPay, total, getLimite());
     updateCardEmblem();
     updateCardDueNotice();
+    logEvent(canPay ? 'Veredicto: sí podrás pagar' : 'Veredicto: no podrás pagar');
     if (!canPay) showToast('💡 Revisa tus gastos del mes para cuadrar el pago');
   }
 
@@ -1784,6 +1839,27 @@
     t.textContent = msg;
     t.classList.add('show');
     setTimeout(() => t.classList.remove('show'), 3200);
+  }
+
+  /**
+   * Registra una acción en el mini log del sistema (footer). Guarda solo las
+   * últimas 3 — es un registro de sesión, no persiste entre visitas.
+   */
+  function logEvent(msg) {
+    const hora = new Date().toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit', timeZone: TIMEZONE });
+    SYSTEM_LOG.unshift({ hora, msg });
+    SYSTEM_LOG = SYSTEM_LOG.slice(0, 3);
+    renderSystemLog();
+  }
+
+  /** Pinta el mini log del sistema en el footer. */
+  function renderSystemLog() {
+    const list = $('system-log-list');
+    if (SYSTEM_LOG.length === 0) {
+      list.innerHTML = '<li class="system-log-empty">Sin actividad todavía…</li>';
+      return;
+    }
+    list.innerHTML = SYSTEM_LOG.map((e) => `<li><span class="log-time">${e.hora}</span> ${e.msg}</li>`).join('');
   }
 
   // ┌──────────────────────────────────────────────────────────────────────┐
@@ -1819,11 +1895,16 @@
 
       checkLimitAndPrompt();
 
-      $('last-update').textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit', timeZone: TIMEZONE });
+      const horaSync = new Date().toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit', timeZone: TIMEZONE });
+      $('last-update').textContent = 'Actualizado ' + horaSync;
+      $('footer-sync').textContent = horaSync;
+      $('footer-sheet').textContent = activeCard().sheetName || 'TARJETA';
+      logEvent('Sheet sincronizado — ' + EXPENSES.length + ' movimientos');
     } catch (err) {
       console.error(err);
       $('last-update').textContent = 'Error de conexión';
       showToast('⚠️ No se pudo leer el Sheet — revisa que esté compartido como "Cualquiera con el enlace"');
+      logEvent('⚠ Error al sincronizar con el Sheet');
       throw err; // se re-lanza para que el llamador (init) pueda mostrar el panel de error
     } finally {
       if (showSpinner) setTimeout(() => btn.classList.remove('spin'), 500);
@@ -1942,6 +2023,9 @@
 
     try {
       bindEvents();
+
+      // Consejo del sistema: uno al azar por carga, no cambia durante la sesión.
+      $('tip-text').textContent = TIPS[Math.floor(Math.random() * TIPS.length)];
 
       // Selector de tarjeta: solo se muestra si hay más de una configurada en CARDS.
       if (CARDS.length > 1) {

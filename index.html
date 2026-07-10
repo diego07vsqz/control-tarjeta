@@ -710,7 +710,7 @@
 
       <div class="xp-bar-wrap">
         <div class="xp-bar-head">
-          <span class="xp-bar-lbl">TIEMPO PARA EL PAGO</span>
+          <span class="xp-bar-lbl">MARGEN DEL LÍMITE BANCARIO</span>
           <span class="xp-bar-val" id="xp-bar-val">0%</span>
         </div>
         <div class="xp-bar-track">
@@ -1521,8 +1521,6 @@
       ring.style.strokeDashoffset = RING_CIRCUMFERENCE;
       ring.style.stroke = 'var(--brass)';
       ring.style.filter = 'none';
-      $('xp-bar-fill').style.width = '0%';
-      $('xp-bar-val').textContent = '—';
       return;
     }
 
@@ -1532,18 +1530,6 @@
     const cicloTotal = corte ? Math.max(daysBetween(corte, pago), 1) : 30;
     const pct = Math.min(Math.max(diff / cicloTotal, 0), 1);
     ring.style.strokeDashoffset = RING_CIRCUMFERENCE - RING_CIRCUMFERENCE * pct;
-
-    // Ligada a "Para la fecha de pago": la barra representa tiempo RESTANTE, no transcurrido.
-    // Baja conforme se acercan los días — a diferencia del anillo, que sigue el mismo cálculo pero mostrado al revés.
-    const restantePct = Math.round(pct * 100);
-    const xpFill = $('xp-bar-fill');
-    xpFill.style.width = restantePct + '%';
-    $('xp-bar-val').textContent = restantePct + '%';
-    xpFill.style.background = diff < 0 || diff <= DUE_SOON_DAYS
-      ? 'linear-gradient(90deg, #7a1f33, var(--rose))'
-      : diff <= DUE_WARNING_DAYS
-        ? 'linear-gradient(90deg, #7a5a1f, var(--amber))'
-        : 'linear-gradient(90deg, #6a3dbf, #c77dff, #4ad4ff)';
 
     if (diff < 0) {
       setDays('0', 'urgent');
@@ -1611,6 +1597,24 @@
     $('kpi-banco').textContent = `${fmt(total)} / ${fmt(limiteBanco)}`;
     const pctBanco = limiteBanco > 0 ? Math.min((total / limiteBanco) * 100, 100) : 0;
     $('bar-banco').style.width = pctBanco + '%';
+
+    // Barra "margen del límite bancario": empieza en 100% y BAJA conforme se
+    // acumulan gastos — representa cuánto margen te queda contra el límite
+    // que puso el banco (columna G), no contra tu límite personal.
+    const xpFill = $('xp-bar-fill');
+    if (limiteBanco > 0) {
+      const margenPct = Math.max(Math.round(100 - pctBanco), 0);
+      xpFill.style.width = margenPct + '%';
+      $('xp-bar-val').textContent = margenPct + '%';
+      xpFill.style.background = margenPct <= 15
+        ? 'linear-gradient(90deg, #7a1f33, var(--rose))'
+        : margenPct <= 35
+          ? 'linear-gradient(90deg, #7a5a1f, var(--amber))'
+          : 'linear-gradient(90deg, #6a3dbf, #c77dff, #4ad4ff)';
+    } else {
+      xpFill.style.width = '0%';
+      $('xp-bar-val').textContent = '—';
+    }
 
     if (EXPENSES.length) {
       animateValue($('kpi-avg'), total / EXPENSES.length);

@@ -42,18 +42,6 @@
   [data-theme="light"] tbody tr:hover td{ background:rgba(0,0,0,.02); }
   body{ transition:background-color .25s ease, color .25s ease; }
 
-  /* ── Cursor personalizado — solo se activa por JS en desktop con mouse real ── */
-  .cursor-dot, .cursor-glow{
-    position:fixed; top:0; left:0; pointer-events:none; z-index:9998; border-radius:50%;
-    transform:translate(-50%,-50%); opacity:0; will-change:transform;
-  }
-  .cursor-dot{width:6px; height:6px; background:var(--brass); box-shadow:0 0 6px var(--brass);}
-  .cursor-glow{
-    width:26px; height:26px; border:1px solid rgba(74,212,255,.5); background:rgba(74,212,255,.08);
-    transition:transform .12s ease-out, opacity .3s ease; /* el retraso de esta transición ES la "estela" — sin JS extra */
-  }
-  body.custom-cursor, body.custom-cursor *{cursor:none !important;}
-  body.custom-cursor .cursor-dot, body.custom-cursor .cursor-glow{opacity:1;}
   .kpi, .panel, .countdown-card, .date-edit, .modal, .toast{ transition:background-color .25s ease, border-color .25s ease; }
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   body{
@@ -68,6 +56,23 @@
     overflow-x:hidden;
   }
   h1,h2,h3{font-family:'Space Grotesk',sans-serif;}
+
+  /* ── HUD lateral — franja fina, estado de límite y cuotas. Estático, sin animación continua.
+     Se oculta en pantallas angostas para no robarle espacio al contenido real en mobile. ── */
+  .side-hud{
+    position:fixed; left:0; top:50%; transform:translateY(-50%); z-index:40;
+    display:flex; flex-direction:column; gap:10px; padding:10px 6px;
+    background:rgba(5,8,16,.6); border:1px solid rgba(74,212,255,.2); border-left:none;
+    clip-path:polygon(0 0, 100% 10px, 100% calc(100% - 10px), 0 100%);
+  }
+  .side-hud-item{
+    width:26px; height:26px; display:flex; align-items:center; justify-content:center;
+    color:var(--text-dim); border:1px solid transparent; transition:color .3s ease, border-color .3s ease;
+  }
+  .side-hud-item.state-ok{color:var(--mint); border-color:rgba(62,242,176,.4);}
+  .side-hud-item.state-warn{color:var(--amber); border-color:rgba(255,200,87,.4);}
+  .side-hud-item.state-bad{color:var(--rose); border-color:rgba(255,77,106,.4);}
+  @media(max-width:900px){ .side-hud{display:none;} }
   .figures{font-family:'JetBrains Mono',monospace;}
 
   /* ── Glass card system: fondo semi-opaco + hover elevado, compartido por todas las cards.
@@ -85,6 +90,19 @@
     box-shadow:var(--shadow-hover);
     border-color:rgba(74,212,255,.5);
   }
+
+  /* ── Escaneo de seguridad — una franja de luz cruza la card al pasar el mouse, UNA vez. ──
+     CSS puro: la animación solo corre mientras dura :hover, no hay JS ni loop de fondo. */
+  .kpi, .panel, .metric{position:relative; overflow:hidden;}
+  .kpi::after, .panel::after, .metric::after{
+    content:''; position:absolute; top:0; left:-30%; width:22%; height:100%; pointer-events:none;
+    background:linear-gradient(90deg, transparent, rgba(74,212,255,.16), transparent);
+    opacity:0;
+  }
+  .kpi:hover::after, .panel:hover::after, .metric:hover::after{
+    opacity:1; animation:card-scan .6s ease-out 1;
+  }
+  @keyframes card-scan{ 0%{left:-30%;} 100%{left:108%;} }
 
   #loading-overlay{
     position:fixed; inset:0; background:var(--bg); display:flex; flex-direction:column;
@@ -450,6 +468,14 @@
   .xp-bar-fill{
     height:100%; background:linear-gradient(90deg, #6a3dbf, #c77dff, #4ad4ff);
     box-shadow:0 0 10px rgba(199,125,255,.6); transition:width .7s cubic-bezier(.2,.8,.2,1);
+    position:relative; overflow:hidden;
+  }
+  /* Textura "circuito" — estática, un solo patrón repetido, sin animación (cero costo). */
+  .xp-bar-fill::after{
+    content:''; position:absolute; inset:0; opacity:.35; mix-blend-mode:overlay;
+    background:
+      repeating-linear-gradient(90deg, rgba(255,255,255,.5) 0 1px, transparent 1px 14px),
+      repeating-linear-gradient(0deg, rgba(255,255,255,.35) 0 1px, transparent 1px 6px);
   }
   .xp-bar-ticks{
     position:absolute; inset:0; pointer-events:none;
@@ -577,19 +603,28 @@
     color:var(--text); font-size:11.5px; padding:6px 10px; font-family:inherit; cursor:pointer;
   }
 
-  /* ── Modal tipo "notificación de sistema" — marco angular, esquinas HUD, encendido animado ── */
+  /* ── Modal tipo "ventana de sistema" — terminal verde/cian, esquinas cortadas DOBLES (staircase) ── */
   .modal-overlay{
     position:fixed; inset:0; background:rgba(2,4,10,.8); backdrop-filter:blur(6px);
     display:none; align-items:center; justify-content:center; z-index:500; padding:20px;
   }
   .modal-overlay.show{display:flex;}
   .modal{
-    position:relative; background:linear-gradient(160deg, rgba(10,20,36,.92), rgba(5,10,20,.95));
-    border:1px solid rgba(74,212,255,.4); padding:32px 34px;
-    max-width:420px; width:100%;
-    box-shadow:0 0 0 1px rgba(74,212,255,.08) inset, 0 0 40px -6px rgba(74,212,255,.35), 0 30px 70px -20px rgba(0,0,0,.8);
-    clip-path:none;
+    position:relative; background:linear-gradient(160deg, rgba(4,14,10,.94), rgba(3,8,14,.96));
+    border:1px solid rgba(62,242,176,.45); padding:32px 34px;
+    max-width:420px; width:100%; font-family:'JetBrains Mono',monospace;
+    box-shadow:0 0 0 1px rgba(62,242,176,.08) inset, 0 0 40px -6px rgba(62,242,176,.35), 0 30px 70px -20px rgba(0,0,0,.8);
+    clip-path:polygon(
+      0 20px, 20px 20px, 20px 0,
+      100% 0,
+      100% calc(100% - 20px), calc(100% - 20px) calc(100% - 20px), calc(100% - 20px) 100%,
+      0 100%
+    );
     animation:modalPowerOn .45s cubic-bezier(.2,.8,.2,1);
+  }
+  .modal::before{
+    content:''; position:absolute; inset:0; pointer-events:none; opacity:.5;
+    background:repeating-linear-gradient(180deg, rgba(62,242,176,.02) 0 1px, transparent 1px 3px);
   }
   @keyframes modalPowerOn{
     0%{opacity:0; transform:scaleY(.02); filter:brightness(3);}
@@ -597,7 +632,15 @@
     60%{filter:brightness(.6);}
     100%{filter:brightness(1);}
   }
-  .corner{position:absolute; width:16px; height:16px; border:2px solid var(--brass); filter:drop-shadow(0 0 4px var(--brass)); opacity:.85; pointer-events:none;}
+  .corner{position:absolute; width:16px; height:16px; border:2px solid var(--mint); filter:drop-shadow(0 0 4px var(--mint)); opacity:.85; pointer-events:none;}
+  /* Segundo par de esquinas, más chico y desplazado hacia adentro — el "corte doble" de las ventanas tipo sistema. */
+  .corner-inner{width:9px; height:9px; border-color:var(--brass); filter:drop-shadow(0 0 3px var(--brass)); opacity:.6;}
+  .corner-inner.tl{top:7px; left:7px;} .corner-inner.tr{top:7px; right:7px;}
+  .corner-inner.bl{bottom:7px; left:7px;} .corner-inner.br{bottom:7px; right:7px;}
+  .modal-terminal-line{
+    font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--mint); opacity:.75;
+    margin-bottom:10px; letter-spacing:.02em;
+  }
   .corner.tl{top:-1px; left:-1px; border-right:none; border-bottom:none;}
   .corner.tr{top:-1px; right:-1px; border-left:none; border-bottom:none;}
   .corner.bl{bottom:-1px; left:-1px; border-right:none; border-top:none;}
@@ -614,10 +657,15 @@
     display:flex; align-items:center; justify-content:center;
     clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px);
   }
-  .modal h3{font-size:14px; text-transform:uppercase; letter-spacing:.15em; font-weight:700; color:var(--brass); text-shadow:0 0 10px rgba(74,212,255,.5);}
-  .modal-sub{font-size:16.5px; font-weight:600; color:var(--text); margin-bottom:10px;}
-  .modal p{font-size:13.5px; color:var(--text-mid); line-height:1.6; margin-bottom:22px;}
-  .modal p .figures{color:var(--text); font-weight:700;}
+  .modal h3{
+    font-family:'JetBrains Mono',monospace; font-size:13px; text-transform:uppercase; letter-spacing:.15em; font-weight:700;
+    color:var(--mint); text-shadow:0 0 10px rgba(62,242,176,.6);
+  }
+  .modal h3::before{content:'root@sistema:~$ '; color:var(--brass); opacity:.7; font-size:10px;}
+  .modal-sub{font-family:'Space Grotesk',sans-serif; font-size:16.5px; font-weight:600; color:var(--text); margin-bottom:10px;}
+  .modal p{font-size:12.5px; color:#8fd9c4; line-height:1.7; margin-bottom:22px;}
+  .modal p:not(.modal-sub)::before{content:'> '; color:var(--mint); opacity:.6;}
+  .modal p .figures{color:var(--brass); font-weight:700;}
   .modal-actions{display:flex; gap:12px;}
   .btn{
     border:1px solid transparent; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:14px; letter-spacing:.08em;
@@ -761,8 +809,14 @@
 </head>
 <body>
 
-<div class="cursor-glow" id="cursor-glow"></div>
-<div class="cursor-dot" id="cursor-dot"></div>
+<div class="side-hud" id="side-hud">
+  <div class="side-hud-item" id="side-hud-limite" title="Mi límite de pago">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+  </div>
+  <div class="side-hud-item" id="side-hud-cuotas" title="Compras a cuotas">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+  </div>
+</div>
 
 <div id="loading-overlay">
   <div class="boot-line" id="boot-line"></div>
@@ -790,10 +844,6 @@
       </span>
     </div>
     <div class="pill"><span class="dot-live"></span> <span id="last-update">—</span></div>
-    <button class="btn-theme" id="btn-sound" title="Sonido del sistema (apagado)">
-      <svg id="sound-icon-off" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5 6 9H2v6h4l5 4V5z"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
-      <svg id="sound-icon-on" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
-    </button>
     <button class="btn-theme" id="btn-compact" title="Modo compacto">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
     </button>
@@ -1070,6 +1120,9 @@
   <div class="modal">
     <span class="corner tl"></span><span class="corner tr"></span>
     <span class="corner bl"></span><span class="corner br"></span>
+    <span class="corner corner-inner tl"></span><span class="corner corner-inner tr"></span>
+    <span class="corner corner-inner bl"></span><span class="corner corner-inner br"></span>
+    <div class="modal-terminal-line">&gt; SYSTEM_ALERT :: limite.excedido()</div>
     <div class="modal-head">
       <div class="modal-icon">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--rose)" stroke-width="2"><path d="M12 9v4M12 17h.01M10.29 3.86l-8.18 14.18A2 2 0 0 0 3.82 21h16.36a2 2 0 0 0 1.71-2.96L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
@@ -1182,7 +1235,6 @@
     THEME: 'tarjeta:theme',
     NOTAS: 'tarjeta:notas',
     COMPACT: 'tarjeta:compacto',
-    SOUND: 'tarjeta:sonido',
   };
 
   // ┌──────────────────────────────────────────────────────────────────────┐
@@ -1723,84 +1775,6 @@
     try { await storage.set(STORAGE_KEYS.COMPACT, String(next)); } catch (e) { /* falla silenciosa */ }
   }
 
-  /**
-   * Audio del sistema — sintetizado con Web Audio API, sin archivos externos
-   * (nada que descargar, nada con derechos de autor). Apagado por defecto:
-   * los navegadores bloquean audio antes de una interacción del usuario de
-   * todas formas, y así nadie se lleva un sonido sorpresa al abrir la web.
-   * El AudioContext se crea solo la primera vez que hace falta (perezoso).
-   */
-  let SOUND_ON = false;
-  let audioCtx = null;
-
-  function getAudioCtx() {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-    return audioCtx;
-  }
-
-  /** Tono corto y seco — clic metálico para aperturas de menú / botones. */
-  function playClick() {
-    if (!SOUND_ON) return;
-    try {
-      const ctx = getAudioCtx();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(1200, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.05);
-      gain.gain.setValueAtTime(0.06, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
-      osc.connect(gain).connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.09);
-    } catch (e) { /* si el navegador bloquea audio, no pasa nada grave */ }
-  }
-
-  /** Tono descendente y áspero — para el momento "corrupto" al presionar No. */
-  function playGlitch() {
-    if (!SOUND_ON) return;
-    try {
-      const ctx = getAudioCtx();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(320, ctx.currentTime);
-      osc.frequency.linearRampToValueAtTime(60, ctx.currentTime + 0.35);
-      gain.gain.setValueAtTime(0.08, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
-      osc.connect(gain).connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.42);
-    } catch (e) { /* falla silenciosa */ }
-  }
-
-  /** Carga la preferencia de sonido guardada (default: apagado). */
-  async function loadSound() {
-    let on = false;
-    try {
-      const saved = await storage.get(STORAGE_KEYS.SOUND);
-      on = saved && saved.value === 'true';
-    } catch (e) { /* primera visita: apagado por defecto */ }
-    SOUND_ON = on;
-    $('sound-icon-on').style.display = on ? 'block' : 'none';
-    $('sound-icon-off').style.display = on ? 'none' : 'block';
-    $('btn-sound').title = `Sonido del sistema (${on ? 'encendido' : 'apagado'})`;
-  }
-
-  /** Alterna el sonido del sistema y persiste la elección. */
-  async function toggleSound() {
-    SOUND_ON = !SOUND_ON;
-    $('sound-icon-on').style.display = SOUND_ON ? 'block' : 'none';
-    $('sound-icon-off').style.display = SOUND_ON ? 'none' : 'block';
-    $('btn-sound').title = `Sonido del sistema (${SOUND_ON ? 'encendido' : 'apagado'})`;
-    if (SOUND_ON) {
-      try { getAudioCtx(); } catch (e) { /* AudioContext no disponible — el sonido simplemente no sonará */ }
-      playClick(); // confirma con un clic que sí quedó activado (playClick ya tiene su propio try/catch)
-    }
-    try { await storage.set(STORAGE_KEYS.SOUND, String(SOUND_ON)); } catch (e) { /* falla silenciosa */ }
-  }
-
   // ┌──────────────────────────────────────────────────────────────────────┐
   // │ 9. RENDER LAYER — pintan el STATE actual en el DOM                   │
   // └──────────────────────────────────────────────────────────────────────┘
@@ -1940,9 +1914,17 @@
     }
   }
 
+  /** Reemplaza cada dígito de un texto ya formateado por uno aleatorio — mantiene signos, puntos y el símbolo $ intactos. */
+  function scrambleDigits(str) {
+    return str.replace(/[0-9]/g, () => Math.floor(Math.random() * 10));
+  }
+
   /**
    * Anima el texto de un elemento desde su valor numérico actual hasta uno
-   * nuevo (conteo ascendente/descendente), formateando cada frame con `fmt`.
+   * nuevo. Tiene 2 fases, ambas de duración FIJA (nunca infinitas):
+   *   1. "Data stream" (~140ms): dígitos aleatorios, mismo formato/longitud
+   *      que el valor final — efecto de "descifrado" cyberpunk.
+   *   2. Conteo real, con ease-out cúbico, hasta asentarse en el valor exacto.
    * Puramente cosmético — no afecta ningún cálculo.
    */
   function animateValue(el, to, formatFn = fmt, duration = 450) {
@@ -1950,8 +1932,19 @@
     if (Math.abs(to - from) < 0.005) { el.textContent = formatFn(to); el.dataset.rawValue = to; return; }
 
     const start = performance.now();
+    const scrambleMs = Math.min(140, duration * 0.35);
+    const textoFinal = formatFn(to);
+
     function tick(now) {
-      const progress = Math.min((now - start) / duration, 1);
+      const elapsed = now - start;
+
+      if (elapsed < scrambleMs) {
+        el.textContent = scrambleDigits(textoFinal);
+        requestAnimationFrame(tick);
+        return;
+      }
+
+      const progress = Math.min((elapsed - scrambleMs) / Math.max(duration - scrambleMs, 1), 1);
       const eased = 1 - Math.pow(1 - progress, 3); // ease-out cúbico
       const current = from + (to - from) * eased;
       el.textContent = formatFn(current);
@@ -2158,6 +2151,23 @@
     // el ciclo recién se reinició.
     animateValue($('metric-global'), totalGlobal());
     $('metric-global-sub').textContent = `${ALL_EXPENSES.length} movimientos, todo el Sheet`;
+
+    renderSideHud(si, no);
+  }
+
+  /**
+   * HUD lateral: solo actualiza color/estado de 2 iconos fijos — nada de
+   * DOM que se reconstruya, así que es prácticamente gratis de repintar.
+   */
+  function renderSideHud(cuotasSi, cuotasNo) {
+    const estadoLimite = computeCardState(); // reutiliza el mismo cálculo que ya usa la tarjeta
+    const iconoLimite = $('side-hud-limite');
+    iconoLimite.className = 'side-hud-item state-' + (estadoLimite === 'critical' ? 'bad' : estadoLimite);
+
+    const totalCuotas = cuotasSi + cuotasNo;
+    const pctCuotas = totalCuotas > 0 ? cuotasSi / totalCuotas : 0;
+    const estadoCuotas = totalCuotas === 0 ? '' : pctCuotas > 0.5 ? 'state-bad' : pctCuotas > 0 ? 'state-warn' : 'state-ok';
+    $('side-hud-cuotas').className = 'side-hud-item ' + estadoCuotas;
   }
 
   /**
@@ -2340,7 +2350,6 @@
     $('quest-toast-body').textContent = `Llevas ${fmt(total)} de tu límite de ${fmt(limite)}. Revisa tus gastos antes del pago.`;
     const el = $('quest-toast');
     el.classList.add('show');
-    playGlitch();
     clearTimeout(questToastTimer);
     questToastTimer = setTimeout(() => el.classList.remove('show'), 6000);
   }
@@ -2592,20 +2601,19 @@
   /** Registra todos los listeners de la app en un solo lugar (nada de onclick inline en el HTML). */
   function bindEvents() {
     $('btn-refresh').addEventListener('click', manualRefresh);
-    $('btn-theme').addEventListener('click', () => { toggleTheme(); playClick(); });
-    $('btn-compact').addEventListener('click', () => { toggleCompact(); playClick(); });
-    $('btn-sound').addEventListener('click', toggleSound);
+    $('btn-theme').addEventListener('click', toggleTheme);
+    $('btn-compact').addEventListener('click', toggleCompact);
     $('quest-toast-close').addEventListener('click', () => $('quest-toast').classList.remove('show'));
 
     // Barra de filtros por ciclo: cada botón rápido recalcula EXPENSES sin volver a pedirle nada al Sheet.
     document.querySelectorAll('.filter-btn[data-mode]').forEach((btn) => {
-      btn.addEventListener('click', () => { applyFilterMode(btn.dataset.mode); playClick(); });
+      btn.addEventListener('click', () => applyFilterMode(btn.dataset.mode));
     });
-    $('filter-apply').addEventListener('click', () => { applyManualRange(); playClick(); });
+    $('filter-apply').addEventListener('click', applyManualRange);
     $('btn-export-csv').addEventListener('click', exportCSV);
     $('btn-reset-verdict').addEventListener('click', resetVerdict);
-    $('btn-answer-no').addEventListener('click', () => { playGlitch(); answerVerdict(false); });
-    $('btn-answer-yes').addEventListener('click', () => { playClick(); answerVerdict(true); });
+    $('btn-answer-no').addEventListener('click', () => answerVerdict(false));
+    $('btn-answer-yes').addEventListener('click', () => answerVerdict(true));
 
     $('input-corte').addEventListener('change', () => saveManualDates());
     $('input-pago').addEventListener('change', () => saveManualDates());
@@ -2705,7 +2713,6 @@
       // El tema se aplica primero para evitar cualquier parpadeo de color al cargar.
       await loadTheme();
       await loadCompact();
-      await loadSound();
 
       // Preferencias del usuario primero — así los inputs ya tienen su valor
       // guardado antes del primer render con datos del Sheet.
@@ -2742,46 +2749,7 @@
     setTimeout(() => overlay.remove(), 500);
   }
 
-  /**
-   * Cursor personalizado — solo se activa si el dispositivo tiene mouse de
-   * verdad (pointer:fine) y el usuario no pidió menos movimiento
-   * (prefers-reduced-motion). En touch/mobile no hace nada — ahí no existe
-   * "cursor" y es justo donde antes tuvimos problemas de rendimiento, así
-   * que se descarta por completo en vez de arriesgar.
-   *
-   * Throttle real: el mousemove solo GUARDA la posición; el trabajo de
-   * pintar se hace una vez por frame vía requestAnimationFrame, nunca más
-   * seguido que eso, sin importar cuántos eventos de mouse lleguen.
-   */
-  function initCustomCursor() {
-    const soportaMouse = window.matchMedia('(pointer: fine)').matches;
-    const prefiereMenosMovimiento = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (!soportaMouse || prefiereMenosMovimiento) return;
-
-    document.body.classList.add('custom-cursor');
-    const dot = $('cursor-dot');
-    const glow = $('cursor-glow');
-
-    let x = 0, y = 0, pintarPendiente = false;
-
-    document.addEventListener('mousemove', (e) => {
-      x = e.clientX;
-      y = e.clientY;
-      if (pintarPendiente) return;
-      pintarPendiente = true;
-      requestAnimationFrame(() => {
-        dot.style.transform = `translate(${x}px, ${y}px) translate(-50%,-50%)`;
-        glow.style.transform = `translate(${x}px, ${y}px) translate(-50%,-50%)`;
-        pintarPendiente = false;
-      });
-    }, { passive: true });
-
-    document.addEventListener('mouseleave', () => { dot.style.opacity = '0'; glow.style.opacity = '0'; });
-    document.addEventListener('mouseenter', () => { dot.style.opacity = '1'; glow.style.opacity = '1'; });
-  }
-
   window.addEventListener('DOMContentLoaded', init);
-  window.addEventListener('DOMContentLoaded', initCustomCursor);
   window.addEventListener('DOMContentLoaded', () => {
     $('btn-retry-load').addEventListener('click', () => window.location.reload());
   });

@@ -548,6 +548,26 @@
   .btn-no{background:var(--rose-soft); color:var(--rose); border-color:rgba(255,77,106,.5);}
   .btn-no:hover{background:rgba(255,77,106,.25); transform:translateY(-1px); box-shadow:0 0 16px -2px var(--rose);}
 
+  /* ── Barra de filtros por ciclo — pastillas tipo panel de control ── */
+  .filter-bar{
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:10px 16px; margin-bottom:20px;
+    background:var(--card); border:1px solid var(--line);
+    clip-path:polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  }
+  .filter-bar-label{font-size:10px; font-weight:700; letter-spacing:.15em; color:var(--text-dim); margin-right:4px;}
+  .filter-btn{
+    background:transparent; border:1px solid var(--line); color:var(--text-mid);
+    font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:11px; letter-spacing:.04em;
+    padding:7px 14px; cursor:pointer; transition:background .2s, color .2s, border-color .2s, box-shadow .2s;
+    clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px);
+  }
+  .filter-btn:hover{color:var(--text); border-color:rgba(74,212,255,.4);}
+  .filter-btn.active{
+    background:var(--brass-soft); border-color:rgba(74,212,255,.6); color:var(--brass);
+    box-shadow:0 0 12px -2px rgba(74,212,255,.5);
+  }
+  .filter-bar-count{margin-left:auto; font-size:10.5px; color:var(--text-dim); font-family:'JetBrains Mono',monospace;}
+
   .verdict-banner{
     display:none; align-items:center; gap:14px; padding:14px 20px;
     margin-bottom:20px; font-size:13px;
@@ -668,6 +688,15 @@
 </header>
 
 <main>
+
+  <div class="filter-bar">
+    <span class="filter-bar-label">CICLO</span>
+    <button class="filter-btn active" id="filter-actual" data-mode="actual">ESTE CICLO</button>
+    <button class="filter-btn" id="filter-anterior" data-mode="anterior">CICLO ANT.</button>
+    <button class="filter-btn" id="filter-3ciclos" data-mode="3">3 CICLOS</button>
+    <button class="filter-btn" id="filter-todo" data-mode="todo">TODO</button>
+    <span class="filter-bar-count" id="filter-count">— registros</span>
+  </div>
 
   <div class="verdict-banner" id="verdict-banner">
     <span id="verdict-icon">✅</span>
@@ -1030,6 +1059,12 @@
   /** Historial COMPLETO tal como viene del Sheet, sin filtrar — para "Gasto global" y el comparativo mensual. */
   let ALL_EXPENSES = [];
 
+  /** El ciclo "actual" tal como lo calcula el filtro automático (corte anterior aprendido → corte de hoy). Es la base; los botones de la barra de filtros parten de aquí o de ALL_EXPENSES. */
+  let CYCLE_EXPENSES = [];
+
+  /** Modo activo de la barra de filtros: 'actual' | 'anterior' | '3' | 'todo'. */
+  let FILTER_MODE = 'actual';
+
   /** Metadatos leídos del Sheet (columnas D-F): fecha de corte/pago y límite del banco. */
   let META = { corte: null, pago: null, limiteBanco: null, ahorro: null };
 
@@ -1307,6 +1342,67 @@
     }
 
     return bounds.prevCorte;
+  }
+
+  /**
+   * Motor de la barra de filtros: calcula ventanas de ciclo recurrentes
+   * anclado al día de corte (ej. 25 de cada mes), independiente del
+   * "corte anterior aprendido" — esto es para navegar hacia atrás en el
+   * historial de forma predecible (ciclo anterior, últimos 3, etc.), no
+   * para el total "oficial" del ciclo en curso (ese ya lo resuelve
+   * filterToCycle + resolveCyclePrevCorte).
+   */
+  function shiftMonth(y, m, delta) {
+    const idx = y * 12 + (m - 1) + delta;
+    return { y: Math.floor(idx / 12), m: (idx % 12 + 12) % 12 + 1 };
+  }
+
+  function clampDay(y, m, day) {
+    const diasDelMes = new Date(y, m, 0).getDate();
+    return Math.min(day, diasDelMes);
+  }
+
+  function isoDate(y, m, d) {
+    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  }
+
+  /**
+   * Fecha del corte número `offset` de ciclos hacia atrás, contando desde
+   * `anchorCorte` (el corte real que ya usa el resto del sistema — offset
+   * 0 devuelve el propio anchorCorte). Así "ciclo anterior" y "3 ciclos"
+   * quedan perfectamente alineados con lo que ya calcula filterToCycle,
+   * en vez de recalcular por su cuenta desde la fecha de hoy.
+   */
+  function cutoffForOffset(anchorCorte, offset) {
+    const [ay, am, ad] = anchorCorte.split('-').map(Number);
+    const { y, m } = shiftMonth(ay, am, -offset);
+    return isoDate(y, m, clampDay(y, m, ad));
+  }
+
+  /**
+   * Devuelve el subconjunto de ALL_EXPENSES correspondiente al modo de la
+   * barra de filtros. Todo se ancla a META.corte (el corte real del Sheet);
+   * si aún no existe, usa hoy como respaldo para no romper el cálculo.
+   */
+  function computeQuickFilter(mode) {
+    if (mode === 'todo') return ALL_EXPENSES;
+    if (mode === 'actual') return CYCLE_EXPENSES;
+
+    const anchor = META.corte || todayInSV();
+    const hoy = todayInSV();
+
+    if (mode === 'anterior') {
+      const fin = cutoffForOffset(anchor, 1);
+      const inicio = cutoffForOffset(anchor, 2);
+      return ALL_EXPENSES.filter((e) => e.fecha > inicio && e.fecha <= fin);
+    }
+
+    if (mode === '3') {
+      const inicio = cutoffForOffset(anchor, 3);
+      return ALL_EXPENSES.filter((e) => e.fecha > inicio && e.fecha <= hoy);
+    }
+
+    return ALL_EXPENSES;
   }
 
   /** Un gasto es "inusual" si supera OUTLIER_THRESHOLD ($100). */
@@ -2132,6 +2228,35 @@
    * presionar "Actualizar".
    * @param {boolean} showSpinner — true si el refresco fue manual (anima el botón).
    */
+  /**
+   * Aplica un modo de la barra de filtros: recalcula EXPENSES a partir de
+   * CYCLE_EXPENSES/ALL_EXPENSES según el modo, actualiza qué botón se ve
+   * activo, el contador de registros, y repinta todo lo que depende de
+   * EXPENSES (tabla, KPIs, gráfica, análisis, veredictos...).
+   * @param {'actual'|'anterior'|'3'|'todo'} mode
+   */
+  function applyFilterMode(mode) {
+    FILTER_MODE = mode;
+    EXPENSES = computeQuickFilter(mode);
+
+    document.querySelectorAll('.filter-btn').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.mode === mode);
+    });
+    $('filter-count').textContent = `${EXPENSES.length} registro${EXPENSES.length === 1 ? '' : 's'}`;
+
+    renderTable();
+    renderKpis();
+    renderSavingsCheck();
+    renderMonthCompare();
+    updateCountdown();
+
+    renderAnalytics();
+    renderRankBadge();
+    renderSpendChart();
+
+    checkLimitAndPrompt();
+  }
+
   async function loadData(showSpinner) {
     const btn = $('btn-refresh');
     if (showSpinner) btn.classList.add('spin');
@@ -2147,28 +2272,19 @@
 
       // El ciclo actual se filtra usando el corte resuelto (Sheet o manual) y
       // el corte anterior aprendido — se "reinicia" solo apenas el Sheet
-      // avanza a un corte nuevo, sin tocar nada a mano.
+      // avanza a un corte nuevo, sin tocar nada a mano. Esto es la base
+      // ("actual"); si el usuario tiene otro botón de la barra de filtros
+      // activo, applyFilterMode() lo respeta en vez de forzar "actual".
       const corteResuelto = $('input-corte').value;
       const prevCorte = await resolveCyclePrevCorte(corteResuelto);
-      EXPENSES = filterToCycle(ALL_EXPENSES, corteResuelto, prevCorte);
-
-      renderTable();
-      renderKpis();
-      renderSavingsCheck();
-      renderMonthCompare();
-      updateCountdown();
-
-      renderAnalytics();
-      renderRankBadge();
-      renderSpendChart();
-
-      checkLimitAndPrompt();
+      CYCLE_EXPENSES = filterToCycle(ALL_EXPENSES, corteResuelto, prevCorte);
+      applyFilterMode(FILTER_MODE);
 
       const horaSync = new Date().toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit', timeZone: TIMEZONE });
       $('last-update').textContent = 'Actualizado ' + horaSync;
       $('footer-sync').textContent = horaSync;
       $('footer-sheet').textContent = activeCard().sheetName || 'TARJETA';
-      logEvent('Sheet sincronizado — ' + EXPENSES.length + ' movimientos del ciclo');
+      logEvent('Sheet sincronizado — ' + CYCLE_EXPENSES.length + ' movimientos del ciclo');
     } catch (err) {
       console.error(err);
       $('last-update').textContent = 'Error de conexión';
@@ -2195,6 +2311,8 @@
     activeCardIndex = idx;
     EXPENSES = [];
     ALL_EXPENSES = [];
+    CYCLE_EXPENSES = [];
+    FILTER_MODE = 'actual';
     NOTAS = {};
     await loadLimite();
     await loadVerdict();
@@ -2211,6 +2329,11 @@
     $('btn-refresh').addEventListener('click', manualRefresh);
     $('btn-theme').addEventListener('click', toggleTheme);
     $('btn-compact').addEventListener('click', toggleCompact);
+
+    // Barra de filtros por ciclo: cada botón recalcula EXPENSES sin volver a pedirle nada al Sheet.
+    document.querySelectorAll('.filter-btn').forEach((btn) => {
+      btn.addEventListener('click', () => applyFilterMode(btn.dataset.mode));
+    });
     $('btn-export-csv').addEventListener('click', exportCSV);
     $('btn-reset-verdict').addEventListener('click', resetVerdict);
     $('btn-answer-no').addEventListener('click', () => answerVerdict(false));

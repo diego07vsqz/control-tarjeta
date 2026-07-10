@@ -970,8 +970,11 @@
   // │ 2. STATE                                                             │
   // └──────────────────────────────────────────────────────────────────────┘
 
-  /** Movimientos del ciclo actual, tal como vienen del Sheet. @type {{fecha:string, gasto:string, monto:number}[]} */
+  /** Movimientos DEL CICLO ACTUAL únicamente (filtrados por corte→pago). Es lo que usan tabla, KPIs, totales, etc. */
   let EXPENSES = [];
+
+  /** Historial COMPLETO tal como viene del Sheet, sin filtrar — solo lo usa el comparativo "mes pasado vs. este mes". */
+  let ALL_EXPENSES = [];
 
   /** Metadatos leídos del Sheet (columnas D-F): fecha de corte/pago y límite del banco. */
   let META = { corte: null, pago: null, limiteBanco: null, ahorro: null };
@@ -1209,6 +1212,22 @@
     return Math.round((d2 - d1) / 86400000);
   }
 
+  /**
+   * Filtra el historial completo a solo los movimientos dentro del ciclo
+   * actual (corte → pago, ambos inclusive). Así, cuando el ciclo cierra y el
+   * Sheet arranca uno nuevo, los gastos del ciclo anterior dejan de sumarse
+   * automáticamente — sin que haya que borrar filas viejas del Sheet a mano.
+   * Si falta corte o pago (aún no definidos), no hay forma segura de saber
+   * dónde empieza/termina el ciclo, así que se devuelve todo sin filtrar.
+   * @param {object[]} expenses
+   * @param {string|null} corte
+   * @param {string|null} pago
+   */
+  function filterToCycle(expenses, corte, pago) {
+    if (!corte || !pago) return expenses;
+    return expenses.filter((e) => e.fecha >= corte && e.fecha <= pago);
+  }
+
   /** Un gasto es "inusual" si supera OUTLIER_THRESHOLD ($100). */
   function isOutlier(monto) {
     return monto > OUTLIER_THRESHOLD;
@@ -1243,9 +1262,9 @@
     return `${y}-${String(m).padStart(2, '0')}`;
   }
 
-  /** Suma el gasto de todos los movimientos cuyo mes-año ("YYYY-MM") coincide con el dado. */
+  /** Suma el gasto de todos los movimientos (historial completo, no solo el ciclo) cuyo mes-año coincide con el dado. */
   function totalDelMes(ym) {
-    return EXPENSES.filter((e) => e.fecha.slice(0, 7) === ym).reduce((sum, e) => sum + e.monto, 0);
+    return ALL_EXPENSES.filter((e) => e.fecha.slice(0, 7) === ym).reduce((sum, e) => sum + e.monto, 0);
   }
 
   /**
@@ -1909,12 +1928,17 @@
 
     try {
       const { expenses, corte, pago, limiteBanco, ahorro } = await fetchSheet();
-      EXPENSES = expenses;
+      ALL_EXPENSES = expenses;
       META = { corte, pago, limiteBanco, ahorro };
 
       // Primero se resuelven las fuentes de verdad (Sheet > manual) para que
       // los inputs ya tengan su valor final antes de pintar cualquier KPI.
       await resolveDates();
+
+      // El ciclo actual se define por lo que quedó en los inputs (Sheet o
+      // manual, lo que haya ganado en resolveDates) — no directamente por
+      // META, para respetar también una fecha puesta a mano.
+      EXPENSES = filterToCycle(ALL_EXPENSES, $('input-corte').value, $('input-pago').value);
 
       renderTable();
       renderKpis();
@@ -1930,7 +1954,7 @@
       $('last-update').textContent = 'Actualizado ' + horaSync;
       $('footer-sync').textContent = horaSync;
       $('footer-sheet').textContent = activeCard().sheetName || 'TARJETA';
-      logEvent('Sheet sincronizado — ' + EXPENSES.length + ' movimientos');
+      logEvent('Sheet sincronizado — ' + EXPENSES.length + ' movimientos del ciclo');
     } catch (err) {
       console.error(err);
       $('last-update').textContent = 'Error de conexión';
@@ -1956,6 +1980,7 @@
   async function switchCard(idx) {
     activeCardIndex = idx;
     EXPENSES = [];
+    ALL_EXPENSES = [];
     NOTAS = {};
     await loadLimite();
     await loadVerdict();

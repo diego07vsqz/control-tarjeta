@@ -476,7 +476,7 @@
   .note-text{font-size:11.5px; color:var(--text-dim); font-style:italic; margin-top:3px;}
 
   /* ── Analítica ── */
-  .analytics-row{display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:28px;}
+  .analytics-row{display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:28px;}
   @media(max-width:860px){ .analytics-row{grid-template-columns:1fr 1fr;} }
   .metric{border-radius:var(--r-md); padding:16px 20px; position:relative; overflow:hidden;}
   .metric::before{content:''; position:absolute; left:0; top:0; bottom:0; width:3px;}
@@ -845,11 +845,11 @@
       <div class="val figures" id="metric-cuotas">0 SI / 0 NO</div>
       <div class="sub" id="metric-cuotas-sub">del total de movimientos</div>
     </div>
-  </div>
-
-  <div class="panel chart-panel" style="margin-bottom:28px;">
-    <div class="section-title">Gasto diario · últimos 30 días</div>
-    <svg id="spend-chart" class="spend-chart" viewBox="0 0 600 160" preserveAspectRatio="none"></svg>
+    <div class="metric m1">
+      <div class="lbl">Gasto global (histórico)</div>
+      <div class="val figures" id="metric-global">$0.00</div>
+      <div class="sub" id="metric-global-sub">— movimientos, todo el Sheet</div>
+    </div>
   </div>
 
   <!-- ── Tabla ── -->
@@ -879,6 +879,12 @@
       <span class="page-indicator" id="page-indicator">Página 1 de 1</span>
       <button class="page-btn" id="btn-page-next" title="Más antiguos">›</button>
     </div>
+  </div>
+
+  <!-- ── Gráfica: al final, ligada al mismo filtro de ciclo que la tabla ── -->
+  <div class="panel chart-panel" style="margin-bottom:28px;">
+    <div class="section-title">Gasto diario del ciclo actual</div>
+    <svg id="spend-chart" class="spend-chart" viewBox="0 0 600 160" preserveAspectRatio="none"></svg>
   </div>
 
   <div class="bottom-row">
@@ -1011,14 +1017,18 @@
     THEME: 'tarjeta:theme',
     NOTAS: 'tarjeta:notas',
     COMPACT: 'tarjeta:compacto',
+    CYCLE_BOUNDS: 'tarjeta:cycle-bounds',
   };
 
   // ┌──────────────────────────────────────────────────────────────────────┐
   // │ 2. STATE                                                             │
   // └──────────────────────────────────────────────────────────────────────┘
 
-  /** Movimientos del ciclo actual, tal como vienen del Sheet. @type {{fecha:string, gasto:string, monto:number}[]} */
+  /** Movimientos DEL CICLO ACTUAL únicamente (filtrados por corte, se reinicia solo al pasar de ciclo). */
   let EXPENSES = [];
+
+  /** Historial COMPLETO tal como viene del Sheet, sin filtrar — para "Gasto global" y el comparativo mensual. */
+  let ALL_EXPENSES = [];
 
   /** Metadatos leídos del Sheet (columnas D-F): fecha de corte/pago y límite del banco. */
   let META = { corte: null, pago: null, limiteBanco: null, ahorro: null };
@@ -1263,6 +1273,42 @@
     return d.toISOString().slice(0, 10);
   }
 
+  /**
+   * Filtra el historial completo a solo los movimientos del ciclo actual.
+   * Los gastos se acumulan HASTA el corte (no "entre corte y pago" — eso es
+   * el vencimiento, no la ventana de gasto). La ventana real es
+   * (corte_anterior, corte_actual]. Sin corte anterior aprendido todavía,
+   * usa un respaldo de 45 días hacia atrás para no dejar la pantalla vacía.
+   */
+  function filterToCycle(expenses, corte, prevCorte) {
+    if (!corte) return expenses;
+    const inicio = prevCorte || addDays(corte, -45);
+    return expenses.filter((e) => e.fecha > inicio && e.fecha <= corte);
+  }
+
+  /**
+   * Detecta cuándo cambió el corte (nuevo ciclo) y aprende automáticamente
+   * dónde terminaba el ciclo anterior — así el filtro se "reinicia" solo en
+   * cuanto el Sheet avanza a un nuevo corte, sin que el usuario haga nada.
+   * @returns {Promise<string|null>} corte_anterior, para usar como límite inferior del filtro.
+   */
+  async function resolveCyclePrevCorte(corteActual) {
+    if (!corteActual) return null;
+
+    let bounds = { lastCorte: null, prevCorte: null };
+    try {
+      const saved = await storage.get(skey(STORAGE_KEYS.CYCLE_BOUNDS));
+      if (saved && saved.value) bounds = JSON.parse(saved.value);
+    } catch (e) { /* primera visita: sin límites aprendidos todavía */ }
+
+    if (bounds.lastCorte !== corteActual) {
+      bounds = { lastCorte: corteActual, prevCorte: bounds.lastCorte };
+      try { await storage.set(skey(STORAGE_KEYS.CYCLE_BOUNDS), JSON.stringify(bounds)); } catch (e) { /* falla silenciosa */ }
+    }
+
+    return bounds.prevCorte;
+  }
+
   /** Un gasto es "inusual" si supera OUTLIER_THRESHOLD ($100). */
   function isOutlier(monto) {
     return monto > OUTLIER_THRESHOLD;
@@ -1299,8 +1345,11 @@
 
   /** Suma el gasto de todos los movimientos (historial completo, no solo el ciclo) cuyo mes-año coincide con el dado. */
   function totalDelMes(ym) {
-    return EXPENSES.filter((e) => e.fecha.slice(0, 7) === ym).reduce((sum, e) => sum + e.monto, 0);
+    return ALL_EXPENSES.filter((e) => e.fecha.slice(0, 7) === ym).reduce((sum, e) => sum + e.monto, 0);
   }
+
+  /** Suma total histórica, sin filtrar por ciclo — es el "gasto global" de toda la vida del Sheet. */
+  const totalGlobal = () => ALL_EXPENSES.reduce((sum, e) => sum + e.monto, 0);
 
   /**
    * Promedio de gasto por semana transcurrida del ciclo (no por movimiento).
@@ -1837,6 +1886,12 @@
     $('metric-cuotas-sub').textContent = totalConDato === 0
       ? 'sin datos en columna D'
       : `${((si / totalConDato) * 100).toFixed(0)}% del ciclo es a cuotas`;
+
+    // "Gasto global": suma TODO el historial del Sheet, sin filtrar por ciclo —
+    // sirve de referencia y evita que la pantalla se sienta "vacía" cuando
+    // el ciclo recién se reinició.
+    animateValue($('metric-global'), totalGlobal());
+    $('metric-global-sub').textContent = `${ALL_EXPENSES.length} movimientos, todo el Sheet`;
   }
 
   /**
@@ -1864,44 +1919,47 @@
   }
 
   /**
-   * Gráfica de gasto diario de los últimos 30 días — barras (gasto de ese
-   * día) + línea (acumulado), dibujada a mano en SVG, sin librerías externas.
+   * Gráfica de gasto diario del CICLO ACTUAL — barras (gasto de ese día) +
+   * línea (acumulado), dibujada a mano en SVG, sin librerías externas.
+   * Ligada al mismo filtro que EXPENSES: si el ciclo se reinició, la
+   * gráfica se reinicia sola también, sin lógica aparte.
    */
   function renderSpendChart() {
     const svg = $('spend-chart');
-    const hoy = todayInSV();
-    const desde = addDays(hoy, -29);
+
+    if (EXPENSES.length === 0) {
+      svg.innerHTML = '<text x="300" y="80" text-anchor="middle" class="empty-msg">Sin movimientos en el ciclo actual</text>';
+      return;
+    }
+
+    // El rango es el propio ciclo: desde el primer gasto filtrado hasta el corte (o hoy, si aún no hay corte).
+    const inicio = EXPENSES.reduce((min, e) => (e.fecha < min ? e.fecha : min), EXPENSES[0].fecha);
+    const fin = META.corte || todayInSV();
 
     const porDia = {};
-    EXPENSES.forEach((e) => {
-      if (e.fecha >= desde && e.fecha <= hoy) porDia[e.fecha] = (porDia[e.fecha] || 0) + e.monto;
-    });
+    EXPENSES.forEach((e) => { porDia[e.fecha] = (porDia[e.fecha] || 0) + e.monto; });
 
+    const totalDias = Math.max(daysBetween(inicio, fin) + 1, 1);
     const dias = [];
-    for (let i = 0; i < 30; i++) dias.push(addDays(desde, i));
+    for (let i = 0; i < totalDias; i++) dias.push(addDays(inicio, i));
 
     const valores = dias.map((d) => porDia[d] || 0);
     const max = Math.max(...valores, 1);
 
-    if (valores.every((v) => v === 0)) {
-      svg.innerHTML = '<text x="300" y="80" text-anchor="middle" class="empty-msg">Sin movimientos en los últimos 30 días</text>';
-      return;
-    }
-
-    // Acumulado día a día, normalizado contra su propio máximo (el total de los 30 días).
+    // Acumulado día a día, normalizado contra su propio máximo (el total del ciclo).
     const acumulados = [];
     let corriendo = 0;
     valores.forEach((v) => { corriendo += v; acumulados.push(corriendo); });
     const maxAcumulado = acumulados[acumulados.length - 1] || 1;
 
     const W = 600, H = 160, padBottom = 16;
-    const barW = W / 30;
+    const barW = W / totalDias;
 
     const bars = valores.map((v, i) => {
       const alto = (v / max) * (H - padBottom - 10);
       const x = i * barW + barW * 0.15;
       const y = H - padBottom - alto;
-      return `<rect class="bar" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${(barW * 0.7).toFixed(1)}" height="${alto.toFixed(1)}"><title>${fmtDateShort(dias[i])}: ${fmt(v)}</title></rect>`;
+      return `<rect class="bar" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${Math.max(barW * 0.7, 1).toFixed(1)}" height="${alto.toFixed(1)}"><title>${fmtDateShort(dias[i])}: ${fmt(v)}</title></rect>`;
     }).join('');
 
     const puntos = acumulados.map((a, i) => {
@@ -2080,12 +2138,19 @@
 
     try {
       const { expenses, corte, pago, limiteBanco, ahorro } = await fetchSheet();
-      EXPENSES = expenses;
+      ALL_EXPENSES = expenses;
       META = { corte, pago, limiteBanco, ahorro };
 
       // Primero se resuelven las fuentes de verdad (Sheet > manual) para que
       // los inputs ya tengan su valor final antes de pintar cualquier KPI.
       await resolveDates();
+
+      // El ciclo actual se filtra usando el corte resuelto (Sheet o manual) y
+      // el corte anterior aprendido — se "reinicia" solo apenas el Sheet
+      // avanza a un corte nuevo, sin tocar nada a mano.
+      const corteResuelto = $('input-corte').value;
+      const prevCorte = await resolveCyclePrevCorte(corteResuelto);
+      EXPENSES = filterToCycle(ALL_EXPENSES, corteResuelto, prevCorte);
 
       renderTable();
       renderKpis();
@@ -2129,6 +2194,7 @@
   async function switchCard(idx) {
     activeCardIndex = idx;
     EXPENSES = [];
+    ALL_EXPENSES = [];
     NOTAS = {};
     await loadLimite();
     await loadVerdict();

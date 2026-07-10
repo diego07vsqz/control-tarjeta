@@ -139,19 +139,27 @@
 
   main{max-width:1240px; margin:0 auto; padding:34px 40px;}
 
-  /* ── Badge de rango (E-S) — estilo escudo, glow segun letra ── */
+  /* ── Badge de rango (E-S) — escudo con letra + porcentaje usado, no solo una letra suelta ── */
   .rank-badge{
-    width:32px; height:32px; display:flex; align-items:center; justify-content:center;
-    background:rgba(155,92,255,.1); border:1px solid rgba(155,92,255,.4);
-    clip-path:polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
-    font-family:'Space Grotesk',sans-serif; font-weight:800; font-size:14px; color:#c77dff;
+    display:flex; align-items:center; gap:8px; padding:4px 10px 4px 4px;
+    background:rgba(155,92,255,.08); border:1px solid rgba(155,92,255,.35);
+    clip-path:polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
   }
-  .rank-badge.rank-S{color:#ffd23f; border-color:rgba(255,210,63,.6); text-shadow:0 0 8px rgba(255,210,63,.7);}
-  .rank-badge.rank-A{color:var(--mint); border-color:rgba(62,242,176,.6); text-shadow:0 0 6px rgba(62,242,176,.5);}
-  .rank-badge.rank-B{color:var(--brass); border-color:rgba(74,212,255,.6);}
-  .rank-badge.rank-C{color:var(--amber); border-color:rgba(255,200,87,.6);}
-  .rank-badge.rank-D{color:#ff9f5c; border-color:rgba(255,159,92,.6);}
-  .rank-badge.rank-E{color:var(--rose); border-color:rgba(255,77,106,.6);}
+  .rank-shield{
+    width:26px; height:26px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+    background:rgba(155,92,255,.15); border:1px solid currentColor;
+    clip-path:polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+    font-family:'Space Grotesk',sans-serif; font-weight:800; font-size:13px; color:#c77dff;
+  }
+  .rank-info{display:flex; flex-direction:column; line-height:1.1;}
+  .rank-pct{font-family:'JetBrains Mono',monospace; font-weight:700; font-size:12px; color:var(--text);}
+  .rank-label{font-size:8px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.08em;}
+  .rank-badge.rank-S .rank-shield{color:#ffd23f; text-shadow:0 0 8px rgba(255,210,63,.7);}
+  .rank-badge.rank-A .rank-shield{color:var(--mint); text-shadow:0 0 6px rgba(62,242,176,.5);}
+  .rank-badge.rank-B .rank-shield{color:var(--brass);}
+  .rank-badge.rank-C .rank-shield{color:var(--amber);}
+  .rank-badge.rank-D .rank-shield{color:#ff9f5c;}
+  .rank-badge.rank-E .rank-shield{color:var(--rose);}
 
   .chart-panel .spend-chart{width:100%; height:160px; display:block;}
   .spend-chart .bar{fill:rgba(74,212,255,.5);}
@@ -233,6 +241,47 @@
   .card-visual.over-limit .card-emblem .ring, .card-visual.over-limit .card-emblem .spiral{stroke:var(--rose);}
   .card-visual.over-limit .card-emblem .crack{opacity:1; stroke-dashoffset:0;}
   .card-visual.over-limit::before{background:repeating-linear-gradient(115deg, rgba(226,83,107,.1) 0 2px, transparent 2px 40px);}
+
+  /*
+   * "Corrupt hit" — golpe de corrupción de UN SOLO DISPARO (no infinito, no
+   * afecta rendimiento), pensado para el instante exacto en que el usuario
+   * confirma "No puedo pagar". Se suma encima del estado .over-limit ya
+   * existente: shake violento, chromatic split intermitente, flash de
+   * pantalla dañada y parpadeo del emblema — luego se quita sola y queda
+   * el estado .over-limit normal (estático) como siempre.
+   */
+  .card-visual.corrupt-hit{ animation: card-corrupt-hit .9s cubic-bezier(.36,.07,.19,.97) 1; }
+  .card-visual.corrupt-hit .card-scanline{ animation: corrupt-flash .9s ease-out 1; }
+  .card-visual.corrupt-hit .card-glitch-lines{ opacity:1; animation: corrupt-lines-flicker .9s steps(7) 1; }
+  .card-visual.corrupt-hit .card-emblem{ animation: corrupt-emblem-hit .9s ease-out 1; }
+  .card-visual.corrupt-hit .card-tear{ animation: corrupt-flash .9s ease-out 1; }
+
+  @keyframes card-corrupt-hit{
+    0%{transform:translate(0,0) rotateZ(0); box-shadow:none;}
+    8%{transform:translate(-7px,3px) rotateZ(-1.2deg); box-shadow:-4px 0 0 rgba(79,212,255,.6), 4px 0 0 rgba(226,83,107,.6);}
+    16%{transform:translate(6px,-4px) rotateZ(1deg); box-shadow:none;}
+    24%{transform:translate(-5px,2px) rotateZ(-.8deg); box-shadow:-3px 0 0 rgba(79,212,255,.55), 3px 0 0 rgba(226,83,107,.55);}
+    33%{transform:translate(4px,-2px); box-shadow:none;}
+    42%{transform:translate(-3px,1px); box-shadow:-3px 0 0 rgba(79,212,255,.5), 3px 0 0 rgba(226,83,107,.5); filter:brightness(1.5) contrast(1.25);}
+    50%{transform:translate(0,0); filter:none;}
+    60%{transform:translate(3px,2px); box-shadow:none;}
+    70%{transform:translate(-2px,-1px); box-shadow:-2px 0 0 rgba(79,212,255,.4), 2px 0 0 rgba(226,83,107,.4);}
+    85%{transform:translate(1px,0); box-shadow:none;}
+    100%{transform:translate(0,0); box-shadow:none;}
+  }
+  @keyframes corrupt-flash{0%{opacity:0;} 6%{opacity:1;} 22%{opacity:.25;} 100%{opacity:.4;}}
+  @keyframes corrupt-lines-flicker{
+    0%,100%{opacity:1;} 14%{opacity:.1;} 28%{opacity:1;} 42%{opacity:.15;} 57%{opacity:1;} 71%{opacity:.2;} 85%{opacity:.5;}
+  }
+  @keyframes corrupt-emblem-hit{
+    0%{opacity:.9; filter:drop-shadow(0 0 14px rgba(226,83,107,.85));}
+    10%{opacity:.2;}
+    20%{opacity:1; filter:drop-shadow(0 0 22px rgba(226,83,107,1)) drop-shadow(2px 0 0 rgba(79,212,255,.6));}
+    35%{opacity:.3;}
+    50%{opacity:1;}
+    65%{opacity:.4;}
+    100%{opacity:.9; filter:drop-shadow(0 0 14px rgba(226,83,107,.85));}
+  }
 
   /* Franjas de corte tipo VHS/glitch — presencia fija cuando está excedido, sin animación continua (perf). */
   .card-glitch-lines{
@@ -680,7 +729,11 @@
   <div class="header-right">
     <select class="card-select" id="card-select" style="display:none;"></select>
     <div class="rank-badge" id="rank-badge" title="Rango del ciclo">
-      <span id="rank-letter">—</span>
+      <span class="rank-shield"><span id="rank-letter">—</span></span>
+      <span class="rank-info">
+        <span class="rank-pct" id="rank-pct">—%</span>
+        <span class="rank-label" id="rank-label">usado</span>
+      </span>
     </div>
     <div class="pill"><span class="dot-live"></span> <span id="last-update">—</span></div>
     <button class="btn-theme" id="btn-compact" title="Modo compacto">
@@ -1971,18 +2024,20 @@
     const limite = getLimite();
     const usado = limite > 0 ? total / limite : 0;
 
-    let letra;
-    if (usado <= 0.3) letra = 'S';
-    else if (usado <= 0.5) letra = 'A';
-    else if (usado <= 0.7) letra = 'B';
-    else if (usado <= 0.85) letra = 'C';
-    else if (usado <= 1.0) letra = 'D';
-    else letra = 'E';
+    let letra, etiqueta;
+    if (usado <= 0.3) { letra = 'S'; etiqueta = 'impecable'; }
+    else if (usado <= 0.5) { letra = 'A'; etiqueta = 'muy bien'; }
+    else if (usado <= 0.7) { letra = 'B'; etiqueta = 'bien'; }
+    else if (usado <= 0.85) { letra = 'C'; etiqueta = 'atención'; }
+    else if (usado <= 1.0) { letra = 'D'; etiqueta = 'al límite'; }
+    else { letra = 'E'; etiqueta = 'excedido'; }
 
     const badge = $('rank-badge');
     badge.className = 'rank-badge rank-' + letra;
-    badge.title = `Rango ${letra} — has usado ${(usado * 100).toFixed(0)}% de tu límite personal`;
+    badge.title = `Rango ${letra} (${etiqueta}) — has usado ${(usado * 100).toFixed(0)}% de tu límite personal`;
     $('rank-letter').textContent = letra;
+    $('rank-pct').textContent = Math.round(usado * 100) + '%';
+    $('rank-label').textContent = etiqueta;
   }
 
   /**
@@ -2137,7 +2192,24 @@
     updateCardEmblem();
     updateCardDueNotice();
     logEvent(canPay ? 'Veredicto: sí podrás pagar' : 'Veredicto: no podrás pagar');
-    if (!canPay) showToast('💡 Revisa tus gastos del mes para cuadrar el pago');
+    if (!canPay) {
+      triggerCorruptHit();
+      showToast('💡 Revisa tus gastos del mes para cuadrar el pago');
+    }
+  }
+
+  /**
+   * Dispara el golpe de corrupción de un solo tiro sobre la tarjeta —
+   * pensado para el instante exacto en que el usuario confirma "No puedo
+   * pagar". Se quita sola al terminar; el estado .over-limit (ya aplicado
+   * por updateCardEmblem) se queda como se ve normalmente después.
+   */
+  function triggerCorruptHit() {
+    const card = $('card-visual');
+    card.classList.remove('corrupt-hit');
+    void card.offsetWidth; // fuerza reflow, por si se dispara dos veces seguidas
+    card.classList.add('corrupt-hit');
+    setTimeout(() => card.classList.remove('corrupt-hit'), 900);
   }
 
   /** Pinta el banner verde/rojo con el resultado de la última respuesta al modal. */

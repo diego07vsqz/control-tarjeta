@@ -1139,10 +1139,11 @@
             <th class="sortable" data-key="fecha">Fecha <span class="arrow">▲</span></th>
             <th class="sortable" data-key="gasto">Gasto <span class="arrow">▲</span></th>
             <th class="sortable" data-key="cuotas" style="text-align:center">Cuotas <span class="arrow">▲</span></th>
+            <th style="text-align:center">Progreso</th>
             <th class="sortable" data-key="monto" style="text-align:right">Monto <span class="arrow">▲</span></th>
           </tr>
         </thead>
-        <tbody id="tbl-body"><tr class="empty-row"><td colspan="4">Cargando…</td></tr></tbody>
+        <tbody id="tbl-body"><tr class="empty-row"><td colspan="5">Cargando…</td></tr></tbody>
       </table>
     </div>
     <div class="table-pagination" id="table-pagination">
@@ -1645,6 +1646,16 @@
     return '<span class="tag-cuotas na">—</span>';
   }
 
+  /**
+   * Texto de la columna "Progreso" en la tabla: "abonadas/cuántas cuotas"
+   * (ej. "2/6") para movimientos a cuotas con ese dato — un guion para todo
+   * lo demás, así la columna no se ve "sucia" de ceros en cada fila que no aplica.
+   */
+  function progresoCuotasCelda(e) {
+    if (e.cuotas !== 'SI' || !e.cuantasCuotas) return '<span style="color:var(--text-dim)">—</span>';
+    return `${e.cantidadAbonadas ?? 0}/${e.cuantasCuotas}`;
+  }
+
   /** Cuenta cuántos movimientos del ciclo son a cuotas (SI) y cuántos no (NO). */
   function contarCuotas() {
     let si = 0, no = 0;
@@ -1882,7 +1893,7 @@
 
     if (allRows.length === 0) {
       const msg = TABLE_FILTER ? 'Sin resultados para tu búsqueda' : 'Sin movimientos registrados en este ciclo';
-      body.innerHTML = `<tr class="empty-row"><td colspan="4">${msg}</td></tr>`;
+      body.innerHTML = `<tr class="empty-row"><td colspan="5">${msg}</td></tr>`;
     } else {
       body.innerHTML = rows.map((e, i) => {
         const key = notaKey(e);
@@ -1897,6 +1908,7 @@
               ${nota ? `<div class="note-text">${nota}</div>` : ''}
             </td>
             <td style="text-align:center">${cuotasBadge(e.cuotas, e.cuantasCuotas, e.cantidadAbonadas)}</td>
+            <td class="figures" style="text-align:center">${progresoCuotasCelda(e)}</td>
             <td class="amt">${fmt(e.monto)}</td>
           </tr>`;
       }).join('');
@@ -2233,9 +2245,12 @@
     $('metric-cuotas').innerHTML =
       `<span class="n">${si}</span> <span class="tag-si">SI</span> / <span class="n">${no}</span> <span class="tag-no">NO</span>`;
     const totalConDato = si + no;
+    const { totalCuotas: cuotasComprometidas, totalAbonadas, movimientosConDato } = progresoCuotas();
     $('metric-cuotas-sub').textContent = totalConDato === 0
       ? 'sin datos en columna D'
-      : `${((si / totalConDato) * 100).toFixed(0)}% del ciclo es a cuotas`;
+      : movimientosConDato
+        ? `${((si / totalConDato) * 100).toFixed(0)}% del ciclo es a cuotas · abonadas ${totalAbonadas}/${cuotasComprometidas}`
+        : `${((si / totalConDato) * 100).toFixed(0)}% del ciclo es a cuotas`;
 
     // "Gasto global": suma TODO el historial del Sheet, sin filtrar por ciclo —
     // sirve de referencia y evita que la pantalla se sienta "vacía" cuando

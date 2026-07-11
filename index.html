@@ -591,13 +591,6 @@
   /* Entrada "unlock" tipo registro de sistema — un solo disparo por fila, no infinita (seguro para rendimiento). */
   .row-unlock{animation:row-unlock .35s cubic-bezier(.2,.8,.2,1) both;}
 
-  /* "Descifrando" — un solo disparo por card, solo en la primera carga. */
-  .decipher-in{animation:decipher-in .5s ease-out both;}
-  @keyframes decipher-in{
-    0%{opacity:0; filter:blur(4px) brightness(1.6); transform:translateY(3px);}
-    45%{opacity:.6; filter:blur(1.5px) brightness(1.25);}
-    100%{opacity:1; filter:blur(0) brightness(1); transform:translateY(0);}
-  }
   .row-unlock td:first-child{position:relative;}
   @keyframes row-unlock{
     0%{opacity:0; transform:translateX(-10px); background:rgba(74,212,255,.1);}
@@ -2522,25 +2515,6 @@
     checkLimitAndPrompt();
   }
 
-  /** Muestra un mensaje flotante breve en la esquina inferior. */
-  /**
-   * Efecto "descifrando" — se aplica UNA SOLA VEZ, en la primera carga
-   * exitosa (nunca en refrescos automáticos ni al cambiar de filtro, para
-   * no molestar cada 2 minutos). Es una animación CSS de un solo disparo
-   * por card (opacity+blur+corrimiento), escalonada con un pequeño delay
-   * por índice — nada de JS corriendo por cuadro, cero costo continuo.
-   */
-  function playDecipherEffect() {
-    const cards = document.querySelectorAll('.kpi, .metric, .panel');
-    cards.forEach((el, i) => {
-      el.style.animationDelay = Math.min(i * 35, 380) + 'ms';
-      el.classList.add('decipher-in');
-    });
-    // Limpieza: quita la clase al terminar, así no interfiere si algo más
-    // le agrega/quita clases a la card más adelante en la sesión.
-    setTimeout(() => cards.forEach((el) => { el.classList.remove('decipher-in'); el.style.animationDelay = ''; }), 900);
-  }
-
   /**
    * Efecto de "terminal escribiendo" para el texto de arranque del overlay
    * de carga. Es un setTimeout encadenado, finito (se detiene solo al
@@ -2874,7 +2848,6 @@
       await loadNotas();
 
       await loadData(false);
-      playDecipherEffect(); // solo la primera vez — nunca en refrescos automáticos
     } catch (err) {
       hadError = true;
       console.error('Error de inicialización:', err);

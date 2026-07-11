@@ -67,12 +67,35 @@
   }
   .side-hud-item{
     width:26px; height:26px; display:flex; align-items:center; justify-content:center;
-    color:var(--text-dim); border:1px solid transparent; transition:color .3s ease, border-color .3s ease;
+    color:var(--text-dim); border:1px solid transparent; background:none; cursor:pointer; padding:0;
+    transition:color .3s ease, border-color .3s ease, background-color .2s ease, transform .2s ease;
   }
+  .side-hud-item:hover{transform:scale(1.1); background:rgba(74,212,255,.08);}
+  .side-hud-item.active{color:var(--brass); border-color:rgba(74,212,255,.6); background:rgba(74,212,255,.12);}
   .side-hud-item.state-ok{color:var(--mint); border-color:rgba(62,242,176,.4);}
   .side-hud-item.state-warn{color:var(--amber); border-color:rgba(255,200,87,.4);}
   .side-hud-item.state-bad{color:var(--rose); border-color:rgba(255,77,106,.4);}
-  @media(max-width:900px){ .side-hud{display:none;} }
+  @media(max-width:900px){ .side-hud, .side-hud-panel{display:none;} }
+
+  /* Panel de detalle — se abre al hacer click en un ítem del HUD. Transición
+     transform+opacity (igual de barata que un tooltip), nunca animación continua. */
+  .side-hud-panel{
+    position:fixed; left:44px; top:50%; transform:translateY(-50%) translateX(-8px); z-index:39;
+    width:200px; padding:14px 16px; opacity:0; pointer-events:none;
+    background:linear-gradient(160deg, rgba(10,20,36,.95), rgba(5,10,20,.97));
+    border:1px solid rgba(74,212,255,.4); box-shadow:0 0 24px -6px rgba(74,212,255,.3), 0 20px 40px -10px rgba(0,0,0,.6);
+    clip-path:polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+    transition:opacity .25s ease, transform .25s cubic-bezier(.2,.8,.2,1);
+  }
+  .side-hud-panel.show{opacity:1; pointer-events:auto; transform:translateY(-50%) translateX(0);}
+  .side-hud-panel-title{
+    font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:11.5px; letter-spacing:.06em;
+    color:var(--brass); text-transform:uppercase; margin-bottom:8px;
+  }
+  .side-hud-panel-body{font-size:12px; color:var(--text-mid); line-height:1.7;}
+  .side-hud-panel-body b{color:var(--text); font-family:'JetBrains Mono',monospace;}
+  .side-hud-panel-body .row{display:flex; justify-content:space-between; gap:10px;}
+
   .figures{font-family:'JetBrains Mono',monospace;}
 
   /* ── Glass card system: fondo semi-opaco + hover elevado, compartido por todas las cards.
@@ -810,12 +833,19 @@
 <body>
 
 <div class="side-hud" id="side-hud">
-  <div class="side-hud-item" id="side-hud-limite" title="Mi límite de pago">
+  <button class="side-hud-item" id="side-hud-limite" data-panel="limite" title="Mi límite de pago">
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-  </div>
-  <div class="side-hud-item" id="side-hud-cuotas" title="Compras a cuotas">
+  </button>
+  <button class="side-hud-item" id="side-hud-cuotas" data-panel="cuotas" title="Compras a cuotas">
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-  </div>
+  </button>
+</div>
+
+<div class="side-hud-panel" id="side-hud-panel">
+  <span class="corner tl"></span><span class="corner tr"></span>
+  <span class="corner bl"></span><span class="corner br"></span>
+  <div class="side-hud-panel-title" id="side-hud-panel-title">—</div>
+  <div class="side-hud-panel-body" id="side-hud-panel-body"></div>
 </div>
 
 <div id="loading-overlay">
@@ -2168,6 +2198,60 @@
     const pctCuotas = totalCuotas > 0 ? cuotasSi / totalCuotas : 0;
     const estadoCuotas = totalCuotas === 0 ? '' : pctCuotas > 0.5 ? 'state-bad' : pctCuotas > 0 ? 'state-warn' : 'state-ok';
     $('side-hud-cuotas').className = 'side-hud-item ' + estadoCuotas;
+
+    // Si el panel de detalle está abierto, se actualiza con los datos frescos
+    // en vez de quedarse con el snapshot del momento en que se abrió.
+    if (sideHudActivePanel) renderSideHudPanelContent(sideHudActivePanel);
+  }
+
+  /** Cuál panel del HUD lateral está abierto ('limite' | 'cuotas' | null). */
+  let sideHudActivePanel = null;
+
+  /** Arma el contenido del panel según qué ítem se abrió — reutiliza los cálculos que ya existen, no duplica nada. */
+  function renderSideHudPanelContent(panel) {
+    const title = $('side-hud-panel-title');
+    const body = $('side-hud-panel-body');
+
+    if (panel === 'limite') {
+      const total = totalTarjeta();
+      const limite = getLimite();
+      const pct = limite > 0 ? Math.min((total / limite) * 100, 100) : 0;
+      title.textContent = 'Mi límite de pago';
+      body.innerHTML = `
+        <div class="row"><span>Gastado</span><b>${fmt(total)}</b></div>
+        <div class="row"><span>Límite</span><b>${fmt(limite)}</b></div>
+        <div class="row"><span>Usado</span><b>${pct.toFixed(0)}%</b></div>
+      `;
+    } else if (panel === 'cuotas') {
+      const { si, no } = contarCuotas();
+      const totalC = si + no;
+      title.textContent = 'Compras a cuotas';
+      body.innerHTML = `
+        <div class="row"><span>A cuotas (SI)</span><b>${si}</b></div>
+        <div class="row"><span>De contado (NO)</span><b>${no}</b></div>
+        <div class="row"><span>% a cuotas</span><b>${totalC ? ((si / totalC) * 100).toFixed(0) : 0}%</b></div>
+      `;
+    }
+  }
+
+  /** Abre/cierra el panel de detalle del HUD lateral al hacer click en un ítem. */
+  function toggleSideHudPanel(panel, btn) {
+    const panelEl = $('side-hud-panel');
+
+    if (sideHudActivePanel === panel) {
+      // Click en el mismo ítem que ya está abierto → cierra.
+      sideHudActivePanel = null;
+      panelEl.classList.remove('show');
+      document.querySelectorAll('.side-hud-item').forEach((b) => b.classList.remove('active'));
+      return;
+    }
+
+    sideHudActivePanel = panel;
+    document.querySelectorAll('.side-hud-item').forEach((b) => b.classList.toggle('active', b === btn));
+    panelEl.style.top = btn.getBoundingClientRect().top + btn.offsetHeight / 2 + 'px';
+    panelEl.style.transform = 'translateY(-50%) translateX(-8px)';
+    renderSideHudPanelContent(panel);
+    panelEl.classList.add('show');
   }
 
   /**
@@ -2604,6 +2688,19 @@
     $('btn-theme').addEventListener('click', toggleTheme);
     $('btn-compact').addEventListener('click', toggleCompact);
     $('quest-toast-close').addEventListener('click', () => $('quest-toast').classList.remove('show'));
+
+    // HUD lateral: click en un ítem abre/cierra su panel de detalle.
+    document.querySelectorAll('.side-hud-item[data-panel]').forEach((btn) => {
+      btn.addEventListener('click', () => toggleSideHudPanel(btn.dataset.panel, btn));
+    });
+    // Click fuera del HUD/panel → cierra, para que no se quede pegado estorbando.
+    document.addEventListener('click', (e) => {
+      if (!sideHudActivePanel) return;
+      if (e.target.closest('.side-hud') || e.target.closest('.side-hud-panel')) return;
+      sideHudActivePanel = null;
+      $('side-hud-panel').classList.remove('show');
+      document.querySelectorAll('.side-hud-item').forEach((b) => b.classList.remove('active'));
+    });
 
     // Barra de filtros por ciclo: cada botón rápido recalcula EXPENSES sin volver a pedirle nada al Sheet.
     document.querySelectorAll('.filter-btn[data-mode]').forEach((btn) => {

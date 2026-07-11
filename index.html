@@ -234,12 +234,7 @@
   .rank-badge.rank-D .rank-shield{color:#ff9f5c;}
   .rank-badge.rank-E .rank-shield{color:var(--rose);}
 
-  .chart-panel .spend-chart{width:100%; height:160px; display:block;}
-  .spend-chart .bar{fill:rgba(74,212,255,.5);}
-  .spend-chart .bar:hover{fill:var(--brass);}
-  .spend-chart .line{fill:none; stroke:#c77dff; stroke-width:2;}
-  .spend-chart .axis{stroke:rgba(255,255,255,.1); stroke-width:1;}
-  .spend-chart .empty-msg{fill:var(--text-dim); font-size:11px; font-family:'Inter',sans-serif;}
+
 
   /* ── Menú desplegable (HUD en mobile) — reemplaza el botón de modo compacto.
      El HUD lateral fijo no funciona bien en pantallas angostas, así que en
@@ -595,6 +590,14 @@
   tbody tr:hover td{background:rgba(255,255,255,.015);}
   /* Entrada "unlock" tipo registro de sistema — un solo disparo por fila, no infinita (seguro para rendimiento). */
   .row-unlock{animation:row-unlock .35s cubic-bezier(.2,.8,.2,1) both;}
+
+  /* "Descifrando" — un solo disparo por card, solo en la primera carga. */
+  .decipher-in{animation:decipher-in .5s ease-out both;}
+  @keyframes decipher-in{
+    0%{opacity:0; filter:blur(4px) brightness(1.6); transform:translateY(3px);}
+    45%{opacity:.6; filter:blur(1.5px) brightness(1.25);}
+    100%{opacity:1; filter:blur(0) brightness(1); transform:translateY(0);}
+  }
   .row-unlock td:first-child{position:relative;}
   @keyframes row-unlock{
     0%{opacity:0; transform:translateX(-10px); background:rgba(74,212,255,.1);}
@@ -792,6 +795,17 @@
   .quest-toast-title{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:13.5px; color:var(--text); margin-bottom:4px;}
   .quest-toast-body{font-size:11.5px; color:var(--text-mid); line-height:1.5;}
 
+  /* Alerta de intrusión (gasto anómalo) — mismo patrón que quest-toast, pero
+     ámbar/seguridad en vez de rojo/misión, y colocada más abajo para que no
+     se encimen si ambas alertas están visibles a la vez. */
+  .intrusion-toast{
+    top:230px; border-color:rgba(255,200,87,.5);
+    background:linear-gradient(160deg, rgba(28,20,4,.95), rgba(14,10,2,.97));
+    box-shadow:0 0 30px -6px rgba(255,200,87,.5), 0 20px 40px -10px rgba(0,0,0,.7);
+  }
+  .intrusion-tag{color:var(--amber); text-shadow:0 0 8px rgba(255,200,87,.6);}
+  .intrusion-toast .quest-toast-body b{color:var(--amber); font-family:'JetBrains Mono',monospace;}
+
   footer{text-align:center; padding:26px 20px; color:var(--text-dim); font-size:11px; border-top:1px solid rgba(155,92,255,.2); margin-top:20px;}
   .footer-grid{display:flex; flex-wrap:wrap; justify-content:center; gap:8px 24px; font-family:'JetBrains Mono',monospace; letter-spacing:.02em;}
   .footer-grid b{color:var(--text-mid); font-weight:600;}
@@ -908,7 +922,7 @@
     <button class="btn-theme btn-hud-menu" id="btn-hud-menu" title="Límite y cuotas">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
     </button>
-    <button class="btn-theme" id="btn-theme" title="Cambiar tema">
+    <button class="btn-theme" id="btn-theme" title="Modo Cazador (oscuro)">
       <svg id="theme-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
     </button>
     <button class="btn-refresh" id="btn-refresh">
@@ -1145,12 +1159,6 @@
     </div>
   </div>
 
-  <!-- ── Gráfica: al final, ligada al mismo filtro de ciclo que la tabla ── -->
-  <div class="panel chart-panel" style="margin-bottom:28px;">
-    <div class="section-title">Gasto diario del ciclo actual</div>
-    <svg id="spend-chart" class="spend-chart" viewBox="0 0 600 160" preserveAspectRatio="none"></svg>
-  </div>
-
   <div class="bottom-row">
     <div class="panel tip-card">
       <span class="corner tl"></span><span class="corner tr"></span>
@@ -1216,6 +1224,15 @@
   </div>
   <div class="quest-toast-title">Límite de pago excedido</div>
   <div class="quest-toast-body" id="quest-toast-body"></div>
+</div>
+
+<div class="quest-toast intrusion-toast" id="intrusion-toast">
+  <div class="quest-toast-head">
+    <span class="quest-toast-tag intrusion-tag">🛡 ANOMALÍA DETECTADA</span>
+    <button class="quest-toast-close" id="intrusion-toast-close">✕</button>
+  </div>
+  <div class="quest-toast-title">Gasto fuera de lo común</div>
+  <div class="quest-toast-body" id="intrusion-toast-body"></div>
 </div>
 
 <script>
@@ -1808,6 +1825,8 @@
     $('theme-icon').innerHTML = theme === 'light'
       ? '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>' // sol
       : '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>'; // luna
+    // Nombres de rango en vez de "oscuro/claro", coherente con el resto del tema.
+    $('btn-theme').title = theme === 'light' ? 'Modo Civil (claro)' : 'Modo Cazador (oscuro)';
   }
 
   /** Alterna entre tema oscuro y claro, y persiste la elección. */
@@ -2314,62 +2333,6 @@
     $('rank-label').textContent = etiqueta;
   }
 
-  /**
-   * Gráfica de gasto diario del CICLO ACTUAL — barras (gasto de ese día) +
-   * línea (acumulado), dibujada a mano en SVG, sin librerías externas.
-   * Ligada al mismo filtro que EXPENSES: si el ciclo se reinició, la
-   * gráfica se reinicia sola también, sin lógica aparte.
-   */
-  function renderSpendChart() {
-    const svg = $('spend-chart');
-
-    if (EXPENSES.length === 0) {
-      svg.innerHTML = '<text x="300" y="80" text-anchor="middle" class="empty-msg">Sin movimientos en el ciclo actual</text>';
-      return;
-    }
-
-    // El rango es el propio ciclo: desde el primer gasto filtrado hasta el corte (o hoy, si aún no hay corte).
-    const inicio = EXPENSES.reduce((min, e) => (e.fecha < min ? e.fecha : min), EXPENSES[0].fecha);
-    const fin = META.corte || todayInSV();
-
-    const porDia = {};
-    EXPENSES.forEach((e) => { porDia[e.fecha] = (porDia[e.fecha] || 0) + e.monto; });
-
-    const totalDias = Math.max(daysBetween(inicio, fin) + 1, 1);
-    const dias = [];
-    for (let i = 0; i < totalDias; i++) dias.push(addDays(inicio, i));
-
-    const valores = dias.map((d) => porDia[d] || 0);
-    const max = Math.max(...valores, 1);
-
-    // Acumulado día a día, normalizado contra su propio máximo (el total del ciclo).
-    const acumulados = [];
-    let corriendo = 0;
-    valores.forEach((v) => { corriendo += v; acumulados.push(corriendo); });
-    const maxAcumulado = acumulados[acumulados.length - 1] || 1;
-
-    const W = 600, H = 160, padBottom = 16;
-    const barW = W / totalDias;
-
-    const bars = valores.map((v, i) => {
-      const alto = (v / max) * (H - padBottom - 10);
-      const x = i * barW + barW * 0.15;
-      const y = H - padBottom - alto;
-      return `<rect class="bar" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${Math.max(barW * 0.7, 1).toFixed(1)}" height="${alto.toFixed(1)}"><title>${fmtDateShort(dias[i])}: ${fmt(v)}</title></rect>`;
-    }).join('');
-
-    const puntos = acumulados.map((a, i) => {
-      const py = H - padBottom - (a / maxAcumulado) * (H - padBottom - 10);
-      return `${(i * barW + barW / 2).toFixed(1)},${py.toFixed(1)}`;
-    }).join(' ');
-
-    svg.innerHTML = `
-      <line class="axis" x1="0" y1="${H - padBottom}" x2="${W}" y2="${H - padBottom}"/>
-      ${bars}
-      <polyline class="line" points="${puntos}"/>
-    `;
-  }
-
   /** Descarga los movimientos del ciclo actual como archivo .csv. */
   function exportCSV() {
     if (EXPENSES.length === 0) {
@@ -2472,6 +2435,44 @@
     questToastTimer = setTimeout(() => el.classList.remove('show'), 6000);
   }
 
+  /** Gastos ya avisados como anomalía en esta sesión — para no repetir la alerta en cada refresco. */
+  const ANOMALIAS_AVISADAS = new Set();
+  let intrusionToastTimer = null;
+
+  /**
+   * Revisa si algún gasto del ciclo es "mucho más alto que el promedio" —
+   * no un umbral fijo, sino relativo a los propios gastos del ciclo — y
+   * avisa UNA vez por gasto (se guarda su clave para no repetir en cada
+   * refresco). Necesita al menos 3 movimientos para que un "promedio"
+   * tenga sentido; si no, no evalúa nada.
+   */
+  function detectarAnomalia() {
+    if (EXPENSES.length < 3) return;
+
+    const promedio = totalTarjeta() / EXPENSES.length;
+    const UMBRAL_RELATIVO = 2.5; // "mucho más alto" = 2.5x el promedio del ciclo
+    const PISO_MINIMO = 20; // evita marcar anomalía en ciclos con montos muy chicos
+
+    const anomalo = EXPENSES.find((e) => {
+      const key = notaKey(e);
+      return e.monto > promedio * UMBRAL_RELATIVO && e.monto > PISO_MINIMO && !ANOMALIAS_AVISADAS.has(key);
+    });
+    if (!anomalo) return;
+
+    ANOMALIAS_AVISADAS.add(notaKey(anomalo));
+    showIntrusionToast(anomalo, promedio);
+  }
+
+  /** Notificación de seguridad para un gasto anómalo — mismo patrón que showQuestToast, paleta ámbar. */
+  function showIntrusionToast(gasto, promedio) {
+    $('intrusion-toast-body').innerHTML =
+      `<b>${fmt(gasto.monto)}</b> en "${gasto.gasto}" — muy por encima de tu promedio del ciclo (${fmt(promedio)}).`;
+    const el = $('intrusion-toast');
+    el.classList.add('show');
+    clearTimeout(intrusionToastTimer);
+    intrusionToastTimer = setTimeout(() => el.classList.remove('show'), 6000);
+  }
+
   /** Handler de los botones Sí/No del modal "¿podrás pagar?". */
   function answerVerdict(canPay) {
     const total = totalTarjeta();
@@ -2522,6 +2523,24 @@
   }
 
   /** Muestra un mensaje flotante breve en la esquina inferior. */
+  /**
+   * Efecto "descifrando" — se aplica UNA SOLA VEZ, en la primera carga
+   * exitosa (nunca en refrescos automáticos ni al cambiar de filtro, para
+   * no molestar cada 2 minutos). Es una animación CSS de un solo disparo
+   * por card (opacity+blur+corrimiento), escalonada con un pequeño delay
+   * por índice — nada de JS corriendo por cuadro, cero costo continuo.
+   */
+  function playDecipherEffect() {
+    const cards = document.querySelectorAll('.kpi, .metric, .panel');
+    cards.forEach((el, i) => {
+      el.style.animationDelay = Math.min(i * 35, 380) + 'ms';
+      el.classList.add('decipher-in');
+    });
+    // Limpieza: quita la clase al terminar, así no interfiere si algo más
+    // le agrega/quita clases a la card más adelante en la sesión.
+    setTimeout(() => cards.forEach((el) => { el.classList.remove('decipher-in'); el.style.animationDelay = ''; }), 900);
+  }
+
   /**
    * Efecto de "terminal escribiendo" para el texto de arranque del overlay
    * de carga. Es un setTimeout encadenado, finito (se detiene solo al
@@ -2608,9 +2627,9 @@
 
     renderAnalytics();
     renderRankBadge();
-    renderSpendChart();
 
     checkLimitAndPrompt();
+    detectarAnomalia();
   }
 
   /** Aplica el rango manual de los inputs de calendario ("Desde"/"Hasta"), sin depender de los botones rápidos. */
@@ -2632,9 +2651,9 @@
 
     renderAnalytics();
     renderRankBadge();
-    renderSpendChart();
 
     checkLimitAndPrompt();
+    detectarAnomalia();
   }
 
   // ┌──────────────────────────────────────────────────────────────────────┐
@@ -2667,7 +2686,7 @@
         EXPENSES = computeQuickFilter(null, RANGO_MANUAL);
         $('filter-count').textContent = `${EXPENSES.length} registro${EXPENSES.length === 1 ? '' : 's'}`;
         renderTable(); renderKpis(); renderSavingsCheck(); renderMonthCompare(); updateCountdown();
-        renderAnalytics(); renderRankBadge(); renderSpendChart(); checkLimitAndPrompt();
+        renderAnalytics(); renderRankBadge(); checkLimitAndPrompt(); detectarAnomalia();
       } else {
         applyFilterMode(FILTER_MODE);
       }
@@ -2722,6 +2741,7 @@
     $('btn-theme').addEventListener('click', toggleTheme);
     $('btn-hud-menu').addEventListener('click', (e) => { e.stopPropagation(); toggleHudDropdown(); });
     $('quest-toast-close').addEventListener('click', () => $('quest-toast').classList.remove('show'));
+    $('intrusion-toast-close').addEventListener('click', () => $('intrusion-toast').classList.remove('show'));
 
     // HUD lateral: click en un ítem abre/cierra su panel de detalle.
     document.querySelectorAll('.side-hud-item[data-panel]').forEach((btn) => {
@@ -2854,6 +2874,7 @@
       await loadNotas();
 
       await loadData(false);
+      playDecipherEffect(); // solo la primera vez — nunca en refrescos automáticos
     } catch (err) {
       hadError = true;
       console.error('Error de inicialización:', err);

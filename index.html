@@ -1464,8 +1464,9 @@
 
   /**
    * Descarga y parsea la hoja "TARJETA" vía la API pública gviz de Google Sheets.
-   * Columnas esperadas A–H: FECHA | GASTOS | $ | Cuotas (SI/NO) | Fecha de Corte |
-   * Fecha de Pago | Total de Tarjeta (banco) | Ingreso a cuenta de ahorro.
+   * Columnas esperadas A–J: FECHA | GASTOS | $ | Cuotas (SI/NO) | Cuántas cuotas |
+   * Cantidad abonadas | Fecha de Corte | Fecha de Pago | Total de Tarjeta (banco) |
+   * Ingreso a cuenta de ahorro.
    * Requiere que el Sheet esté compartido como "Cualquiera con el enlace — Lector".
    * @returns {Promise<{expenses: object[], corte: string|null, pago: string|null, limiteBanco: number|null, ahorro: number|null}>}
    */
@@ -1509,16 +1510,24 @@
       const monto = parseMoney(cell(2));
       const cuotas = parseCuotas(cell(3)); // columna D — por movimiento, no metadato de ciclo
 
+      // Columnas nuevas (E, F) — ligadas a la columna D: solo tienen sentido
+      // cuando ese movimiento es a cuotas ("SI"). Si viene vacío o en 0, se
+      // guarda como null en vez de 0 para poder distinguir "no aplica" de "cero".
+      const cuantasCuotasRaw = parseMoney(cell(4));
+      const cantidadAbonadasRaw = parseMoney(cell(5));
+      const cuantasCuotas = cuotas === 'SI' && cuantasCuotasRaw ? cuantasCuotasRaw : null;
+      const cantidadAbonadas = cuotas === 'SI' && cantidadAbonadasRaw !== null ? cantidadAbonadasRaw : null;
+
       // Corte/pago/límite/ahorro solo aparecen en la primera fila con dato — tomamos el primero no vacío.
-      if (!corte) corte = parseDMY(cell(4));
-      if (!pago) pago = parseDMY(cell(5));
-      if (!limiteBanco) limiteBanco = parseMoney(cell(6));
-      if (!ahorro) ahorro = parseMoney(cell(7)); // columna H
+      if (!corte) corte = parseDMY(cell(6));
+      if (!pago) pago = parseDMY(cell(7));
+      if (!limiteBanco) limiteBanco = parseMoney(cell(8));
+      if (!ahorro) ahorro = parseMoney(cell(9)); // columna J
 
       if (fecha && gasto && monto !== null) {
         // idx+2: la fila 1 del Sheet es el encabezado (headers=1), así que la
         // primera fila de datos (idx 0) corresponde a la fila 2 real del Sheet.
-        expenses.push({ fecha, gasto: String(gasto).trim(), monto, cuotas, fila: idx + 2 });
+        expenses.push({ fecha, gasto: String(gasto).trim(), monto, cuotas, cuantasCuotas, cantidadAbonadas, fila: idx + 2 });
       }
     });
 
@@ -1624,9 +1633,14 @@
     return monto > OUTLIER_THRESHOLD;
   }
 
-  /** HTML de la pastilla SI/NO/— para la columna Cuotas de la tabla. */
-  function cuotasBadge(cuotas) {
-    if (cuotas === 'SI') return '<span class="tag-cuotas si">SI</span>';
+  /** HTML de la pastilla SI/NO/— para la columna Cuotas de la tabla. Si es "SI" y hay datos de cuántas cuotas/abonadas, lo muestra en el tooltip. */
+  function cuotasBadge(cuotas, cuantasCuotas, cantidadAbonadas) {
+    if (cuotas === 'SI') {
+      const detalle = cuantasCuotas
+        ? ` title="${cantidadAbonadas ?? 0} de ${cuantasCuotas} cuotas abonadas"`
+        : '';
+      return `<span class="tag-cuotas si"${detalle}>SI</span>`;
+    }
     if (cuotas === 'NO') return '<span class="tag-cuotas no">NO</span>';
     return '<span class="tag-cuotas na">—</span>';
   }
@@ -1639,6 +1653,23 @@
       else if (e.cuotas === 'NO') no += 1;
     });
     return { si, no };
+  }
+
+  /**
+   * Progreso agregado de las compras a cuotas del ciclo — suma cuántas
+   * cuotas totales hay comprometidas vs. cuántas ya se abonaron, entre
+   * todos los movimientos marcados "SI" que traen ese dato (columnas E/F).
+   */
+  function progresoCuotas() {
+    let totalCuotas = 0, totalAbonadas = 0, movimientosConDato = 0;
+    EXPENSES.forEach((e) => {
+      if (e.cuotas === 'SI' && e.cuantasCuotas) {
+        totalCuotas += e.cuantasCuotas;
+        totalAbonadas += e.cantidadAbonadas || 0;
+        movimientosConDato += 1;
+      }
+    });
+    return { totalCuotas, totalAbonadas, movimientosConDato };
   }
 
   /** Nombres de mes en español, para las etiquetas "Junio" / "Julio" del comparativo. */
@@ -1865,7 +1896,7 @@
               <button class="note-btn" data-notakey="${key}" title="${nota ? 'Editar nota' : 'Agregar nota'}">${nota ? '🗒️' : '➕'}</button>
               ${nota ? `<div class="note-text">${nota}</div>` : ''}
             </td>
-            <td style="text-align:center">${cuotasBadge(e.cuotas)}</td>
+            <td style="text-align:center">${cuotasBadge(e.cuotas, e.cuantasCuotas, e.cantidadAbonadas)}</td>
             <td class="amt">${fmt(e.monto)}</td>
           </tr>`;
       }).join('');
@@ -2247,6 +2278,12 @@
       <div class="row"><span>A cuotas (SI)</span><b>${cuotasSi}</b></div>
       <div class="row"><span>De contado (NO)</span><b>${cuotasNo}</b></div>
       <div class="row"><span>% a cuotas</span><b>${totalCuotas ? ((cuotasSi / totalCuotas) * 100).toFixed(0) : 0}%</b></div>
+      ${(() => {
+        const { totalCuotas: cuotasComprometidas, totalAbonadas, movimientosConDato } = progresoCuotas();
+        return movimientosConDato
+          ? `<div class="row"><span>Cuotas abonadas</span><b>${totalAbonadas} de ${cuotasComprometidas}</b></div>`
+          : '';
+      })()}
     `;
   }
 
@@ -2271,11 +2308,13 @@
     } else if (panel === 'cuotas') {
       const { si, no } = contarCuotas();
       const totalC = si + no;
+      const { totalCuotas, totalAbonadas, movimientosConDato } = progresoCuotas();
       title.textContent = 'Compras a cuotas';
       body.innerHTML = `
         <div class="row"><span>A cuotas (SI)</span><b>${si}</b></div>
         <div class="row"><span>De contado (NO)</span><b>${no}</b></div>
         <div class="row"><span>% a cuotas</span><b>${totalC ? ((si / totalC) * 100).toFixed(0) : 0}%</b></div>
+        ${movimientosConDato ? `<div class="row"><span>Cuotas abonadas</span><b>${totalAbonadas} de ${totalCuotas}</b></div>` : ''}
       `;
     }
   }

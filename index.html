@@ -229,6 +229,35 @@ body.urgent .days i.on{animation:beat2 1s ease-in-out 8}@keyframes beat2{50%{opa
 body.priv .big,body.priv td.m,body.priv .sv b,body.priv .sum,body.priv #limst,body.priv .cq td,body.priv .bk b,body.priv .wk b,body.priv .vs,body.priv .simout,body.priv .tbd,body.priv #cCorte,body.priv #cPago{filter:blur(8px);user-select:none}
 .mockbar{flex-wrap:wrap;justify-content:center}.mockbar i{width:1px;background:var(--acc);margin:0 2px}
 @media(max-width:860px){.stamp{font-size:28px}.rankup b{font-size:90px}.wks{height:80px}.simin input{width:84px}.sc{width:100%}.sc button{flex:1}.metarow label{flex:1}.metarow input{width:100%}.mockbar{max-height:120px;overflow:auto}}
+
+.od{display:inline-block;height:1em;line-height:1em;overflow:hidden;vertical-align:bottom}
+.ds{display:flex;flex-direction:column;transform:translateY(calc(var(--n)*-1em));transition:transform 1.4s cubic-bezier(.15,.8,.2,1) var(--d,0ms)}
+.ds b{display:block;height:1em;line-height:1em;font-weight:inherit}
+.cf{position:fixed;top:-16px;left:var(--x);width:8px;height:14px;z-index:150;pointer-events:none;background:var(--c);animation:cfall var(--du) cubic-bezier(.3,.5,.5,1) var(--dl) both}
+@keyframes cfall{to{transform:translate(var(--sx),108vh) rotate(var(--r))}}
+.vig{position:fixed;inset:0;pointer-events:none;z-index:70;opacity:0;transition:opacity 1s;box-shadow:inset 0 0 170px var(--bad)}
+body.bad .vig{opacity:.2}body.ok .vig{opacity:.05;box-shadow:inset 0 0 150px var(--ok)}
+body.ok .card{animation:calm 6s ease-in-out infinite}@keyframes calm{50%{box-shadow:0 0 44px -6px var(--ok)}}
+body.gx .big{animation:gtx .5s steps(8) 1}
+@keyframes gtx{0%,100%{text-shadow:none;transform:none}15%{text-shadow:-3px 0 #ff3b47,3px 0 #4ad4ff;transform:translateX(-4px) skewX(-8deg)}35%{text-shadow:3px 0 #ff3b47,-3px 0 #4ad4ff;transform:translateX(5px)}55%{text-shadow:-2px 0 #ff3b47,2px 0 #4ad4ff;transform:translateX(-2px) skewX(5deg)}75%{text-shadow:2px 0 #ff3b47,-2px 0 #4ad4ff;transform:translateX(3px)}}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-top:10px}
+.cal .wd{font:600 9px 'JetBrains Mono',monospace;color:var(--tx3);text-align:center;letter-spacing:.1em}
+.cd{aspect-ratio:1;min-height:34px;border:1px solid var(--line);background:none;color:var(--tx2);font:600 11px 'JetBrains Mono',monospace;position:relative;padding:3px 4px;text-align:left;border-radius:5px;transition:.2s;animation:cdin .45s both;animation-delay:calc(var(--i)*14ms);cursor:pointer}
+.cd em{position:absolute;left:0;right:0;bottom:2px;text-align:center;font:500 8px 'JetBrains Mono',monospace;font-style:normal;opacity:.85}
+@keyframes cdin{from{opacity:0;transform:scale(.5)}}
+.cd:hover{border-color:var(--acc)}
+.cd.l1{background:color-mix(in srgb,var(--acc) 16%,transparent)}.cd.l2{background:color-mix(in srgb,var(--acc) 36%,transparent)}.cd.l3{background:color-mix(in srgb,var(--acc) 60%,transparent);color:var(--tx)}.cd.l4{background:color-mix(in srgb,var(--acc) 88%,transparent);color:#000;box-shadow:0 0 12px -2px var(--acc)}
+.cd.td{outline:2px solid var(--tx);outline-offset:1px}.cd.sel{outline:2px solid #ffd23f;outline-offset:1px;transform:scale(1.1);z-index:2}
+.cd.mk::after{content:attr(data-m);position:absolute;right:3px;top:2px;font-size:8px;font-weight:800;color:var(--warn)}
+.cd.ph{visibility:hidden}
+.calleg{display:flex;gap:5px;align-items:center;justify-content:flex-end;margin-top:10px;font-size:9px;color:var(--tx3);letter-spacing:.1em}.calleg i{width:12px;height:12px;border-radius:3px;border:1px solid var(--line)}
+.calleg .l1{background:color-mix(in srgb,var(--acc) 16%,transparent)}.calleg .l2{background:color-mix(in srgb,var(--acc) 36%,transparent)}.calleg .l3{background:color-mix(in srgb,var(--acc) 60%,transparent)}.calleg .l4{background:var(--acc)}
+.calday{margin-top:10px;font:500 12px 'JetBrains Mono',monospace}.cdr{display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px dashed var(--line)}.cdh{color:var(--acc);font-weight:700;letter-spacing:.06em;padding-bottom:6px}
+.an{display:flex;gap:10px;align-items:center;padding:9px 0;border-bottom:1px dashed var(--line);font-size:12px}.an small{font-size:10px;line-height:1.4;display:block}
+.tag.an{margin-left:0;white-space:nowrap}.tbd .tag.an,td .tag.an{margin-left:6px}
+td .tag.an{display:inline-block;width:auto;max-width:none;margin:0 0 0 6px;vertical-align:middle;white-space:nowrap}
+.tag.an.alto{color:var(--warn);border-color:var(--warn)}.tag.an.dup{color:var(--acc);border-color:var(--acc)}
+body.priv .cd em,body.priv .cdr b,body.priv .an b.mono{filter:blur(7px)}
 @media(max-width:860px){.tbd{font-size:12px;padding:10px 12px}.tcmd button{flex:1 1 100%}.pager button{flex:1;height:44px}.pi{min-width:0;flex:1.4}.mockbar{width:calc(100% - 20px);justify-content:center}.view{padding-bottom:90px}}
 @media(max-width:860px){
  .top2,.g2{grid-template-columns:1fr}
@@ -258,7 +287,7 @@ body.priv .big,body.priv td.m,body.priv .sv b,body.priv .sum,body.priv #limst,bo
 </style></head>
 <body>
 <div id="load"><div><div class="spin"></div><div id="boot"></div><div id="lerr"><p id="lerrm"></p><button id="lretry">↻ REINTENTAR</button></div></div></div>
-<div class="glitch" id="gl"></div><div class="rankup" id="rankup"></div><div id="toasts"></div>
+<div class="glitch" id="gl"></div><div class="rankup" id="rankup"></div><div class="vig" id="vig"></div><div id="toasts"></div>
 
 <header class="hd2">
   <div class="hb"><svg class="hlogo" viewBox="0 0 150 150"><circle cx="75" cy="75" r="55"/><ellipse cx="75" cy="75" rx="55" ry="18"/><path class="f" d="M75 45L82 68L105 75L82 82L75 105L68 82L45 75L68 68Z"/></svg>
@@ -313,6 +342,11 @@ body.priv .big,body.priv td.m,body.priv .sv b,body.priv .sum,body.priv #limst,bo
       <div class="sc"><button data-a="10">+10</button><button data-a="25">+25</button><button data-a="50">+50</button><button data-a="100">+100</button><button data-a="0">0</button></div></div>
     <div class="limw"><div class="limbar"><i class="ok" id="sok" style="display:block"></i><i class="ov" id="sov" style="display:block"></i></div><div class="limmark" id="smk"><span>LÍMITE</span></div></div>
     <div class="simout mono" id="simout"></div></div>
+  <div class="g2">
+    <div class="win rv" style="--i:4"><div class="lbl">// calendario de gastos · toca un día</div><div class="mono" id="calhd" style="font-size:10px;color:var(--tx3);margin-top:4px"></div><div class="cal" id="cal"></div>
+      <div class="calleg mono">MENOS <i class="l0"></i><i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="l4"></i> MÁS</div><div class="calday" id="calday"></div></div>
+    <div class="win rv" style="--i:5"><div class="lbl">// detector de anomalías</div><div id="anom"></div></div>
+  </div>
   <div class="g2">
     <div class="win rv" style="--i:3"><div class="lbl" style="margin-bottom:8px">// presupuesto · cuánto puedo gastar</div>
       <table class="bt"><tbody id="bt"></tbody></table>
@@ -372,6 +406,8 @@ function mockData(){
     ex.push({fecha:addDays(today,-d),gasto:g,monto:+rnd(3,60).toFixed(2),cuotas:q?'SI':'NO',n:nn,k:q?Math.floor(rnd(0,nn)):null,fila:fila++})}}
   const [a,b]=cycle(0),inr=ex.filter(x=>x.fecha>=a&&x.fecha<=b),sum=inr.reduce((t,x)=>t+x.monto,0),tgt={ok:.45,warn:.9,bad:1.7}[MOCKSC]*PL;
   inr.forEach(x=>x.monto=+(x.monto*tgt/Math.max(1,sum)).toFixed(2));
+  const mk=(d,g,m,q,n,k)=>ex.push({fecha:addDays(today,d),gasto:g,monto:m,cuotas:q,n:n,k:k,fila:fila++});
+  mk(-41,'Laptop',389.99,'SI',12,2);mk(-46,'Cena',27.5,'NO',null,null);mk(-45,'Cena',27.5,'NO',null,null);mk(-1,'Café',4.5,'NO',null,null);mk(-1,'Café',4.5,'NO',null,null);
   return {ex,corte:addDays(today,MOCKDP-4),pago:addDays(today,MOCKDP),banco:500,ahorro:120}}
 async function fetchSheet(){
   if(CARD.mock){await new Promise(r=>setTimeout(r,500));return mockData()}
@@ -393,7 +429,8 @@ async function fetchSheet(){
 }
 /* ---------- estado ---------- */
 let PIN=new Set(),PAIDK=null,MAH={m:0,d:''},PRIV=false,NEWK=new Set(),PREVK=null,ALL=[],META={corte:null,pago:null,banco:null,ahorro:null},PL=DEFAULT_LIMITE,VER=null,NOTAS={};
-let R1=null,R2=null,RQ='cur',Q='',SKEY='fecha',SD=-1,OPEN=null,lastL=null,lastBad=false,S={};
+const REDUCE=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let ANOM=new Map(),SELD=null,R1=null,R2=null,RQ='cur',Q='',SKEY='fecha',SD=-1,OPEN=null,lastL=null,lastBad=false,S={};
 try{PL=parseFloat(store.get(sk(K.LIM)))||DEFAULT_LIMITE}catch(e){}
 try{VER=JSON.parse(store.get(sk(K.VER))||'null')}catch(e){VER=null}
 try{PIN=new Set(JSON.parse(store.get(sk(K.PIN))||'[]'))}catch(e){PIN=new Set()}
@@ -412,7 +449,10 @@ function setRange(k,a,b){RQ=k;if(k==='cur'){[R1,R2]=cycle(0)}else if(k==='prev')
   $('d1').value=R1||'';$('d2').value=R2||'';OPEN=null;render();$('tw').scrollTop=0}
 /* ---------- util UI ---------- */
 function toast(h,b){const e=document.createElement('div');e.className='toast';e.innerHTML='<b>'+h+'</b>'+b;$('toasts').appendChild(e);setTimeout(()=>e.remove(),3900)}
-function count(el,to,f,ms=1000){const from=parseFloat(el.dataset.v||0);el.dataset.v=to;const t0=performance.now();(function s(t){const k=Math.min(1,(t-t0)/ms),e=1-Math.pow(1-k,3);el.textContent=f(from+(to-from)*e);if(k<1)requestAnimationFrame(s)})(t0)}
+function count(el,to,f){const t=f(to);if(el.dataset.s===t)return;el.dataset.s=t;el.setAttribute('aria-label',t);
+  if(el.dataset.len!==String(t.length)||!el.querySelector('.ds')){el.dataset.len=t.length;el.innerHTML=[...t].map((c,i)=>/\d/.test(c)?'<span class="od" style="--d:'+(i*80)+'ms"><span class="ds" style="--n:0">'+'0123456789'.split('').map(n=>'<b>'+n+'</b>').join('')+'</span></span>':'<span>'+c+'</span>').join('')}
+  const apply=()=>{const ds=el.querySelectorAll('.ds');let j=0;[...t].forEach(c=>{if(/\d/.test(c)&&ds[j])ds[j++].style.setProperty('--n',c)})};
+  if(REDUCE)apply();else requestAnimationFrame(()=>requestAnimationFrame(apply))}
 function hit(){const c=$('card');c.classList.remove('hit');c.offsetHeight;c.classList.add('hit');setTimeout(()=>c.classList.remove('hit'),950);const g=$('gl');g.classList.remove('go');g.offsetHeight;g.classList.add('go')}
 function typeBoot(txt){const el=$('boot');el.textContent='';let i=0;(function k(){if(i<=txt.length&&!$('load').classList.contains('out')){el.textContent=txt.slice(0,i++);setTimeout(k,22)}})()}
 /* ---------- cálculo ---------- */
@@ -429,7 +469,7 @@ function calc(){
   S={paid,rows,tot,u,pct,dp,dc,over,kind,st,L,R,avail:Math.max(0,PL-tot),exceso:Math.max(0,tot-PL)};
 }
 function render(){
-  calc();const s=S;
+  detect();calc();const s=S;
   document.body.classList.remove('ok','warn','bad');document.body.classList.add(s.st);
   document.documentElement.style.setProperty('--st',s.st=='ok'?'var(--ok)':s.st=='warn'?'var(--warn)':'var(--bad)');
   termRender();
@@ -529,8 +569,8 @@ function go(p,anim){const n=Math.max(1,Math.ceil(allRows().length/PER));p=Math.m
 function table(sw){
   const rs=allRows(),n=Math.max(1,Math.ceil(rs.length/PER));PG=Math.min(PG,n-1);
   const sl=rs.slice(PG*PER,PG*PER+PER),tb=$('tb');
-  tb.innerHTML=sl.map((x,i)=>{const key=x.fecha+'|'+x.gasto+'|'+x.monto+'|'+x.fila,op=OPEN===key,pn=PIN.has(key),nw=NEWK.has(key),inr=(!R1||x.fecha>=R1)&&(!R2||x.fecha<=R2);
-    return `<tr class="r ${x.monto>OUTLIER?'hi':''} ${inr?'inr':''} ${nw?'newr':''}" style="--i:${i};--r:${i%2?4:-4}deg" data-k="${esc(key)}"><td class="mono"><span class="pin ${pn?'on':''}" data-pk="${esc(key)}" title="Fijar">${pn?'★':'☆'}</span>${fd(x.fecha)}</td><td>${esc(x.gasto)}${x.cuotas==='SI'?`<br><span class="tag mtag">${x.n?'CUOTAS '+(x.k||0)+'/'+x.n:'CUOTAS'}</span>`:''}</td><td class="hm"><span class="tag ${x.cuotas==='SI'?'':'no'}">${x.cuotas==='SI'?'SI'+(x.n?' · '+x.n:''):'NO'}</span></td><td class="hm">${x.cuotas==='SI'&&x.n?`<div class="mini"><i data-w="${Math.min(100,(x.k||0)/x.n*100)}"></i></div><small class="mono" style="color:var(--tx3)">${x.k||0}/${x.n}</small>`:'—'}</td><td class="m">${fmt(x.monto)}</td></tr>`+
+  tb.innerHTML=sl.map((x,i)=>{const key=x.fecha+'|'+x.gasto+'|'+x.monto+'|'+x.fila,an=ANOM.get(key),op=OPEN===key,pn=PIN.has(key),nw=NEWK.has(key),inr=(!R1||x.fecha>=R1)&&(!R2||x.fecha<=R2);
+    return `<tr class="r ${x.monto>OUTLIER?'hi':''} ${inr?'inr':''} ${nw?'newr':''}" style="--i:${i};--r:${i%2?4:-4}deg" data-k="${esc(key)}"><td class="mono"><span class="pin ${pn?'on':''}" data-pk="${esc(key)}" title="Fijar">${pn?'★':'☆'}</span>${fd(x.fecha)}</td><td>${esc(x.gasto)}${an?`<span class="tag an ${an.t}" title="${esc(an.why)}">${an.t==='dup'?'⧉ DUP?':'⚠ ALTO'}</span>`:''}${x.cuotas==='SI'?`<br><span class="tag mtag">${x.n?'CUOTAS '+(x.k||0)+'/'+x.n:'CUOTAS'}</span>`:''}</td><td class="hm"><span class="tag ${x.cuotas==='SI'?'':'no'}">${x.cuotas==='SI'?'SI'+(x.n?' · '+x.n:''):'NO'}</span></td><td class="hm">${x.cuotas==='SI'&&x.n?`<div class="mini"><i data-w="${Math.min(100,(x.k||0)/x.n*100)}"></i></div><small class="mono" style="color:var(--tx3)">${x.k||0}/${x.n}</small>`:'—'}</td><td class="m">${fmt(x.monto)}</td></tr>`+
     (op?`<tr class="det"><td colspan="5"><div class="dd"><div class="rw"><span>Fila en Sheet: <b>${x.fila}</b></span><span>${x.cuotas==='SI'&&x.n?'Cuota mensual: <b>'+fmt(x.monto/x.n)+'</b>':'Pago único'}</span>${x.monto>OUTLIER?'<span style="color:var(--warn)">⚠ Gasto inusual</span>':''}${inr?'<span style="color:var(--acc)">● dentro del rango activo</span>':''}</div><textarea data-n="${esc(key)}" placeholder="Nota...">${esc(NOTAS[key]||'')}</textarea></div></td></tr>`:'');
   }).join('')||'<tr><td colspan="5" class="empty">Sin registros</td></tr>';
   tb.classList.remove('deal');if(sw){tb.offsetHeight;tb.classList.add('deal')}
@@ -577,7 +617,8 @@ function extras(){
   if(MAH.m>0){mb.style.width=Math.min(100,ah/MAH.m*100)+'%';const falta=Math.max(0,MAH.m-ah);let t=falta==0?'✔ META CUMPLIDA':'FALTAN '+fmt(falta);
     if(MAH.d&&falta>0){const dd=daysBetween(todayISO(),MAH.d);t+=dd>0?' · '+dd+' DÍAS · '+fmt(falta/dd)+'/DÍA':' · FECHA VENCIDA'}mt.textContent=t;mt.style.color=falta==0?'var(--ok)':'var(--acc)'}
   else{mb.style.width='0%';mt.textContent='DEFINE UNA META PARA VER EL AVANCE';mt.style.color='var(--tx3)'}
-  sim();document.body.classList.toggle('priv',PRIV);
+  if(MAH.m>0&&ah>=MAH.m&&!store.get(celK())){store.set(celK(),'1');confetti();toast('[ META ]','¡Meta de ahorro cumplida!')}
+  calendar();anomPanel();sim();document.body.classList.toggle('priv',PRIV);
 }
 function sim(){
   const x=Math.max(0,parseFloat($('simv').value)||0),s=S,nt=s.tot+x,u2=nt/PL,L2=rankOf(u2),ex=Math.max(0,nt-PL),sc=Math.max(1,nt/PL);
@@ -626,6 +667,40 @@ function runCmd(raw){
   else out.push(['  comando no reconocido. escribe: ayuda','bd']);
   pr(out)}
 
+
+/* ---------- v5: calendario, anomalías, temas, efectos ---------- */
+const celK=()=>sk('tarjeta:celeb')+MAH.m;
+function detect(){ANOM=new Map();const a=ALL.filter(x=>x.monto>0);if(a.length<6)return;
+  const v=a.map(x=>x.monto).sort((p,q)=>p-q),q1=v[Math.floor(v.length*.25)],q3=v[Math.floor(v.length*.75)],lim=q3+1.5*(q3-q1),by={};
+  a.forEach(x=>{const n=x.gasto.toLowerCase();(by[n]=by[n]||[]).push(x)});
+  a.forEach(x=>{const g=by[x.gasto.toLowerCase()];let why=null;
+    if(x.monto>lim)why='Muy por encima de lo habitual (sobre '+fmt(lim)+')';
+    else if(g.length>=4){const m=g.map(y=>y.monto).sort((p,q)=>p-q)[Math.floor(g.length/2)];if(x.monto>m*2.5&&x.monto>30)why='2.5× tu "'+x.gasto+'" típico ('+fmt(m)+')'}
+    if(why)ANOM.set(kOf(x),{t:'alto',why,x})});
+  Object.values(by).forEach(g=>{const s2=g.slice().sort((p,q)=>p.fecha<q.fecha?-1:p.fecha>q.fecha?1:0);
+    for(let i=1;i<s2.length;i++)for(let j=i-1;j>=0;j--){if(daysBetween(s2[j].fecha,s2[i].fecha)>2)break;
+      if(Math.abs(s2[j].monto-s2[i].monto)<.005){const w='Mismo gasto y monto '+(s2[j].fecha===s2[i].fecha?'el mismo día':'en días seguidos')+' ('+fd(s2[j].fecha)+')';
+        [s2[j],s2[i]].forEach(y=>{if(!ANOM.has(kOf(y)))ANOM.set(kOf(y),{t:'dup',why:w,x:y})});break}}})}
+function anomPanel(){const L=[...ANOM.values()].sort((p,q)=>p.x.fecha<q.x.fecha?1:-1).slice(0,6);
+  $('anom').innerHTML=L.length?L.map(a=>'<div class="an"><span class="tag an '+a.t+'">'+(a.t==='dup'?'⧉ DUP?':'⚠ ALTO')+'</span><div style="flex:1;min-width:0"><b>'+esc(a.x.gasto)+'</b> · '+fd(a.x.fecha)+'<small class="mono" style="color:var(--tx3)">'+esc(a.why)+'</small></div><b class="mono">'+fmt(a.x.monto)+'</b></div>').join('')+'<div class="lbl" style="margin-top:10px">'+ANOM.size+' MARCADOS EN TODO EL HISTORIAL</div>':'<div class="mono" style="color:var(--ok);padding:14px 0">✔ SIN ANOMALÍAS</div>'}
+function calendar(){
+  const today=todayISO();let a=R1,z=R2;if(!a||!z){z=today;a=addDays(today,-55)}if(daysBetween(a,z)>62)a=addDays(z,-62);
+  const sums={};ALL.forEach(x=>{sums[x.fecha]=(sums[x.fecha]||0)+x.monto});
+  const n=daysBetween(a,z)+1,days=[...Array(n)].map((_,i)=>addDays(a,i)),mx=Math.max(1,...days.map(d=>sums[d]||0)),off=(new Date(a+'T12:00:00').getDay()+6)%7;
+  $('calhd').textContent=fdn(a)+' → '+fdn(z);
+  let h=['L','M','M','J','V','S','D'].map(w=>'<span class="wd">'+w+'</span>').join('');
+  for(let i=0;i<off;i++)h+='<i class="cd ph"></i>';
+  days.forEach((d,i)=>{const v=sums[d]||0,lv=v>0?Math.max(1,Math.ceil(v/mx*4)):0,mk=META.corte===d?'C':META.pago===d?'P':'';
+    h+='<button class="cd l'+lv+(d===today?' td':'')+(d===SELD?' sel':'')+(mk?' mk':'')+'" data-d="'+d+'" data-m="'+mk+'" style="--i:'+i+'"><span>'+d.slice(8)+'</span>'+(v>0?'<em>'+Math.round(v)+'</em>':'')+'</button>'});
+  $('cal').innerHTML=h;
+  $$('#cal .cd[data-d]').forEach(b=>b.onclick=()=>{SELD=SELD===b.dataset.d?null:b.dataset.d;calendar()});
+  const cd=$('calday');
+  if(!SELD){cd.innerHTML='<div class="mono" style="color:var(--tx3);font-size:10px;letter-spacing:.08em">TOCA UN DÍA PARA VER SUS GASTOS</div>';return}
+  const L=ALL.filter(x=>x.fecha===SELD),t=L.reduce((q,x)=>q+x.monto,0);
+  cd.innerHTML='<div class="cdh">'+fd(SELD).toUpperCase()+' · '+L.length+' GASTO'+(L.length==1?'':'S')+' · '+fmt(t)+'</div>'+(L.length?L.map(x=>'<div class="cdr"><span>'+esc(x.gasto)+(ANOM.get(kOf(x))?' <span class="tag an '+ANOM.get(kOf(x)).t+'">'+(ANOM.get(kOf(x)).t==='dup'?'⧉ DUP?':'⚠ ALTO')+'</span>':'')+'</span><b>'+fmt(x.monto)+'</b></div>').join(''):'<div class="mono" style="color:var(--ok)">✔ SIN GASTOS ESE DÍA</div>')}
+/* efectos */
+function confetti(){const cl=['#ffd23f','#ff4d6a','#3ef2b0','#4ad4ff','#b84dff','#ffffff'];for(let i=0;i<70;i++){const c=document.createElement('i');c.className='cf';c.style.cssText='--x:'+Math.random()*100+'vw;--c:'+cl[i%6]+';--dl:'+Math.random()*600+'ms;--du:'+(2200+Math.random()*1600)+'ms;--sx:'+(Math.random()*160-80)+'px;--r:'+(Math.random()*900-450)+'deg';document.body.appendChild(c);setTimeout(()=>c.remove(),4600)}}
+
 /* ---------- eventos ---------- */
 function doCmd(v){
   if(v==='unpay'){PAIDK=null;store.set(sk(K.PAID),'');TSIG='';render();return}
@@ -661,16 +736,18 @@ if(store.get(K.THEME)==='light')document.documentElement.dataset.theme='light';
 $('rf').onclick=()=>{const b=$('rf');b.classList.remove('sp');b.offsetHeight;b.classList.add('sp');load(false)};
 window.addEventListener('resize',moveInd);
 let MOCKDP=2;
-if(CARD.mock){const m=document.createElement('div');m.className='mockbar';m.innerHTML='<span>DEMO</span><button data-m="ok">BAJO</button><button data-m="warn">CERCA</button><button data-m="bad" class="on">EXCEDIDO</button><i></i><button data-x="add">+ GASTO</button><button data-x="dp2">PAGO 2d</button><button data-x="dp12">PAGO 12d</button>';document.body.appendChild(m);
+if(CARD.mock){const m=document.createElement('div');m.className='mockbar';m.innerHTML='<span>DEMO</span><button data-m="ok">BAJO</button><button data-m="warn">CERCA</button><button data-m="bad" class="on">EXCEDIDO</button><i></i><button data-x="add">+ GASTO</button><button data-x="dp2">PAGO 2d</button><button data-x="dp12">PAGO 12d</button><button data-x="meta">META ✔</button>';document.body.appendChild(m);
  m.onclick=e=>{const b=e.target.closest('button');if(!b)return;
   if(b.dataset.m){MOCKSC=b.dataset.m;m.querySelectorAll('button[data-m]').forEach(x=>x.classList.toggle('on',x===b));VER=null;store.set(sk(K.VER),'null');PAIDK=null;store.set(sk(K.PAID),'');TSIG='';lastBad=false;load(false)}
   else if(b.dataset.x==='add'){const g=['Pizza','Uber','Cine','Farmacia','Café'][Math.floor(Math.random()*5)],x={fecha:todayISO(),gasto:g,monto:+(8+Math.random()*40).toFixed(2),cuotas:'NO',n:null,k:null,fila:Math.max(...ALL.map(z=>z.fila))+1};ALL.push(x);NEWK=new Set([kOf(x)]);SKEY='fecha';SD=-1;PG=0;TSIG='';render();table(true);toast('[ NUEVO GASTO ]',g+' · '+fmt(x.monto))}
+  else if(b.dataset.x==='meta'){MAH.m=Math.max(1,Math.round(META.ahorro||100));store.set(sk(K.META),JSON.stringify(MAH));store.set(celK(),'');extras()}
   else{MOCKDP=b.dataset.x==='dp2'?2:12;META.pago=addDays(todayISO(),MOCKDP);META.corte=addDays(todayISO(),MOCKDP-4);TSIG='';render()}}}
 const fl=$('cflip');
 if(matchMedia('(hover:hover) and (pointer:fine)').matches){
   fl.onmousemove=e=>{const r=fl.getBoundingClientRect(),x=(e.clientX-r.left)/r.width,y=(e.clientY-r.top)/r.height,sg=fl.classList.contains('flipped')?-1:1;fl.classList.add('tilting');fl.style.setProperty('--ty',(x-.5)*14*sg+'deg');fl.style.setProperty('--tx',(.5-y)*14+'deg');$('card').style.setProperty('--mx',x*100+'%');$('card').style.setProperty('--my',y*100+'%')};
   fl.onmouseleave=()=>{fl.classList.remove('tilting');fl.style.setProperty('--ty','0deg');fl.style.setProperty('--tx','0deg')}}
 fl.onclick=()=>fl.classList.toggle('flipped');
+setInterval(()=>{if(document.hidden||REDUCE||!document.body.classList.contains('bad'))return;hit();document.body.classList.add('gx');setTimeout(()=>document.body.classList.remove('gx'),540)},5200);
 /* ---------- carga ---------- */
 let wd=null;
 function showErr(msg){const l=$('load');l.classList.remove('out');l.classList.add('err');$('lerrm').textContent=msg;$('boot').textContent='> ERROR DE SINCRONIZACIÓN'}

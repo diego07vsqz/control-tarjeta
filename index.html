@@ -1,2954 +1,416 @@
 <!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Control de Tarjeta | Ledger Personal</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 32'%3E%3Crect x='2' y='4' width='40' height='24' rx='4' fill='%23c9a24b'/%3E%3Crect x='6' y='11' width='10' height='7' rx='1.5' fill='%2314171f'/%3E%3C/svg%3E">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<html lang="es"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#04070d">
+<title>Control de Tarjeta | Banco Cuscatlán</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 32'%3E%3Crect x='2' y='4' width='40' height='24' rx='4' fill='%234ad4ff'/%3E%3Crect x='6' y='11' width='10' height='7' rx='1.5' fill='%23ffffff'/%3E%3C/svg%3E">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@500;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --bg:#050810; --bg-2:#0a1220; --card:rgba(8,16,28,.65); --card-hover:rgba(14,26,42,.8);
-    --line:rgba(74,212,255,.22); --line-soft:rgba(74,212,255,.1);
-    --brass:#4ad4ff; --brass-soft:rgba(74,212,255,.14);
-    --rose:#ff4d6a; --rose-soft:rgba(255,77,106,.14);
-    --mint:#3ef2b0; --mint-soft:rgba(62,242,176,.14);
-    --amber:#ffc857; --amber-soft:rgba(255,200,87,.14);
-    --text:#e8f6ff; --text-mid:#8fa8bd; --text-dim:#5a7086;
-    --r-sm:2px; --r-md:2px; --r-lg:2px;
-    --notch:14px;
-    --glass-blur:16px;
-    --shadow-card:0 1px 1px rgba(0,0,0,.3), 0 0 0 1px rgba(74,212,255,.05) inset, 0 8px 24px -12px rgba(0,0,0,.6);
-    --shadow-hover:0 1px 1px rgba(0,0,0,.3), 0 0 18px -2px rgba(74,212,255,.4), 0 16px 40px -14px rgba(0,0,0,.7);
-  }
-  /* Recorte angular tipo HUD/system-window — el clip-path corta también el borde, así que el borde sale ya "cortado" sin trucos extra. */
-  .hud-cut{clip-path:polygon(var(--notch) 0, 100% 0, 100% calc(100% - var(--notch)), calc(100% - var(--notch)) 100%, 0 100%, 0 var(--notch));}
-  /* ── Tema claro — el header y la tarjeta visual se mantienen oscuros
-     a propósito (identidad de marca), solo cambia el cuerpo del dashboard. */
-  [data-theme="light"]{
-    --bg:#f5f3ee; --bg-2:#ffffff; --card:rgba(255,255,255,.7); --card-hover:rgba(255,255,255,.9);
-    --line:rgba(28,27,24,.1); --line-soft:rgba(28,27,24,.06);
-    --text:#1c1b18; --text-mid:#635d51; --text-dim:#948d7d;
-    --shadow-card:0 1px 1px rgba(0,0,0,.03), 0 8px 24px -14px rgba(0,0,0,.12);
-    --shadow-hover:0 1px 1px rgba(0,0,0,.04), 0 16px 36px -14px rgba(0,0,0,.18);
-  }
-  [data-theme="light"] body{
-    background:
-      radial-gradient(circle at 15% 0%, rgba(201,162,75,.05), transparent 40%),
-      radial-gradient(circle at 85% 10%, rgba(79,209,174,.04), transparent 35%),
-      var(--bg);
-  }
-  [data-theme="light"] .date-edit input{ color-scheme:light; }
-  [data-theme="light"] tbody tr:hover td{ background:rgba(0,0,0,.02); }
-  body{ transition:background-color .25s ease, color .25s ease; }
-
-  .kpi, .panel, .countdown-card, .date-edit, .modal, .toast{ transition:background-color .25s ease, border-color .25s ease; }
-  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
-  body{
-    position:relative;
-    background:
-      repeating-linear-gradient(180deg, rgba(74,212,255,.02) 0 1px, transparent 1px 3px),
-      radial-gradient(circle at 15% 0%, rgba(74,212,255,.08), transparent 40%),
-      radial-gradient(circle at 85% 10%, rgba(155,140,255,.06), transparent 35%),
-      var(--bg);
-    color:var(--text); font-family:'Inter',sans-serif; line-height:1.5;
-    -webkit-font-smoothing:antialiased; min-height:100vh; padding-bottom:60px;
-    overflow-x:hidden;
-  }
-  h1,h2,h3{font-family:'Space Grotesk',sans-serif;}
-
-  /* ── HUD lateral — franja fina, estado de límite y cuotas. Estático, sin animación continua.
-     Se oculta en pantallas angostas para no robarle espacio al contenido real en mobile. ── */
-  .side-hud{
-    position:fixed; left:0; top:50%; transform:translateY(-50%); z-index:40;
-    display:flex; flex-direction:column; gap:10px; padding:10px 6px;
-    background:rgba(5,8,16,.6); border:1px solid rgba(74,212,255,.2); border-left:none;
-    clip-path:polygon(0 0, 100% 10px, 100% calc(100% - 10px), 0 100%);
-  }
-  .side-hud-item{
-    width:26px; height:26px; display:flex; align-items:center; justify-content:center;
-    color:var(--text-dim); border:1px solid transparent; background:none; cursor:pointer; padding:0;
-    transition:color .3s ease, border-color .3s ease, background-color .2s ease, transform .2s ease;
-  }
-  .side-hud-item:hover{transform:scale(1.1); background:rgba(74,212,255,.08);}
-  .side-hud-item.active{color:var(--brass); border-color:rgba(74,212,255,.6); background:rgba(74,212,255,.12);}
-  .side-hud-item.state-ok{color:var(--mint); border-color:rgba(62,242,176,.4);}
-  .side-hud-item.state-warn{color:var(--amber); border-color:rgba(255,200,87,.4);}
-  .side-hud-item.state-bad{color:var(--rose); border-color:rgba(255,77,106,.4);}
-  @media(max-width:900px){ .side-hud, .side-hud-panel{display:none;} }
-
-  /* Panel de detalle — se abre al hacer click en un ítem del HUD. Transición
-     transform+opacity (igual de barata que un tooltip), nunca animación continua. */
-  .side-hud-panel{
-    position:fixed; left:44px; top:50%; transform:translateY(-50%) translateX(-8px); z-index:39;
-    width:200px; padding:14px 16px; opacity:0; pointer-events:none;
-    background:linear-gradient(160deg, rgba(10,20,36,.95), rgba(5,10,20,.97));
-    border:1px solid rgba(74,212,255,.4); box-shadow:0 0 24px -6px rgba(74,212,255,.3), 0 20px 40px -10px rgba(0,0,0,.6);
-    clip-path:polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
-    transition:opacity .25s ease, transform .25s cubic-bezier(.2,.8,.2,1);
-  }
-  .side-hud-panel.show{opacity:1; pointer-events:auto; transform:translateY(-50%) translateX(0);}
-  .side-hud-panel-title{
-    font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:11.5px; letter-spacing:.06em;
-    color:var(--brass); text-transform:uppercase; margin-bottom:8px;
-  }
-  .side-hud-panel-body{font-size:12px; color:var(--text-mid); line-height:1.7;}
-  .side-hud-panel-body b{color:var(--text); font-family:'JetBrains Mono',monospace;}
-  .side-hud-panel-body .row{display:flex; justify-content:space-between; gap:10px;}
-
-  .figures{font-family:'JetBrains Mono',monospace;}
-
-  /* ── Glass card system: fondo semi-opaco + hover elevado, compartido por todas las cards.
-     Sin backdrop-filter aquí a propósito: son ~15 elementos visibles a la vez, y el blur
-     detrás de cada uno se recalcula en cada frame de scroll — es la causa #1 de scroll lento.
-     El header/modal/toast sí lo usan (son 1-2 elementos, no tiene el mismo costo). ── */
-  .countdown-card, .date-edit, .kpi, .panel, .metric{
-    background:var(--card); border:1px solid var(--line);
-    box-shadow:var(--shadow-card);
-    clip-path:polygon(var(--notch) 0, 100% 0, 100% calc(100% - var(--notch)), calc(100% - var(--notch)) 100%, 0 100%, 0 var(--notch));
-    transition:transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .25s ease, background-color .25s ease, border-color .25s ease;
-  }
-  .kpi:hover, .panel:hover, .metric:hover, .countdown-card:hover{
-    transform:translateY(-3px);
-    box-shadow:var(--shadow-hover);
-    border-color:rgba(74,212,255,.5);
-  }
-
-  /* ── Escaneo de seguridad — una franja de luz cruza la card al pasar el mouse, UNA vez. ──
-     CSS puro: la animación solo corre mientras dura :hover, no hay JS ni loop de fondo. */
-  .kpi, .panel, .metric{position:relative; overflow:hidden;}
-  .kpi::after, .panel::after, .metric::after{
-    content:''; position:absolute; top:0; left:-30%; width:22%; height:100%; pointer-events:none;
-    background:linear-gradient(90deg, transparent, rgba(74,212,255,.16), transparent);
-    opacity:0;
-  }
-  .kpi:hover::after, .panel:hover::after, .metric:hover::after{
-    opacity:1; animation:card-scan .6s ease-out 1;
-  }
-  @keyframes card-scan{ 0%{left:-30%;} 100%{left:108%;} }
-
-  #loading-overlay{
-    position:fixed; inset:0; background:var(--bg); display:flex; flex-direction:column;
-    align-items:center; justify-content:center; gap:14px; z-index:9999; transition:opacity .4s;
-  }
-  #loading-overlay.fade-out{opacity:0; pointer-events:none;}
-  .spinner{width:38px; height:38px; border:2.5px solid rgba(201,162,75,.2); border-top-color:var(--brass); border-radius:50%; animation:spin .8s linear infinite;}
-  @keyframes spin{to{transform:rotate(360deg);}}
-  .loading-msg{font-size:11px; color:var(--text-dim); letter-spacing:.1em; text-transform:uppercase;}
-  .boot-line{
-    font-family:'JetBrains Mono',monospace; font-size:13px; letter-spacing:.08em; color:var(--brass);
-    text-shadow:0 0 8px rgba(74,212,255,.5); min-height:18px; margin-bottom:4px;
-  }
-  .boot-line::after{content:'▌'; opacity:1; animation:boot-cursor-blink .6s steps(1) infinite;}
-  .boot-line.done::after{display:none;}
-  @keyframes boot-cursor-blink{0%,50%{opacity:1;} 51%,100%{opacity:0;}}
-  #sheet-error{
-    display:none; max-width:480px; text-align:center; color:var(--rose); font-size:13px;
-    background:var(--rose-soft); border:1px solid var(--rose); border-radius:12px; padding:18px 22px; line-height:1.6;
-  }
-  #btn-retry-load{
-    background:var(--brass-soft); border:1px solid rgba(201,162,75,.4); color:var(--brass); border-radius:30px;
-    font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:12px; padding:9px 22px; cursor:pointer;
-    text-transform:uppercase; letter-spacing:.05em; transition:transform .2s, background .2s;
-  }
-  #btn-retry-load:hover{background:rgba(201,162,75,.22); transform:translateY(-1px) scale(1.03);}
-
-  header{
-    border-bottom:1px solid var(--line); padding:18px 40px;
-    display:flex; align-items:center; justify-content:space-between;
-    position:sticky; top:0; z-index:50; background:rgba(5,8,16,.75);
-    backdrop-filter:blur(20px) saturate(160%); -webkit-backdrop-filter:blur(20px) saturate(160%);
-    box-shadow:0 1px 12px -2px rgba(74,212,255,.25);
-  }
-  .brand{display:flex; align-items:center; gap:14px;}
-  .brand-mark{width:38px; height:26px; background:linear-gradient(135deg,var(--brass),#0a7ba8); position:relative; flex-shrink:0; box-shadow:0 0 14px rgba(74,212,255,.55); clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px);}
-  .brand-mark::after{content:''; position:absolute; left:5px; top:8px; width:14px; height:10px; background:rgba(5,8,16,.65);}
-  .brand-name{
-    font-size:15px; font-weight:700; letter-spacing:.08em;
-    background:linear-gradient(90deg, #4ad4ff, #9b8cff 60%, #4ad4ff);
-    -webkit-background-clip:text; background-clip:text; color:transparent;
-    filter:drop-shadow(0 0 10px rgba(155,140,255,.5));
-    display:inline-block; animation:title-glitch-in .7s cubic-bezier(.2,.8,.2,1) 1;
-  }
-  /* Un solo disparo automático al renderizar — CSS puro, sin JS, sin loop. */
-  @keyframes title-glitch-in{
-    0%{opacity:0; transform:translateX(-4px); filter:blur(2px);}
-    12%{opacity:1; transform:translateX(3px) skewX(-4deg); filter:blur(0);}
-    20%{transform:translateX(-3px) skewX(3deg);}
-    28%{transform:translateX(2px) skewX(-2deg);}
-    36%{transform:translateX(0);}
-    45%{opacity:.3; transform:translateX(-2px);}
-    52%{opacity:1; transform:translateX(1px);}
-    100%{opacity:1; transform:translateX(0) skewX(0); filter:blur(0);}
-  }
-  .brand-sub{font-size:10.5px; color:var(--text-dim); letter-spacing:.1em; text-transform:uppercase; margin-top:2px;}
-  .header-right{display:flex; gap:10px; align-items:center;}
-  .pill{
-    font-size:11px; padding:7px 14px; border-radius:30px; border:1px solid var(--line); color:var(--text-mid);
-    display:flex; align-items:center; gap:6px; background:rgba(255,255,255,.03);
-    backdrop-filter:blur(8px); transition:.2s;
-  }
-  .dot-live{width:6px;height:6px;border-radius:50%;background:var(--mint); box-shadow:0 0 8px var(--mint);}
-  @keyframes pulse{0%,100%{opacity:.4} 50%{opacity:1}}
-  .btn-refresh{
-    display:flex; align-items:center; gap:7px; background:var(--brass-soft); border:1px solid rgba(74,212,255,.35);
-    color:var(--brass); font-size:11px; font-weight:600; padding:8px 17px; cursor:pointer;
-    transition:transform .2s cubic-bezier(.2,.8,.2,1), background .2s, box-shadow .2s; font-family:inherit; text-transform:uppercase; letter-spacing:.05em;
-    clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px);
-  }
-  .btn-refresh:hover{background:rgba(74,212,255,.22); transform:translateY(-1px) scale(1.03); box-shadow:0 0 14px -2px var(--brass);}
-  .btn-refresh:active{transform:translateY(0) scale(.97);}
-  .btn-refresh svg{transition:transform .5s;}
-  .btn-refresh.spin svg{transform:rotate(360deg);}
-
-  .btn-theme{
-    display:flex; align-items:center; justify-content:center; width:34px; height:34px;
-    background:rgba(74,212,255,.06); border:1px solid rgba(74,212,255,.2);
-    color:rgba(232,246,255,.75); cursor:pointer; transition:transform .2s cubic-bezier(.2,.8,.2,1), background .2s;
-    clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px);
-  }
-  .btn-theme:hover{background:rgba(74,212,255,.16); transform:rotate(15deg) scale(1.08);}
-  .btn-theme svg{display:block;}
-
-  main{max-width:1240px; margin:0 auto; padding:34px 40px;}
-
-  /* ── Badge de rango (E-S) — escudo con letra + porcentaje usado, no solo una letra suelta ── */
-  .rank-badge{
-    display:flex; align-items:center; gap:8px; padding:4px 10px 4px 4px;
-    background:rgba(155,92,255,.08); border:1px solid rgba(155,92,255,.35);
-    clip-path:polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
-  }
-  .rank-shield{
-    width:26px; height:26px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
-    background:rgba(155,92,255,.15); border:1px solid currentColor;
-    clip-path:polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
-    font-family:'Space Grotesk',sans-serif; font-weight:800; font-size:13px; color:#c77dff;
-  }
-  .rank-info{display:flex; flex-direction:column; line-height:1.1;}
-  .rank-pct{font-family:'JetBrains Mono',monospace; font-weight:700; font-size:12px; color:var(--text);}
-  .rank-label{font-size:8px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.08em;}
-  .rank-badge.rank-S .rank-shield{color:#ffd23f; text-shadow:0 0 8px rgba(255,210,63,.7);}
-  .rank-badge.rank-A .rank-shield{color:var(--mint); text-shadow:0 0 6px rgba(62,242,176,.5);}
-  .rank-badge.rank-B .rank-shield{color:var(--brass);}
-  .rank-badge.rank-C .rank-shield{color:var(--amber);}
-  .rank-badge.rank-D .rank-shield{color:#ff9f5c;}
-  .rank-badge.rank-E .rank-shield{color:var(--rose);}
-
-
-
-  /* ── Menú desplegable (HUD en mobile) — reemplaza el botón de modo compacto.
-     El HUD lateral fijo no funciona bien en pantallas angostas, así que en
-     mobile este botón + desplegable es la única forma de ver límite/cuotas. ── */
-  .hud-dropdown{
-    position:fixed; top:64px; right:16px; z-index:200; width:220px;
-    background:linear-gradient(160deg, rgba(10,20,36,.97), rgba(5,10,20,.98));
-    border:1px solid rgba(74,212,255,.4); box-shadow:0 20px 40px -10px rgba(0,0,0,.7), 0 0 24px -6px rgba(74,212,255,.3);
-    clip-path:polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
-    max-height:0; opacity:0; overflow:hidden; pointer-events:none;
-    transition:max-height .3s cubic-bezier(.2,.8,.2,1), opacity .25s ease;
-  }
-  .hud-dropdown.show{max-height:220px; opacity:1; pointer-events:auto;}
-  .hud-dropdown-row{padding:12px 16px; border-bottom:1px solid rgba(74,212,255,.12);}
-  .hud-dropdown-row:last-child{border-bottom:none;}
-  .hud-dropdown-title{
-    display:flex; align-items:center; gap:8px; font-family:'Space Grotesk',sans-serif; font-weight:700;
-    font-size:11px; letter-spacing:.05em; color:var(--brass); text-transform:uppercase; margin-bottom:6px;
-  }
-  .hud-dropdown-body{font-size:11.5px; color:var(--text-mid); line-height:1.7;}
-  .hud-dropdown-body b{color:var(--text); font-family:'JetBrains Mono',monospace;}
-  .hud-dropdown-body .row{display:flex; justify-content:space-between; gap:10px;}
-  /* En desktop el HUD lateral fijo ya cumple esta función — el botón/desplegable solo aparece cuando ese HUD se oculta. */
-  .btn-hud-menu{display:none;}
-  @media(max-width:900px){ .btn-hud-menu{display:flex;} }
-
-  .hero{display:grid; grid-template-columns:340px 1fr; gap:28px; margin-bottom:28px;}
-  .card-column{display:flex; flex-direction:column;}
-  @media(max-width:860px){ .hero{grid-template-columns:1fr;} }
-  .card-visual{
-    aspect-ratio:1.586/1; border-radius:18px; position:relative; overflow:hidden;
-    background:
-      radial-gradient(circle at 85% -10%, rgba(255,255,255,.14), transparent 50%),
-      linear-gradient(135deg, #0c2c54 0%, #0a2246 45%, #071730 100%);
-    border:1px solid var(--line); padding:22px 24px; display:flex; flex-direction:column; justify-content:space-between;
-    box-shadow:0 20px 50px -20px rgba(0,0,0,.7);
-    perspective:900px; transition:transform .5s cubic-bezier(.2,.8,.2,1), box-shadow .5s ease;
-  }
-  .card-visual:hover{transform:rotateX(3deg) rotateY(-4deg) translateY(-3px); box-shadow:0 30px 60px -18px rgba(0,0,0,.75);}
-  .card-visual::before{content:''; position:absolute; inset:0; background:repeating-linear-gradient(115deg, rgba(255,255,255,.02) 0 2px, transparent 2px 40px); pointer-events:none;}
-  /* Onda decorativa genérica, inspirada en el acabado de las tarjetas del banco — sin reproducir logos. */
-  .card-visual::after{
-    content:''; position:absolute; left:-10%; bottom:-30%; width:130%; height:70%; pointer-events:none;
-    background:radial-gradient(ellipse at center, rgba(255,255,255,.06), transparent 70%);
-    border-radius:50%; transform:rotate(-6deg);
-  }
-
-  /* Emblema de seguridad — diseño propio (espiral + anillo), NO es un logo con derechos de autor. */
-  .card-emblem{position:absolute; right:-8px; bottom:-8px; width:150px; height:150px; opacity:.16; pointer-events:none; transition:opacity .5s ease, filter .5s ease;}
-  .card-emblem svg{width:100%; height:100%;}
-  .card-emblem .ring{fill:none; stroke:#ffffff; stroke-width:2;}
-  .card-emblem .spiral{fill:none; stroke:#ffffff; stroke-width:3; stroke-linecap:round;}
-  .card-emblem .crack{fill:none; stroke:var(--rose); stroke-width:4; stroke-linecap:round; opacity:0; stroke-dasharray:60; stroke-dashoffset:60; transition:opacity .25s ease, stroke-dashoffset .45s cubic-bezier(.2,.8,.2,1);}
-  .card-emblem .crack:nth-of-type(2){transition-delay:.08s;}
-  .card-emblem .crack:nth-of-type(3){transition-delay:.16s;}
-  .card-emblem .crack:nth-of-type(4){transition-delay:.24s;}
-
-  /* Viñeta roja de fondo — pulsa junto con el estado excedido. */
-  .card-alert-glow{position:absolute; inset:0; pointer-events:none; opacity:0; background:radial-gradient(ellipse at 78% 85%, rgba(226,83,107,.5), transparent 60%);}
-
-  /* Barrido tipo scanline — cruza la tarjeta, refuerza la idea de señal dañada/interferencia. */
-  .card-scanline{position:absolute; left:0; right:0; height:40%; pointer-events:none; opacity:0; background:linear-gradient(180deg, transparent, rgba(226,83,107,.18), transparent);}
-
-  .card-visual{border-width:1px; border-style:solid; border-color:var(--line); transition:transform .5s cubic-bezier(.2,.8,.2,1), box-shadow .5s ease, border-color .4s ease;}
-
-  /* Estado "warn" — excedido pero el usuario confirmó que sí puede pagar: alarma suave, ámbar, sin glitch ni grietas. */
-  .card-visual.card-warn{border-color:rgba(226,165,62,.5);}
-  .card-visual.card-warn .card-alert-glow{opacity:.6; background:radial-gradient(ellipse at 78% 85%, rgba(226,165,62,.28), transparent 62%);}
-  .card-visual.card-warn .card-emblem{opacity:.35; filter:drop-shadow(0 0 8px rgba(226,165,62,.55));}
-  .card-visual.card-warn .card-emblem .ring, .card-visual.card-warn .card-emblem .spiral{stroke:var(--amber);}
-  @keyframes card-warn-pulse{0%,100%{box-shadow:0 20px 50px -20px rgba(0,0,0,.7);} 50%{box-shadow:0 20px 50px -20px rgba(0,0,0,.7), 0 0 22px -4px rgba(226,165,62,.5);}}
-  @keyframes glow-pulse-amber{0%,100%{opacity:.4;} 50%{opacity:.85;}}
-
-  .card-visual.over-limit{
-    border-color:rgba(226,83,107,.55);
-    animation:card-alert-shake .4s cubic-bezier(.36,.07,.19,.97) 1;
-  }
-  .card-visual.over-limit .card-alert-glow{opacity:.75;}
-  .card-visual.over-limit .card-scanline{opacity:.4;}
-  .card-visual.over-limit .card-glitch-lines{opacity:.5;}
-  .card-visual.over-limit .card-emblem{
-    opacity:.9;
-    filter:drop-shadow(0 0 14px rgba(226,83,107,.85));
-    /* sin animación: parpadeo quitado por estabilidad */
-  }
-  .card-visual.over-limit .card-emblem .ring, .card-visual.over-limit .card-emblem .spiral{stroke:var(--rose);}
-  .card-visual.over-limit .card-emblem .crack{opacity:1; stroke-dashoffset:0;}
-  .card-visual.over-limit::before{background:repeating-linear-gradient(115deg, rgba(226,83,107,.1) 0 2px, transparent 2px 40px);}
-
-  /*
-   * "Corrupt hit" — golpe de corrupción de UN SOLO DISPARO (no infinito, no
-   * afecta rendimiento), pensado para el instante exacto en que el usuario
-   * confirma "No puedo pagar". Se suma encima del estado .over-limit ya
-   * existente: shake violento, chromatic split intermitente, flash de
-   * pantalla dañada y parpadeo del emblema — luego se quita sola y queda
-   * el estado .over-limit normal (estático) como siempre.
-   */
-  .card-visual.corrupt-hit{ animation: card-corrupt-hit .9s cubic-bezier(.36,.07,.19,.97) 1; }
-  .card-visual.corrupt-hit .card-scanline{ animation: corrupt-flash .9s ease-out 1; }
-  .card-visual.corrupt-hit .card-glitch-lines{ opacity:1; animation: corrupt-lines-flicker .9s steps(7) 1; }
-  .card-visual.corrupt-hit .card-emblem{ animation: corrupt-emblem-hit .9s ease-out 1; }
-  .card-visual.corrupt-hit .card-tear{ animation: corrupt-flash .9s ease-out 1; }
-
-  @keyframes card-corrupt-hit{
-    0%{transform:translate(0,0) rotateZ(0); box-shadow:none;}
-    8%{transform:translate(-7px,3px) rotateZ(-1.2deg); box-shadow:-4px 0 0 rgba(79,212,255,.6), 4px 0 0 rgba(226,83,107,.6);}
-    16%{transform:translate(6px,-4px) rotateZ(1deg); box-shadow:none;}
-    24%{transform:translate(-5px,2px) rotateZ(-.8deg); box-shadow:-3px 0 0 rgba(79,212,255,.55), 3px 0 0 rgba(226,83,107,.55);}
-    33%{transform:translate(4px,-2px); box-shadow:none;}
-    42%{transform:translate(-3px,1px); box-shadow:-3px 0 0 rgba(79,212,255,.5), 3px 0 0 rgba(226,83,107,.5); filter:brightness(1.5) contrast(1.25);}
-    50%{transform:translate(0,0); filter:none;}
-    60%{transform:translate(3px,2px); box-shadow:none;}
-    70%{transform:translate(-2px,-1px); box-shadow:-2px 0 0 rgba(79,212,255,.4), 2px 0 0 rgba(226,83,107,.4);}
-    85%{transform:translate(1px,0); box-shadow:none;}
-    100%{transform:translate(0,0); box-shadow:none;}
-  }
-  @keyframes corrupt-flash{0%{opacity:0;} 6%{opacity:1;} 22%{opacity:.25;} 100%{opacity:.4;}}
-  @keyframes corrupt-lines-flicker{
-    0%,100%{opacity:1;} 14%{opacity:.1;} 28%{opacity:1;} 42%{opacity:.15;} 57%{opacity:1;} 71%{opacity:.2;} 85%{opacity:.5;}
-  }
-  @keyframes corrupt-emblem-hit{
-    0%{opacity:.9; filter:drop-shadow(0 0 14px rgba(226,83,107,.85));}
-    10%{opacity:.2;}
-    20%{opacity:1; filter:drop-shadow(0 0 22px rgba(226,83,107,1)) drop-shadow(2px 0 0 rgba(79,212,255,.6));}
-    35%{opacity:.3;}
-    50%{opacity:1;}
-    65%{opacity:.4;}
-    100%{opacity:.9; filter:drop-shadow(0 0 14px rgba(226,83,107,.85));}
-  }
-
-  /* Franjas de corte tipo VHS/glitch — presencia fija cuando está excedido, sin animación continua (perf). */
-  .card-glitch-lines{
-    position:absolute; inset:0; opacity:0; pointer-events:none; z-index:2;
-    background:repeating-linear-gradient(0deg, transparent 0 6px, rgba(226,83,107,.35) 6px 7px, transparent 7px 18px, rgba(79,212,255,.28) 18px 19px, transparent 19px 34px);
-    transition:opacity .3s ease;
-  }
-
-  /* Grieta de tarjeta completa — "destrozada", diseño propio, no logo de nadie. */
-  .card-tear{position:absolute; inset:0; opacity:0; pointer-events:none; transition:opacity .5s ease; z-index:1;}
-  .card-tear svg{width:100%; height:100%;}
-  .card-tear .tear-line{fill:none; stroke:var(--rose); stroke-width:1.6; stroke-linecap:round; opacity:.9;}
-  .card-tear .tear-shard{fill:rgba(7,23,48,.55); stroke:var(--rose); stroke-width:.8;}
-  .card-visual.over-limit .card-tear{opacity:1; filter:drop-shadow(0 0 4px rgba(226,83,107,.65));}
-
-  /* Estado "ok" — dentro del límite: brillo verde tranquilo, respiración lenta, nada agresivo. */
-  .card-visual.card-ok .card-alert-glow{opacity:.45; background:radial-gradient(ellipse at 78% 85%, rgba(79,209,174,.2), transparent 62%);}
-  .card-visual.card-ok .card-emblem{opacity:.14;}
-  @keyframes glow-pulse-mint{0%,100%{opacity:.35;} 50%{opacity:.75;}}
-
-  /* Aviso de fecha de pago próxima — vive DEBAJO de la tarjeta, no la tapa. */
-  .card-due-notice{
-    max-height:0; opacity:0; overflow:hidden; margin-top:0; border-radius:var(--r-md);
-    transition:max-height .4s cubic-bezier(.2,.8,.2,1), opacity .4s ease, margin-top .4s ease, padding .4s ease;
-    padding:0 16px;
-  }
-  .card-due-notice.show{max-height:60px; opacity:1; margin-top:12px; padding:10px 16px;}
-  .due-title{font-size:9.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase;}
-  .due-sub{font-size:10.5px; margin-top:2px; opacity:.92;}
-  .card-due-notice.ok{background:var(--mint-soft); color:var(--mint); border:1px solid rgba(79,209,174,.4);}
-  .card-due-notice.warn{background:var(--amber-soft); color:var(--amber); border:1px solid rgba(226,165,62,.45);}
-  .card-due-notice.critical{background:rgba(226,83,107,.22); color:var(--rose); border:1px solid rgba(226,83,107,.5);}
-  @keyframes due-pulse-critical{0%,100%{background:var(--rose-soft);} 50%{background:rgba(226,83,107,.22);}}
-
-  @keyframes card-alert-shake{
-    10%,90%{transform:translateX(-1px) rotateZ(-.3deg);}
-    20%,80%{transform:translateX(2px) rotateZ(.4deg);}
-    30%,50%,70%{transform:translateX(-3px) rotateZ(-.5deg);}
-    40%,60%{transform:translateX(3px) rotateZ(.5deg);}
-  }
-  /* Respiración 3D continua mientras sigue excedida. */
-  @keyframes card-alert-breathe{
-    0%,100%{transform:rotateX(0deg) rotateY(0deg) scale(1);}
-    50%{transform:rotateX(2deg) rotateY(-2.5deg) scale(1.01);}
-  }
-  /* Micro-cortes tipo VHS: salto seco (steps), no deslizado — así se siente "señal rota", no un temblor suave. */
-  @keyframes card-alert-glitch{
-    0%,91%,100%{transform:translate(0,0) scale(1);}
-    92%{transform:translate(-4px,1px) scale(1.002);}
-    93%{transform:translate(3px,-2px);}
-    94%{transform:translate(0,0);}
-    95%{transform:translate(-3px,1px);}
-    96%{transform:translate(2px,0);}
-    97%{transform:translate(0,0);}
-  }
-  @keyframes glow-pulse{0%,100%{opacity:.55;} 50%{opacity:1;}}
-  @keyframes scanline-sweep{0%{transform:translateY(-120%);} 100%{transform:translateY(220%);}}
-  /* Parpadeo agresivo tipo "señal dañada", con salto de posición además de opacidad. */
-  @keyframes emblem-flicker{
-    0%,100%{opacity:.9; transform:translate(0,0);}
-    38%{opacity:.9; transform:translate(0,0);}
-    40%{opacity:.3; transform:translate(1.5px,0);}
-    42%{opacity:.9; transform:translate(-1px,0);}
-    43%{opacity:.4;}
-    45%{opacity:.9; transform:translate(0,0);}
-    70%{opacity:.9;}
-    71%{opacity:.35; transform:translate(-1.5px,.5px);}
-    73%{opacity:.9; transform:translate(0,0);}
-  }
-
-  .contactless{opacity:.8;}
-  .chip{width:38px;height:28px;border-radius:5px;background:linear-gradient(135deg,#d4b46a,#8a6f2e); position:relative; z-index:1;}
-  .card-top{display:flex; justify-content:space-between; align-items:flex-start; position:relative; z-index:1;}
-  .card-issuer{font-size:11px; letter-spacing:.12em; color:rgba(255,255,255,.65); text-transform:uppercase;}
-  .card-number{font-family:'JetBrains Mono',monospace; font-size:17px; letter-spacing:.14em; color:rgba(255,255,255,.8); margin-top:14px; position:relative; z-index:1;}
-  .card-bottom{display:flex; justify-content:space-between; align-items:flex-end; position:relative; z-index:1;}
-  .card-label{font-size:9px; color:rgba(255,255,255,.45); letter-spacing:.1em; text-transform:uppercase; margin-bottom:3px;}
-  .card-value{font-family:'JetBrains Mono',monospace; font-size:13px; color:rgba(255,255,255,.9);}
-  .card-brandmark{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:15px; font-style:italic; color:var(--brass);}
-
-  .hero-right{display:flex; flex-direction:column; gap:16px;}
-  .countdown-card{
-    border-radius:var(--r-lg); padding:20px 24px; display:flex; align-items:center; gap:24px; flex:1;
-    position:relative; overflow:hidden; --glow:rgba(79,209,174,.35); clip-path:none;
-  }
-  .countdown-card::after{
-    content:''; position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity .4s ease;
-    background:radial-gradient(ellipse at 15% 50%, var(--glow), transparent 65%);
-  }
-  .countdown-card::before{
-    content:''; position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity .4s ease;
-    background:repeating-linear-gradient(180deg, rgba(255,255,255,.025) 0 1px, transparent 1px 3px);
-  }
-  .countdown-card.ok{--glow:rgba(79,209,174,.3);}
-  .countdown-card.warning{--glow:rgba(226,165,62,.35);}
-  .countdown-card.urgent{--glow:rgba(226,83,107,.4);}
-  .countdown-card.ok::after, .countdown-card.warning::after, .countdown-card.urgent::after,
-  .countdown-card.ok::before, .countdown-card.warning::before, .countdown-card.urgent::before{opacity:1;}
-  
-  
-  @keyframes countdown-breathe{0%,100%{box-shadow:var(--shadow-card);} 50%{box-shadow:var(--shadow-card), 0 0 30px -4px var(--glow);}}
-
-  /* ── Anillo tipo HUD/"status window" — números grandes con glow, marcas digitales, no logo de nadie ── */
-  .ring-wrap{position:relative; width:104px; height:104px; flex-shrink:0; z-index:1;}
-  .ring-wrap svg{transform:rotate(-90deg); overflow:visible;}
-  #ring-track{stroke:rgba(255,255,255,.08);}
-  #ring-ticks{opacity:.5;}
-  #ring-progress{transition:stroke-dashoffset .6s cubic-bezier(.2,.8,.2,1), stroke 1.5s ease, filter .4s ease;}
-  .ring-num{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;}
-  .ring-num .n{
-    font-family:'JetBrains Mono',monospace; font-size:30px; font-weight:700; display:inline-block; letter-spacing:-.02em;
-    transition:transform .3s cubic-bezier(.34,1.56,.64,1), text-shadow .4s ease; text-shadow:0 0 12px currentColor;
-  }
-  .ring-num .n.pop{transform:scale(1.22);}
-  .ring-num .u{font-size:8.5px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.15em; margin-top:1px;}
-  .countdown-card.ok .ring-num .n{color:var(--mint);}
-  .countdown-card.warning .ring-num .n{color:var(--amber);}
-  .countdown-card.urgent .ring-num .n{color:var(--rose);}
-
-  .countdown-text{position:relative; z-index:1;}
-  .countdown-text .k{font-size:10.5px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.1em; margin-bottom:6px;}
-  .countdown-text .v{font-size:19px; font-weight:700; color:var(--text); letter-spacing:.01em;}
-  .countdown-text .status{display:inline-flex; align-items:center; gap:6px; margin-top:10px; font-size:11.5px; padding:5px 12px; border-radius:20px; font-weight:600; transition:background-color .3s, color .3s;}
-
-  /* ── Barra XP: progreso del ciclo, estilo nivel de juego. Sin animación continua — solo transición al cambiar. ── */
-  .xp-bar-wrap{margin-bottom:16px;}
-  .xp-bar-head{display:flex; justify-content:space-between; margin-bottom:6px;}
-  .xp-bar-lbl{font-size:9.5px; font-weight:700; letter-spacing:.18em; color:#c77dff; text-shadow:0 0 8px rgba(199,125,255,.5);}
-  .xp-bar-val{font-size:11px; font-weight:700; color:var(--text); font-family:'JetBrains Mono',monospace;}
-  .xp-bar-track{
-    position:relative; height:14px; background:rgba(255,255,255,.04); border:1px solid rgba(155,92,255,.3);
-    clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px); overflow:hidden;
-  }
-  .xp-bar-fill{
-    height:100%; background:linear-gradient(90deg, #6a3dbf, #c77dff, #4ad4ff);
-    box-shadow:0 0 10px rgba(199,125,255,.6); transition:width .7s cubic-bezier(.2,.8,.2,1);
-    position:relative; overflow:hidden;
-  }
-  /* Textura "circuito" — estática, un solo patrón repetido, sin animación (cero costo). */
-  .xp-bar-fill::after{
-    content:''; position:absolute; inset:0; opacity:.35; mix-blend-mode:overlay;
-    background:
-      repeating-linear-gradient(90deg, rgba(255,255,255,.5) 0 1px, transparent 1px 14px),
-      repeating-linear-gradient(0deg, rgba(255,255,255,.35) 0 1px, transparent 1px 6px);
-  }
-  .xp-bar-ticks{
-    position:absolute; inset:0; pointer-events:none;
-    background:repeating-linear-gradient(90deg, transparent 0 24px, rgba(0,0,0,.35) 24px 25px);
-  }
-  .dates-row{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
-  .date-edit{border-radius:var(--r-md); padding:14px 18px;}
-  .date-edit label{font-size:10.5px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.08em; display:flex; justify-content:space-between; margin-bottom:8px;}
-  .date-edit .src{font-size:9px; padding:2px 7px; border-radius:10px; background:var(--mint-soft); color:var(--mint); white-space:nowrap;}
-  .date-edit .src.local{background:var(--amber-soft); color:var(--amber);}
-  .date-edit input{background:var(--bg-2); border:1px solid var(--line); border-radius:8px; color:var(--text); font-family:'JetBrains Mono',monospace; font-size:14px; padding:8px 10px; width:100%; color-scheme:dark;}
-  .date-edit input:focus{outline:none; border-color:var(--brass);}
-
-  /* ── KPIs ── */
-  .kpi-row{display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:28px;}
-  @media(max-width:860px){ .kpi-row{grid-template-columns:1fr 1fr;} }
-
-  .kpi{border-radius:var(--r-md); padding:18px 20px; position:relative; overflow:hidden;}
-  .kpi::before{content:''; position:absolute; left:0; top:0; bottom:0; width:3px;}
-  .kpi.k1::before{background:var(--brass);} .kpi.k2::before{background:var(--mint);}
-  .kpi.k3::before{background:var(--amber);} .kpi.k4::before{background:var(--rose);}
-  .kpi .lbl{font-size:11px; color:var(--text-mid); text-transform:uppercase; letter-spacing:.06em; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;}
-  .kpi .lbl input{
-    width:56px; background:var(--bg-2); border:1px solid var(--line); border-radius:6px; color:var(--brass);
-    font-family:'JetBrains Mono',monospace; font-size:11px; padding:2px 5px; text-align:right;
-  }
-  .kpi .val{font-size:24px; font-weight:700; font-family:'Space Grotesk',sans-serif;}
-  .kpi .sub{font-size:11px; color:var(--text-dim); margin-top:4px;}
-  .bar-track{height:6px; background:var(--bg-2); border-radius:10px; margin-top:10px; overflow:hidden; position:relative;}
-  .bar-fill{height:100%; border-radius:10px; transition:width .6s cubic-bezier(.2,.8,.2,1); position:relative; overflow:hidden;}
-  /* shimmer quitado por estabilidad */
-  @keyframes shimmer{0%{transform:translateX(-100%);} 100%{transform:translateX(100%);}}
-
-  .section-title{display:flex; align-items:center; gap:10px; margin:0 0 16px; font-size:13px; text-transform:uppercase; letter-spacing:.12em; color:var(--text-mid); text-shadow:0 0 10px rgba(74,212,255,.25);}
-  .section-title::before{content:'◆'; color:var(--brass); font-size:9px; text-shadow:0 0 8px var(--brass);}
-  @keyframes tick-pulse{0%,100%{opacity:.5;} 50%{opacity:1;}}
-  .section-title::after{content:''; flex:1; height:1px; background:var(--line);}
-
-  .savings-check-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;}
-  .verdict-pill{font-size:11.5px; padding:5px 13px; border-radius:20px; font-weight:600; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;}
-  .verdict-pill.ok{background:var(--mint-soft); color:var(--mint);}
-  .verdict-pill.warn{background:var(--amber-soft); color:var(--amber);}
-  .verdict-pill.bad{background:var(--rose-soft); color:var(--rose);}
-  .verdict-pill.na{background:var(--bg-2); color:var(--text-dim);}
-  .savings-check-row{display:flex; justify-content:space-between; font-size:13px; color:var(--text-mid); margin-bottom:8px; flex-wrap:wrap; gap:6px;}
-  .savings-check-row b{color:var(--text); font-family:'JetBrains Mono',monospace;}
-  .savings-hint{margin-top:10px; font-size:12px; color:var(--text-dim);}
-
-  .table-toolbar{display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:16px;}
-  .table-toolbar .section-title{margin:0; border:none; flex-shrink:0;}
-  .table-toolbar .section-title::after{display:none;}
-  .input-search{
-    background:var(--bg-2); border:1px solid var(--line); border-radius:8px; color:var(--text);
-    font-family:'Inter',sans-serif; font-size:12.5px; padding:7px 12px; width:200px;
-  }
-  .input-search:focus{outline:none; border-color:var(--brass);}
-  .input-search::placeholder{color:var(--text-dim);}
-
-  .panel{border-radius:var(--r-lg); padding:22px 24px;}
-
-  table{width:100%; border-collapse:collapse; font-size:13px;}
-  thead th{text-align:left; font-size:10.5px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.06em; font-weight:600; padding:0 10px 10px; border-bottom:1px solid var(--line);}
-  thead th.sortable{cursor:pointer; user-select:none; transition:color .15s;}
-  thead th.sortable:hover{color:var(--text);}
-  thead th.sortable .arrow{display:inline-block; margin-left:4px; opacity:.35; font-size:9px;}
-  thead th.sortable.active .arrow{opacity:1; color:var(--brass);}
-
-  .table-wrap{touch-action:pan-y;}
-  .table-pagination{display:flex; align-items:center; justify-content:center; gap:16px; margin-top:16px; padding-top:14px; border-top:1px solid var(--line);}
-  .page-btn{
-    width:30px; height:30px; border-radius:50%; background:var(--bg-2); border:1px solid var(--line); color:var(--text);
-    font-size:15px; cursor:pointer; display:flex; align-items:center; justify-content:center;
-    transition:transform .2s cubic-bezier(.2,.8,.2,1), background .2s, opacity .2s;
-  }
-  .page-btn:hover:not(:disabled){background:var(--card-hover); transform:scale(1.08);}
-  .page-btn:disabled{opacity:.3; cursor:not-allowed;}
-  .page-indicator{font-size:11.5px; color:var(--text-mid); font-family:'JetBrains Mono',monospace; min-width:110px; text-align:center;}
-  tbody td{padding:11px 10px; border-bottom:1px solid var(--line-soft); vertical-align:middle;}
-  tbody tr:last-child td{border-bottom:none;}
-  tbody tr:hover td{background:rgba(255,255,255,.015);}
-  /* Entrada "unlock" tipo registro de sistema — un solo disparo por fila, no infinita (seguro para rendimiento). */
-  .row-unlock{animation:row-unlock .35s cubic-bezier(.2,.8,.2,1) both;}
-
-  .row-unlock td:first-child{position:relative;}
-  @keyframes row-unlock{
-    0%{opacity:0; transform:translateX(-10px); background:rgba(74,212,255,.1);}
-    60%{opacity:1;}
-    100%{opacity:1; transform:translateX(0); background:transparent;}
-  }
-  .amt{font-family:'JetBrains Mono',monospace; font-weight:600; text-align:right;}
-  .empty-row td{text-align:center; color:var(--text-dim); padding:24px;}
-
-  .tag-warn{
-    font-size:9.5px; padding:2px 7px; border-radius:20px; background:var(--amber-soft); color:var(--amber);
-    text-transform:uppercase; letter-spacing:.03em; font-weight:600; margin-left:8px; white-space:nowrap;
-  }
-  .tag-cuotas{font-size:9.5px; padding:2px 9px; border-radius:20px; font-weight:600; text-transform:uppercase; letter-spacing:.03em; white-space:nowrap;}
-  .tag-cuotas.si{background:var(--amber-soft); color:var(--amber);}
-  .tag-cuotas.no{background:var(--mint-soft); color:var(--mint);}
-  .tag-cuotas.na{background:var(--bg-2); color:var(--text-dim);}
-  .note-btn{
-    background:none; border:none; cursor:pointer; font-size:12px; opacity:.55; margin-left:8px;
-    vertical-align:middle; transition:opacity .15s;
-  }
-  .note-btn:hover{opacity:1;}
-  .note-text{font-size:11.5px; color:var(--text-dim); font-style:italic; margin-top:3px;}
-
-  /* ── Analítica ── */
-  .analytics-row{display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:28px;}
-  @media(max-width:860px){ .analytics-row{grid-template-columns:1fr 1fr;} }
-  .metric{border-radius:var(--r-md); padding:16px 20px; position:relative; overflow:hidden;}
-  .metric::before{content:''; position:absolute; left:0; top:0; bottom:0; width:3px;}
-  .metric.m1::before{background:var(--brass);}
-  .metric.m2::before{background:var(--mint);}
-  .metric.m3::before{background:var(--amber);}
-  .metric .val .n{color:var(--text);}
-  .metric .val .tag-si{color:var(--amber);}
-  .metric .val .tag-no{color:var(--mint);}
-  .metric .lbl{font-size:10.5px; color:var(--text-mid); text-transform:uppercase; letter-spacing:.06em; margin-bottom:8px;}
-  .metric .val{font-size:21px; font-weight:700; font-family:'Space Grotesk',sans-serif;}
-  .metric .sub{font-size:11px; color:var(--text-dim); margin-top:4px;}
-
-  /* ── Selector de tarjeta ── */
-  .card-select{
-    background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); border-radius:var(--r-sm);
-    color:var(--text); font-size:11.5px; padding:6px 10px; font-family:inherit; cursor:pointer;
-  }
-
-  /* ── Modal tipo "ventana de sistema" — terminal verde/cian, esquinas cortadas DOBLES (staircase) ── */
-  .modal-overlay{
-    position:fixed; inset:0; background:rgba(2,4,10,.8); backdrop-filter:blur(6px);
-    display:none; align-items:center; justify-content:center; z-index:500; padding:20px;
-  }
-  .modal-overlay.show{display:flex;}
-  .modal{
-    position:relative; background:linear-gradient(160deg, rgba(4,14,10,.94), rgba(3,8,14,.96));
-    border:1px solid rgba(62,242,176,.45); padding:32px 34px;
-    max-width:420px; width:100%; font-family:'JetBrains Mono',monospace;
-    box-shadow:0 0 0 1px rgba(62,242,176,.08) inset, 0 0 40px -6px rgba(62,242,176,.35), 0 30px 70px -20px rgba(0,0,0,.8);
-    clip-path:polygon(
-      0 20px, 20px 20px, 20px 0,
-      100% 0,
-      100% calc(100% - 20px), calc(100% - 20px) calc(100% - 20px), calc(100% - 20px) 100%,
-      0 100%
-    );
-    animation:modalPowerOn .45s cubic-bezier(.2,.8,.2,1);
-  }
-  .modal::before{
-    content:''; position:absolute; inset:0; pointer-events:none; opacity:.5;
-    background:repeating-linear-gradient(180deg, rgba(62,242,176,.02) 0 1px, transparent 1px 3px);
-  }
-  @keyframes modalPowerOn{
-    0%{opacity:0; transform:scaleY(.02); filter:brightness(3);}
-    45%{opacity:1; transform:scaleY(1); filter:brightness(2);}
-    60%{filter:brightness(.6);}
-    100%{filter:brightness(1);}
-  }
-  .corner{position:absolute; width:16px; height:16px; border:2px solid var(--mint); filter:drop-shadow(0 0 4px var(--mint)); opacity:.85; pointer-events:none;}
-  /* Segundo par de esquinas, más chico y desplazado hacia adentro — el "corte doble" de las ventanas tipo sistema. */
-  .corner-inner{width:9px; height:9px; border-color:var(--brass); filter:drop-shadow(0 0 3px var(--brass)); opacity:.6;}
-  .corner-inner.tl{top:7px; left:7px;} .corner-inner.tr{top:7px; right:7px;}
-  .corner-inner.bl{bottom:7px; left:7px;} .corner-inner.br{bottom:7px; right:7px;}
-  .modal-terminal-line{
-    font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--mint); opacity:.75;
-    margin-bottom:10px; letter-spacing:.02em;
-  }
-  .corner.tl{top:-1px; left:-1px; border-right:none; border-bottom:none;}
-  .corner.tr{top:-1px; right:-1px; border-left:none; border-bottom:none;}
-  .corner.bl{bottom:-1px; left:-1px; border-right:none; border-top:none;}
-  .corner.br{bottom:-1px; right:-1px; border-left:none; border-top:none;}
-  .hud-focus{clip-path:none; position:relative;}
-  /* ── Panel de ahorro: 3 estados dinámicos, transición suave, sin animación continua (estabilidad). ── */
-  .savings-panel{transition:border-color .4s ease, box-shadow .4s ease, background-color .4s ease;}
-  .savings-panel.state-ok{border-color:rgba(62,242,176,.5); box-shadow:var(--shadow-card), 0 0 20px -6px rgba(62,242,176,.35);}
-  .savings-panel.state-close{border-color:rgba(255,200,87,.55); box-shadow:var(--shadow-card), 0 0 20px -6px rgba(255,200,87,.4);}
-  .savings-panel.state-bad{border-color:rgba(255,77,106,.55); box-shadow:var(--shadow-card), 0 0 22px -6px rgba(255,77,106,.45);}
-  .modal-head{display:flex; align-items:center; gap:12px; margin-bottom:6px;}
-  .modal-icon{
-    width:34px; height:34px; flex-shrink:0; border:1px solid rgba(255,77,106,.5); background:var(--rose-soft);
-    display:flex; align-items:center; justify-content:center;
-    clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px);
-  }
-  .modal h3{
-    font-family:'JetBrains Mono',monospace; font-size:13px; text-transform:uppercase; letter-spacing:.15em; font-weight:700;
-    color:var(--mint); text-shadow:0 0 10px rgba(62,242,176,.6);
-  }
-  .modal h3::before{content:'root@sistema:~$ '; color:var(--brass); opacity:.7; font-size:10px;}
-  .modal-sub{font-family:'Space Grotesk',sans-serif; font-size:16.5px; font-weight:600; color:var(--text); margin-bottom:10px;}
-  .modal p{font-size:12.5px; color:#8fd9c4; line-height:1.7; margin-bottom:22px;}
-  .modal p:not(.modal-sub)::before{content:'> '; color:var(--mint); opacity:.6;}
-  .modal p .figures{color:var(--brass); font-weight:700;}
-  .modal-actions{display:flex; gap:12px;}
-  .btn{
-    border:1px solid transparent; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:14px; letter-spacing:.08em;
-    padding:11px 20px; cursor:pointer; transition:transform .15s, background .2s, box-shadow .2s; flex:1;
-    clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px);
-  }
-  .btn-yes{background:var(--mint-soft); color:var(--mint); border-color:rgba(62,242,176,.5);}
-  .btn-yes:hover{background:rgba(62,242,176,.25); transform:translateY(-1px); box-shadow:0 0 16px -2px var(--mint);}
-  .btn-no{background:var(--rose-soft); color:var(--rose); border-color:rgba(255,77,106,.5);}
-  .btn-no:hover{background:rgba(255,77,106,.25); transform:translateY(-1px); box-shadow:0 0 16px -2px var(--rose);}
-
-  /* ── Barra de filtros por ciclo — pastillas tipo panel de control ── */
-  .filter-bar{
-    display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:10px 16px; margin-bottom:20px;
-    background:var(--card); border:1px solid var(--line);
-    clip-path:polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
-  }
-  .filter-bar-label{font-size:10px; font-weight:700; letter-spacing:.15em; color:var(--text-dim); margin-right:4px;}
-  .filter-btn{
-    background:transparent; border:1px solid var(--line); color:var(--text-mid);
-    font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:11px; letter-spacing:.04em;
-    padding:7px 14px; cursor:pointer; transition:background .2s, color .2s, border-color .2s, box-shadow .2s;
-    clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px);
-  }
-  .filter-btn:hover{color:var(--text); border-color:rgba(74,212,255,.4);}
-  .filter-btn.active{
-    background:var(--brass-soft); border-color:rgba(74,212,255,.6); color:var(--brass);
-    box-shadow:0 0 12px -2px rgba(74,212,255,.5);
-  }
-  .filter-bar-count{margin-left:auto; font-size:10.5px; color:var(--text-dim); font-family:'JetBrains Mono',monospace;}
-  .filter-divider{width:1px; height:20px; background:var(--line); margin:0 4px;}
-  .filter-date-input{
-    background:var(--bg-2); border:1px solid var(--line); color:var(--text);
-    font-family:'JetBrains Mono',monospace; font-size:11px; padding:6px 8px; color-scheme:dark;
-    clip-path:polygon(4px 0,100% 0,100% calc(100% - 4px),calc(100% - 4px) 100%,0 100%,0 4px);
-  }
-  [data-theme="light"] .filter-date-input{color-scheme:light;}
-  .filter-date-input:focus{outline:none; border-color:var(--brass);}
-  .filter-apply{background:var(--brass-soft); border-color:rgba(74,212,255,.5); color:var(--brass);}
-
-  .verdict-banner{
-    display:none; align-items:center; gap:14px; padding:14px 20px;
-    margin-bottom:20px; font-size:13px;
-    clip-path:polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
-  }
-  .verdict-banner.show{display:flex;}
-  .verdict-banner.yes{background:var(--mint-soft); border:1px solid rgba(79,209,174,.35); color:var(--mint);}
-  .verdict-banner.no{background:var(--rose-soft); border:1px solid rgba(226,83,107,.35); color:var(--rose);}
-  .verdict-banner b{color:var(--text);}
-  .verdict-banner button{margin-left:auto; background:none; border:1px solid currentColor; color:inherit; border-radius:7px; padding:5px 12px; font-size:11.5px; cursor:pointer; font-family:inherit;}
-
-  /* ── Mes pasado vs este mes ── */
-  .month-compare{display:flex; align-items:center; gap:24px; flex-wrap:wrap;}
-  .month-col{flex:1; min-width:120px;}
-  .month-col .lbl{font-size:11px; color:var(--text-mid); text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px;}
-  .month-col .val{font-size:22px; font-weight:700; font-family:'Space Grotesk',sans-serif;}
-  .month-diff{text-align:center; padding:0 8px;}
-  .month-diff .arrow{font-size:20px; line-height:1;}
-  .month-diff .pct{font-size:13px; font-weight:700; font-family:'JetBrains Mono',monospace; margin-top:2px;}
-  .month-diff .pct.up{color:var(--rose);}
-  .month-diff .pct.down{color:var(--mint);}
-  .month-diff .sub{font-size:10.5px; color:var(--text-dim); margin-top:2px;}
-
-  .toast{
-    position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--card);
-    border:1px solid var(--line); padding:12px 20px; font-size:13px; opacity:0; pointer-events:none; transition:all .3s;
-    z-index:600; box-shadow:0 0 20px -4px rgba(74,212,255,.4), 0 10px 30px rgba(0,0,0,.4);
-    clip-path:polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
-  }
-  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
-
-  /* ── Notificación "misión fallada" — desliza desde la derecha, un solo evento, se auto-cierra ── */
-  .quest-toast{
-    position:fixed; top:90px; right:24px; width:280px; z-index:601;
-    background:linear-gradient(160deg, rgba(20,4,10,.95), rgba(10,2,5,.97));
-    border:1px solid rgba(226,83,107,.5); padding:14px 16px;
-    box-shadow:0 0 30px -6px rgba(226,83,107,.5), 0 20px 40px -10px rgba(0,0,0,.7);
-    clip-path:polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
-    transform:translateX(340px); opacity:0; pointer-events:none;
-    transition:transform .4s cubic-bezier(.2,.8,.2,1), opacity .4s ease;
-  }
-  .quest-toast.show{transform:translateX(0); opacity:1; pointer-events:auto;}
-  .quest-toast-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;}
-  .quest-toast-tag{font-size:9.5px; font-weight:800; letter-spacing:.12em; color:var(--rose); text-shadow:0 0 8px rgba(226,83,107,.6);}
-  .quest-toast-close{background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:12px; padding:2px;}
-  .quest-toast-close:hover{color:var(--text);}
-  .quest-toast-title{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:13.5px; color:var(--text); margin-bottom:4px;}
-  .quest-toast-body{font-size:11.5px; color:var(--text-mid); line-height:1.5;}
-
-  /* Alerta de intrusión (gasto anómalo) — mismo patrón que quest-toast, pero
-     ámbar/seguridad en vez de rojo/misión, y colocada más abajo para que no
-     se encimen si ambas alertas están visibles a la vez. */
-  .intrusion-toast{
-    top:230px; border-color:rgba(255,200,87,.5);
-    background:linear-gradient(160deg, rgba(28,20,4,.95), rgba(14,10,2,.97));
-    box-shadow:0 0 30px -6px rgba(255,200,87,.5), 0 20px 40px -10px rgba(0,0,0,.7);
-  }
-  .intrusion-tag{color:var(--amber); text-shadow:0 0 8px rgba(255,200,87,.6);}
-  .intrusion-toast .quest-toast-body b{color:var(--amber); font-family:'JetBrains Mono',monospace;}
-
-  footer{text-align:center; padding:26px 20px; color:var(--text-dim); font-size:11px; border-top:1px solid rgba(155,92,255,.2); margin-top:20px;}
-  .footer-grid{display:flex; flex-wrap:wrap; justify-content:center; gap:8px 24px; font-family:'JetBrains Mono',monospace; letter-spacing:.02em;}
-  .footer-grid b{color:var(--text-mid); font-weight:600;}
-
-  /* ── Fila inferior: tip + log del sistema ── */
-  .bottom-row{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:8px;}
-  @media(max-width:860px){ .bottom-row{grid-template-columns:1fr;} }
-  .tip-card, .system-log{position:relative; padding:18px 20px;}
-  .tip-card-head{display:flex; align-items:center; gap:8px; margin-bottom:10px; font-size:10px; font-weight:700; letter-spacing:.15em; color:var(--text-mid);}
-  .tip-card p{font-size:13px; color:var(--text); line-height:1.6; margin:0;}
-  .system-log-list{list-style:none; display:flex; flex-direction:column; gap:8px; font-family:'JetBrains Mono',monospace; font-size:11.5px;}
-  .system-log-list li{color:var(--text-mid); display:flex; gap:8px;}
-  .system-log-list li::before{content:'>'; color:var(--brass); flex-shrink:0;}
-  .system-log-list .log-time{color:var(--text-dim); flex-shrink:0;}
-  .system-log-empty{color:var(--text-dim); font-style:italic;}
-  .system-log-empty::before{content:''!important;}
-
-  /* ── Responsive: teléfono ── */
-  @media(max-width:600px){
-    header{padding:14px 16px; flex-wrap:wrap; gap:10px;}
-    .brand-name{font-size:13.5px;}
-    .brand-sub{font-size:9.5px;}
-    .header-right{gap:7px; flex-wrap:wrap; justify-content:flex-end;}
-    .pill{display:none;} /* la hora de actualización no es crítica en pantalla chica */
-    main{padding:18px 14px;}
-
-    .card-visual{padding:16px 18px;}
-    .card-number{font-size:14px;}
-
-    .kpi-row{grid-template-columns:1fr 1fr; gap:10px;}
-    .kpi{padding:14px 14px;}
-    .kpi .val{font-size:19px;}
-    .kpi .lbl input{width:44px;}
-
-    .analytics-row{grid-template-columns:1fr;}
-    .dates-row{grid-template-columns:1fr;}
-
-    .countdown-card{padding:16px 18px; gap:16px;}
-    .ring-wrap{width:76px; height:76px;}
-
-    .panel{padding:16px 16px;}
-    .table-toolbar{flex-direction:column; align-items:stretch; gap:10px;}
-    .input-search{width:100%;}
-    table{font-size:12px;}
-    thead th{padding:0 6px 8px;}
-    tbody td{padding:9px 6px;}
-
-    .modal{padding:22px 20px;}
-    .modal-actions{flex-direction:column;}
-  }
-</style>
-</head>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{--acc:#4ad4ff;--acc2:#1c5fa8;--glow:#4ad4ff77;--soft:#4ad4ff14;--bg:#04070d;--winbg:#070d18;--cardg:linear-gradient(135deg,#1c5fa8,#050a14 88%);
+--ok:#3ef2b0;--warn:#ffa23a;--bad:#ff4d6a;--st:var(--ok);--tx:#e6f4ff;--tx2:#9ab;--tx3:#789;--line:#ffffff22}
+[data-theme="light"]{--bg:#f6f3f3;--winbg:#ffffff;--tx:#1c1415;--tx2:#5c5052;--tx3:#8a7c7e;--line:#00000022;--glow:#4ad4ff44;--soft:#4ad4ff12}
+html{scroll-behavior:smooth}
+body{font-family:Inter,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;min-height:100dvh;overflow-x:hidden;padding-bottom:env(safe-area-inset-bottom)}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;background:linear-gradient(var(--soft) 1px,transparent 1px),linear-gradient(90deg,var(--soft) 1px,transparent 1px);background-size:44px 44px;mask-image:radial-gradient(circle at 50% 30%,#000,transparent 75%);-webkit-mask-image:radial-gradient(circle at 50% 30%,#000,transparent 75%)}
+.mono{font-family:'JetBrains Mono',monospace}
+.lbl{font:500 10px 'JetBrains Mono';letter-spacing:.18em;text-transform:uppercase;color:var(--acc)}
+.big{font:700 34px 'Space Grotesk';text-shadow:0 0 18px var(--glow);font-variant-numeric:tabular-nums}
+button{font-family:inherit;cursor:pointer}
+/* ===== encabezado ===== */
+.hd2{position:sticky;top:0;z-index:85;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 20px;padding-top:max(10px,env(safe-area-inset-top));background:linear-gradient(180deg,color-mix(in srgb,var(--winbg) 96%,transparent),color-mix(in srgb,var(--winbg) 80%,transparent));backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--acc);box-shadow:0 8px 30px -14px var(--glow);animation:hin .7s cubic-bezier(.2,.8,.2,1) both}
+.hd2::after{content:'';position:absolute;left:0;bottom:-1px;height:2px;width:100%;background:linear-gradient(90deg,transparent,var(--acc),#fff,var(--acc),transparent);transform-origin:left;animation:sweep 1.4s .2s cubic-bezier(.2,.8,.2,1) both}
+@keyframes hin{from{transform:translateY(-100%);opacity:0}}@keyframes sweep{from{transform:scaleX(0)}}
+.hb{display:flex;align-items:center;gap:12px;min-width:0}
+.hlogo{width:34px;height:34px;flex:none;filter:drop-shadow(0 0 6px var(--acc))}.hlogo *{fill:none;stroke:var(--acc);stroke-width:5;stroke-linecap:round}.hlogo .f{fill:var(--acc);stroke:none}
+.hn{font:800 15px 'Space Grotesk';letter-spacing:.12em;white-space:nowrap}.hs{font-size:9px;color:var(--acc);letter-spacing:.2em}
+.hf{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.seg{position:relative;display:flex;padding:3px;border:1px solid var(--line);border-radius:99px;background:color-mix(in srgb,var(--bg) 70%,transparent)}
+.seg .chp{position:relative;z-index:1;border:0;border-radius:99px;padding:7px 13px;background:none;color:var(--tx2);font:600 10px 'JetBrains Mono';letter-spacing:.08em;transition:color .3s;white-space:nowrap}
+.seg .chp.on{color:#000}[data-theme="light"] .seg .chp.on{color:#fff}
+.seg .ind{position:absolute;top:3px;bottom:3px;left:0;width:0;border-radius:99px;background:var(--acc);box-shadow:0 0 16px var(--glow);transition:left .45s cubic-bezier(.2,1.1,.3,1),width .45s cubic-bezier(.2,1.1,.3,1)}
+.rg{display:flex;align-items:center;gap:8px;padding:4px 10px;border:1px solid var(--line);border-radius:99px;background:color-mix(in srgb,var(--bg) 70%,transparent);transition:.3s}
+.rg:focus-within{border-color:var(--acc);box-shadow:0 0 18px -4px var(--glow)}
+.rg label{display:flex;align-items:center;gap:6px}.rg label span{font:600 9px 'JetBrains Mono';letter-spacing:.15em;color:var(--acc)}
+.rg input{background:none;border:0;color:var(--tx);font:600 12px 'JetBrains Mono';outline:none;width:118px;color-scheme:dark}[data-theme="light"] .rg input{color-scheme:light}
+.rg i{color:var(--acc);font-style:normal}
+.ib{flex:none;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:none;color:var(--tx2);font-size:14px;transition:.2s;display:grid;place-items:center}
+.ib:hover{border-color:var(--acc);color:var(--acc)}.ib.sp{animation:spin .8s linear 1}@keyframes spin{to{transform:rotate(360deg)}}
+.rg .ib{width:24px;height:24px;font-size:11px}.rg .ib:hover{background:var(--bad);color:#fff;border-color:var(--bad)}
+.sum{font:700 11px 'JetBrains Mono';padding:8px 12px;border-radius:99px;background:var(--soft);border:1px solid var(--acc);letter-spacing:.04em;white-space:nowrap}
+.sum.pulse{animation:sp .5s}@keyframes sp{50%{transform:scale(1.07);box-shadow:0 0 18px var(--glow)}}
+/* ===== layout ===== */
+.view{max-width:1120px;margin:auto;padding:18px 16px 80px;position:relative}
+.rv{opacity:0;transform:translateY(18px) scale(.97);animation:rv .6s cubic-bezier(.2,.8,.2,1) forwards;animation-delay:calc(var(--i,0)*70ms)}
+@keyframes rv{to{opacity:1;transform:none}}
+.win{position:relative;background:linear-gradient(180deg,var(--soft),#0000 60%),var(--winbg);border:1px solid var(--acc);padding:16px;box-shadow:0 0 24px -8px var(--glow);overflow:hidden;transition:box-shadow .3s,transform .3s}
+.win:hover{box-shadow:0 0 40px -2px var(--glow)}
+.win::before,.win::after{content:'';position:absolute;width:12px;height:12px;border:2px solid var(--tx);transition:.3s;opacity:.85}
+.win::before{top:-1px;left:-1px;border-right:0;border-bottom:0}.win::after{bottom:-1px;right:-1px;border-left:0;border-top:0}
+.top2{display:grid;grid-template-columns:340px 1fr;gap:16px;margin-bottom:16px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.col{display:grid;gap:16px;align-content:start}
+/* ===== avisos ===== */
+.notice{display:flex;gap:10px;align-items:center;flex-wrap:wrap;border:1px solid var(--st);padding:11px 14px;font:600 13px 'JetBrains Mono';color:var(--st);margin-bottom:14px;position:relative;overflow:hidden;transition:.5s;line-height:1.4}
+.notice .nm{flex:1;min-width:200px}
+.notice::after{content:'';position:absolute;left:0;bottom:0;height:2px;width:100%;background:var(--st);transform-origin:left;animation:life 5s linear forwards}
+@keyframes life{to{transform:scaleX(0)}}
+.notice.bad{background:#ff4d6a14}.notice.warn{background:#ffa23a10}
+.nb{display:flex;gap:8px;flex-wrap:wrap}
+.nb button{font:700 11px 'JetBrains Mono';letter-spacing:.06em;padding:9px 14px;border:1px solid currentColor;background:none;color:inherit;transition:.2s;min-height:40px}
+.nb button.y{color:var(--warn)}.nb button.n{color:var(--bad)}.nb button:hover{background:currentColor}.nb button:hover span{color:#000}
+.due{margin-top:10px;border:1px solid var(--st);padding:9px 12px;font:600 11px 'JetBrains Mono';color:var(--st);letter-spacing:.04em;display:none;line-height:1.5;animation:rv .5s both}.due.show{display:block}
+/* ===== tarjeta ===== */
+.scene{perspective:900px}
+.card{aspect-ratio:1.586;padding:18px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden;border:1px solid var(--acc);border-radius:16px;background:var(--cardg);box-shadow:0 0 34px -8px var(--glow);transition:transform .15s,border-color .5s;transform-style:preserve-3d;color:#fff}
+.card::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(115deg,#fff1 0 2px,transparent 2px 22px)}
+.card::after{content:'';position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 78% 85%,transparent,transparent);transition:.5s}
+.shine{position:absolute;inset:0;background:radial-gradient(circle at var(--mx,70%) var(--my,0%),#fff4,transparent 45%)}
+.chip{width:38px;height:28px;border-radius:5px;background:linear-gradient(135deg,#d4b46a,#8a6f2e)}
+.cr{display:flex;justify-content:space-between;align-items:flex-start;position:relative}
+.cb{position:relative}
+.emb{position:absolute;right:12px;bottom:8px;width:34%;aspect-ratio:1;filter:drop-shadow(0 0 8px #fff6);opacity:.55;transition:.5s}
+.emb *{fill:none;stroke:#fff;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}.emb .f{fill:#fff3}
+.emb .sp{transform-origin:75px 75px;transition:transform 1.4s cubic-bezier(.2,.8,.2,1)}.card:hover .sp{transform:rotate(180deg)}
+.gl-lines{position:absolute;inset:0;opacity:0;pointer-events:none;z-index:2;background:repeating-linear-gradient(0deg,transparent 0 6px,#ff4d6a59 6px 7px,transparent 7px 18px,#ff3b4747 18px 19px,transparent 19px 34px);transition:opacity .3s}
+.scan{position:absolute;left:0;right:0;height:40%;opacity:0;pointer-events:none;z-index:2;background:linear-gradient(180deg,transparent,#ff4d6a40,transparent)}
+.tear{position:absolute;inset:0;opacity:0;pointer-events:none;z-index:1;transition:opacity .5s}
+.tear path{fill:none;stroke:var(--bad);stroke-width:1.6;stroke-linecap:round}.tear polygon{fill:#4a0a0f8c;stroke:var(--bad);stroke-width:.8}
+body.bad .card .gl-lines{opacity:.5}body.bad .card .scan{opacity:.4}body.bad .card .tear{opacity:1;filter:drop-shadow(0 0 4px #ff4d6aa6)}
+body.bad .card{border-color:var(--bad)}body.warn .card{border-color:var(--warn)}
+body.bad .card .emb{opacity:.95;filter:drop-shadow(0 0 12px var(--bad))}body.bad .card .emb *{stroke:var(--bad)}
+body.warn .card .emb{opacity:.7;filter:drop-shadow(0 0 8px var(--warn))}body.warn .card .emb *{stroke:var(--warn)}
+body.bad .card::after{background:radial-gradient(ellipse at 78% 85%,#ff4d6a80,transparent 60%)}
+body.warn .card::after{background:radial-gradient(ellipse at 78% 85%,#ffa23a47,transparent 62%)}
+.card.hit{animation:chit .9s cubic-bezier(.36,.07,.19,.97) 1}.card.hit .gl-lines{opacity:1;animation:flk .9s steps(7) 1}.card.hit .scan,.card.hit .tear{animation:flash .9s ease-out 1}
+@keyframes chit{0%{transform:none}8%{transform:translate(-7px,3px) rotateZ(-1.2deg);box-shadow:-4px 0 0 #ff3b4799,4px 0 0 #4ad4ff99}16%{transform:translate(6px,-4px) rotateZ(1deg);box-shadow:none}24%{transform:translate(-5px,2px);box-shadow:-3px 0 0 #ff3b478c,3px 0 0 #4ad4ff8c}33%{transform:translate(4px,-2px);box-shadow:none}42%{transform:translate(-3px,1px);filter:brightness(1.5) contrast(1.25)}50%{transform:none;filter:none}60%{transform:translate(3px,2px)}70%{transform:translate(-2px,-1px)}100%{transform:none;box-shadow:none}}
+@keyframes flash{0%{opacity:0}6%{opacity:1}22%{opacity:.25}100%{opacity:.4}}@keyframes flk{0%,100%{opacity:1}14%{opacity:.1}28%{opacity:1}42%{opacity:.15}57%{opacity:1}71%{opacity:.2}85%{opacity:.5}}
+body.bad .card:not(.hit){animation:vhs 4s steps(1) infinite}@keyframes vhs{0%,91%,100%{translate:0 0}92%{translate:-4px 1px}93%{translate:3px -2px}94%{translate:-2px 0}95%{translate:0 0}}
+.glitch{position:fixed;inset:0;pointer-events:none;z-index:80;background:repeating-linear-gradient(0deg,#ff4d6a22 0 2px,transparent 2px 5px);opacity:0}.glitch.go{animation:gl .6s steps(6) 1}@keyframes gl{0%{opacity:.8}100%{opacity:0}}
+/* ===== rango / barras ===== */
+.rank{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--st);padding:4px 10px;font:700 12px 'JetBrains Mono';color:var(--st);clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px);transition:.5s;white-space:nowrap}
+.rank i{font:800 17px 'Space Grotesk';font-style:normal;color:#ffd23f;text-shadow:0 0 8px #ffd23f99}
+.pop{animation:pop .7s cubic-bezier(.2,1.6,.4,1)}@keyframes pop{0%{transform:scale(2.2) rotate(-20deg);opacity:0}100%{transform:none;opacity:1}}
+.days{display:grid;grid-template-columns:repeat(30,1fr);gap:3px;margin:14px 0 8px}
+.days i{height:22px;background:var(--line);transform:skewX(-18deg);transition:background .3s,box-shadow .3s;transition-delay:calc(var(--i)*18ms)}
+.days i.on{background:var(--dc,var(--acc));box-shadow:0 0 8px var(--dc,var(--acc))}.days i.now{background:var(--tx);box-shadow:0 0 12px var(--tx)}
+.limw{position:relative;margin:18px 0 8px}
+.limbar{height:22px;border:1px solid var(--acc);background:var(--line);position:relative;display:flex;clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px)}
+.limbar .ok{height:100%;width:0;background:linear-gradient(90deg,var(--acc2),var(--st));box-shadow:0 0 12px var(--st);transition:width 1.2s cubic-bezier(.2,.8,.2,1),background .5s}
+.limbar .ov{height:100%;width:0;background:repeating-linear-gradient(45deg,var(--bad) 0 6px,#7a1f33 6px 12px);transition:width 1.2s .4s cubic-bezier(.2,.8,.2,1)}
+.limmark{position:absolute;top:-6px;bottom:-6px;width:2px;background:var(--tx);box-shadow:0 0 8px var(--tx);transition:left 1s}
+.limmark span{position:absolute;top:-14px;transform:translateX(-50%);font:700 9px 'JetBrains Mono';white-space:nowrap}
+.cov{height:18px;border:1px solid var(--acc);background:var(--line);position:relative;margin:10px 0 6px;clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px)}
+.cov i{position:absolute;inset:0 auto 0 0;width:0;background:linear-gradient(90deg,var(--acc2),var(--ok));box-shadow:0 0 12px var(--ok);transition:width 1.2s cubic-bezier(.2,.8,.2,1)}
+.sv{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}.sv div{border:1px dashed var(--line);padding:8px 10px}.sv b{display:block;font:700 17px 'Space Grotesk'}
+.mt{font:600 10px 'JetBrains Mono';letter-spacing:.15em;color:var(--acc);margin:14px 0 4px}
+/* ===== tablas ===== */
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{font:600 10px 'JetBrains Mono';letter-spacing:.15em;text-align:left;color:var(--acc);padding:10px 8px;border-bottom:1px solid var(--acc);cursor:pointer;user-select:none;white-space:nowrap}
+th.s::after{content:attr(data-d);margin-left:4px}
+td{padding:9px 8px;border-bottom:1px dashed var(--line)}
+.bt td:first-child{color:var(--tx2);font:500 11px 'JetBrains Mono';letter-spacing:.06em}.bt td{padding:9px 8px}.bt td.m{text-align:right;font:700 13px 'JetBrains Mono'}
+.bt input{width:90px;background:var(--bg);border:1px solid var(--acc);color:var(--tx);padding:5px 8px;font:700 14px 'JetBrains Mono';text-align:right;outline:none}
+.up{color:var(--bad)}.dn{color:var(--ok)}
+.tools{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.tools input{flex:1;min-width:150px;background:var(--bg);border:1px solid var(--acc);color:var(--tx);padding:9px 12px;font:500 13px 'JetBrains Mono';outline:none}
+.tools button{font:600 11px 'JetBrains Mono';padding:9px 12px;border:1px solid var(--acc);background:none;color:var(--acc);min-height:38px}
+.tw{max-height:calc(10*38px + 40px);overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--acc) transparent;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.tw::-webkit-scrollbar{width:6px}.tw::-webkit-scrollbar-thumb{background:var(--acc)}
+.ct th{position:sticky;top:0;background:var(--winbg);z-index:2}
+.ct tbody tr.r{animation:rowin .45s both;animation-delay:calc(var(--i)*30ms);cursor:pointer;transition:background .2s}
+@keyframes rowin{from{opacity:0;transform:translateX(-18px)}}
+.ct tbody tr.r:hover{background:var(--soft);box-shadow:inset 3px 0 0 var(--acc)}
+tr.hi td{color:var(--warn)}td.m{text-align:right;font:700 13px 'JetBrains Mono';white-space:nowrap}
+.tag{font:700 9px 'JetBrains Mono';padding:2px 7px;border:1px solid var(--acc);color:var(--acc);white-space:nowrap}.tag.no{border-color:var(--line);color:var(--tx3)}
+.mini{height:6px;background:var(--line);min-width:60px;position:relative}.mini i{position:absolute;inset:0 auto 0 0;background:var(--acc);box-shadow:0 0 8px var(--acc);width:0;transition:width .9s cubic-bezier(.2,.8,.2,1)}
+.det td{background:color-mix(in srgb,var(--bg) 60%,transparent);padding:0}.dd{padding:12px;font:500 12px 'JetBrains Mono';display:grid;gap:8px;animation:rv .4s both}
+.dd .rw{display:flex;gap:18px;flex-wrap:wrap}.dd textarea{width:100%;background:var(--bg);border:1px solid var(--acc);color:var(--tx);padding:8px;font:500 13px 'JetBrains Mono';resize:vertical;min-height:50px;outline:none}
+.mtag{display:none}
+.cq td{padding:7px 6px;font-size:12px}.cq tfoot td{border-top:1px solid var(--acc);font-weight:700}
+.empty{text-align:center;padding:26px;color:var(--tx3)}
+/* ===== toasts / carga ===== */
+#toasts{position:fixed;right:14px;bottom:max(14px,env(safe-area-inset-bottom));display:grid;gap:8px;z-index:95}
+.toast{width:260px;border:1px solid var(--acc);background:var(--winbg);padding:12px;font:500 12px 'JetBrains Mono';animation:ti .45s cubic-bezier(.2,1.2,.4,1),to .4s 3.4s forwards;box-shadow:0 0 24px -4px var(--glow)}
+.toast b{display:block;letter-spacing:.2em;font-size:11px;margin-bottom:4px}
+@keyframes ti{from{transform:translateX(120%)}}@keyframes to{to{opacity:0;transform:translateX(40px)}}
+#load{position:fixed;inset:0;z-index:200;background:var(--bg);display:grid;place-items:center;text-align:center;padding:20px;transition:opacity .5s}
+#load.out{opacity:0;pointer-events:none}
+.spin{width:52px;height:52px;border:3px solid var(--line);border-top-color:var(--acc);border-radius:50%;margin:0 auto 18px;animation:spin 1s linear infinite}
+#load.err .spin{display:none}
+#boot{font:500 12px 'JetBrains Mono';color:var(--acc);min-height:18px;letter-spacing:.08em}
+#lerr{display:none;max-width:340px;margin:14px auto 0}#load.err #lerr{display:block}
+#lerr p{font:500 12px/1.5 'JetBrains Mono';color:var(--bad);margin-bottom:12px}
+#lerr button{font:700 12px 'JetBrains Mono';padding:11px 20px;border:1px solid var(--acc);background:none;color:var(--acc)}
+.foot{text-align:center;font:500 10px 'JetBrains Mono';color:var(--tx3);letter-spacing:.12em;padding:10px}
+/* ===== teléfono ===== */
+@media(max-width:860px){
+ .top2,.g2{grid-template-columns:1fr}
+ .days{grid-template-columns:repeat(15,1fr)}.days i{height:16px}
+ .hd2{position:relative;padding:10px 14px;gap:10px}.hd2::after{display:none}
+ .hb{width:100%}.hn{font-size:13px}
+ .hf{width:100%;gap:8px}
+ .seg{width:100%;overflow-x:auto;scrollbar-width:none}.seg .chp{flex:1;padding:9px 6px}
+ .rg{width:100%;justify-content:space-between;padding:6px 10px}.rg label{flex:1}.rg input{width:100%;font-size:16px;min-width:0}
+ .rg label span{display:none}
+ .sum{flex:1;text-align:center}
+ .view{padding:12px 12px 60px}
+ .big{font-size:28px}
+ .win{padding:14px}
+ .notice{font-size:12px}.nb{width:100%}.nb button{flex:1}
+ .hm{display:none}.mtag{display:inline-block;margin-top:3px}
+ .tw{max-height:calc(10*50px + 40px)}
+ .ct td{padding:11px 6px}
+ .tools input{font-size:16px;flex-basis:100%}
+ .bt input{font-size:16px}
+ #toasts{left:12px;right:12px}.toast{width:100%}
+ .scene{perspective:none}
+ .card{padding:16px}
+}
+@media(max-width:380px){.hn{font-size:12px;letter-spacing:.08em}.big{font-size:25px}}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.01s!important;transition-duration:.01s!important}}
+</style></head>
 <body>
+<div id="load"><div><div class="spin"></div><div id="boot"></div><div id="lerr"><p id="lerrm"></p><button id="lretry">↻ REINTENTAR</button></div></div></div>
+<div class="glitch" id="gl"></div><div id="toasts"></div>
 
-<div class="side-hud" id="side-hud">
-  <button class="side-hud-item" id="side-hud-limite" data-panel="limite" title="Mi límite de pago">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-  </button>
-  <button class="side-hud-item" id="side-hud-cuotas" data-panel="cuotas" title="Compras a cuotas">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-  </button>
-</div>
-
-<div class="side-hud-panel" id="side-hud-panel">
-  <span class="corner tl"></span><span class="corner tr"></span>
-  <span class="corner bl"></span><span class="corner br"></span>
-  <div class="side-hud-panel-title" id="side-hud-panel-title">—</div>
-  <div class="side-hud-panel-body" id="side-hud-panel-body"></div>
-</div>
-
-<div class="hud-dropdown" id="hud-dropdown">
-  <div class="hud-dropdown-row">
-    <div class="hud-dropdown-title">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-      Mi límite de pago
-    </div>
-    <div class="hud-dropdown-body" id="hud-dropdown-limite"></div>
-  </div>
-  <div class="hud-dropdown-row">
-    <div class="hud-dropdown-title">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-      Compras a cuotas
-    </div>
-    <div class="hud-dropdown-body" id="hud-dropdown-cuotas"></div>
-  </div>
-</div>
-
-<div id="loading-overlay">
-  <div class="boot-line" id="boot-line"></div>
-  <div class="spinner" id="loading-spinner"></div>
-  <div class="loading-msg" id="loading-msg">Conectando con Google Sheets…</div>
-  <div id="sheet-error"></div>
-  <button id="btn-retry-load" style="display:none;">Reintentar</button>
-</div>
-
-<header>
-  <div class="brand">
-    <div class="brand-mark"></div>
-    <div>
-      <div class="brand-name">CONTROL DE TARJETA</div>
-      <div class="brand-sub">Ledger personal · Tarjeta Cuscatlán</div>
-    </div>
-  </div>
-  <div class="header-right">
-    <select class="card-select" id="card-select" style="display:none;"></select>
-    <div class="rank-badge" id="rank-badge" title="Rango del ciclo">
-      <span class="rank-shield"><span id="rank-letter">—</span></span>
-      <span class="rank-info">
-        <span class="rank-pct" id="rank-pct">—%</span>
-        <span class="rank-label" id="rank-label">usado</span>
-      </span>
-    </div>
-    <div class="pill"><span class="dot-live"></span> <span id="last-update">—</span></div>
-    <button class="btn-theme btn-hud-menu" id="btn-hud-menu" title="Límite y cuotas">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
-    </button>
-    <button class="btn-theme" id="btn-theme" title="Modo Cazador (oscuro)">
-      <svg id="theme-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-    </button>
-    <button class="btn-refresh" id="btn-refresh">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-      Actualizar
-    </button>
+<header class="hd2">
+  <div class="hb"><svg class="hlogo" viewBox="0 0 150 150"><circle cx="75" cy="75" r="55"/><ellipse cx="75" cy="75" rx="55" ry="18"/><path class="f" d="M75 45L82 68L105 75L82 82L75 105L68 82L45 75L68 68Z"/></svg>
+    <div><div class="hn">CONTROL DE TARJETA</div><div class="hs mono">BANCO CUSCATLÁN</div></div></div>
+  <div class="hf">
+    <div class="seg" id="rq"><span class="ind" id="ind"></span><span class="chp on" data-r="cur">CICLO</span><span class="chp" data-r="prev">ANTERIOR</span><span class="chp" data-r="7">7D</span><span class="chp" data-r="all">TODO</span></div>
+    <div class="rg"><label><span>DESDE</span><input type="date" id="d1"></label><i>→</i><label><span>HASTA</span><input type="date" id="d2"></label><button class="ib" id="dclr" title="Volver al ciclo">✕</button></div>
+    <div class="sum" id="sum">—</div>
+    <button class="ib" id="rf" title="Actualizar datos">↻</button><button class="ib" id="th" title="Tema">◐</button>
   </div>
 </header>
 
-<main>
-
-  <div class="filter-bar">
-    <span class="filter-bar-label">CICLO</span>
-    <button class="filter-btn active" id="filter-actual" data-mode="actual">ESTE CICLO</button>
-    <button class="filter-btn" id="filter-anterior" data-mode="anterior">CICLO ANT.</button>
-    <button class="filter-btn" id="filter-todo" data-mode="todo">TODO</button>
-    <span class="filter-divider"></span>
-    <input type="date" class="filter-date-input" id="filter-desde" title="Desde">
-    <span class="filter-bar-label" style="margin:0;">→</span>
-    <input type="date" class="filter-date-input" id="filter-hasta" title="Hasta">
-    <button class="filter-btn filter-apply" id="filter-apply">APLICAR</button>
-    <span class="filter-bar-count" id="filter-count">— registros</span>
-  </div>
-
-  <div class="verdict-banner" id="verdict-banner">
-    <span id="verdict-icon">✅</span>
-    <span id="verdict-text"></span>
-    <button id="btn-reset-verdict">Volver a preguntar</button>
-  </div>
-
-  <!-- ── HERO ── -->
-  <div class="hero">
-    <div class="card-column">
-      <div class="card-visual" id="card-visual">
-        <div class="card-emblem" id="card-emblem" aria-hidden="true">
-          <svg viewBox="0 0 150 150">
-            <circle class="ring" cx="75" cy="75" r="60"/>
-            <path class="spiral" d="M75 40 A35 35 0 1 1 40 75"/>
-            <circle class="spiral" cx="40" cy="75" r="6"/>
-            <path class="crack" d="M22 25 L58 58"/>
-            <path class="crack" d="M58 58 L48 78 L70 88"/>
-            <path class="crack" d="M70 88 L100 112"/>
-            <path class="crack" d="M92 30 L72 55 L98 68"/>
-          </svg>
-        </div>
-        <div class="card-alert-glow" aria-hidden="true"></div>
-        <div class="card-scanline" aria-hidden="true"></div>
-        <div class="card-glitch-lines" aria-hidden="true"></div>
-        <div class="card-tear" id="card-tear" aria-hidden="true">
-          <svg viewBox="0 0 200 126" preserveAspectRatio="none">
-            <path class="tear-line" d="M12 20 L48 42 L34 60 L74 84 L58 100 L100 118"/>
-            <path class="tear-line" d="M48 42 L66 30"/>
-            <path class="tear-line" d="M155 14 L172 36 L160 52 L182 70"/>
-            <path class="tear-shard" d="M12 20 L48 42 L34 60 L14 46 Z"/>
-            <path class="tear-shard" d="M155 14 L172 36 L160 52 L145 34 Z"/>
-          </svg>
-        </div>
-        <div class="card-top">
-          <div class="card-issuer">Banco Cuscatlán</div>
-          <div style="display:flex; align-items:center; gap:10px;">
-            <svg class="contactless" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="2" stroke-linecap="round"><path d="M8.5 8.5a5 5 0 0 1 0 7"/><path d="M12 5a10 10 0 0 1 0 14"/><path d="M15.5 1.5a15 15 0 0 1 0 21"/></svg>
-            <div class="chip"></div>
-          </div>
-        </div>
-        <div class="card-number">*****</div>
-        <div class="card-bottom">
-          <div><div class="card-label">Corte</div><div class="card-value" id="card-corte-val">—</div></div>
-          <div><div class="card-label">Pago</div><div class="card-value" id="card-pago-val">—</div></div>
-          <div class="card-brandmark">tarjeta</div>
-        </div>
+<main class="view">
+  <div class="notice" id="notice"><span>◆</span><span class="nm" id="msg"></span><div class="nb" id="nb"></div></div>
+  <div class="top2">
+    <div class="rv" style="--i:0"><div class="scene" id="scene"><div class="card" id="card">
+      <div class="gl-lines"></div><div class="scan"></div>
+      <svg class="tear" viewBox="0 0 300 190" preserveAspectRatio="none"><polygon points="150,0 172,70 140,110 160,190 120,190 142,112 118,68"/><path d="M150 0L172 70L140 110L160 190M172 70L230 60M140 110L90 130M118 68L60 50"/></svg>
+      <div class="shine"></div><svg class="emb" viewBox="0 0 150 150"><circle cx="75" cy="75" r="55"/><g class="sp"><ellipse cx="75" cy="75" rx="55" ry="18"/></g><path class="f" d="M75 45L82 68L105 75L82 82L75 105L68 82L45 75L68 68Z"/></svg>
+      <div class="cr"><span class="mono" style="font-size:12px;letter-spacing:.2em">BANCO CUSCATLÁN</span><div class="chip"></div></div>
+      <div class="cb"><div class="mono" style="font-size:19px;letter-spacing:.15em">•••• •••• ••••</div>
+        <div style="display:flex;gap:24px;margin-top:10px"><div><div class="lbl" style="color:#fffa">corte</div><div class="mono" id="cCorte" style="font-weight:700;font-size:14px">—</div></div><div><div class="lbl" style="color:#fffa">pago</div><div class="mono" id="cPago" style="font-weight:700;font-size:14px">—</div></div></div></div>
+    </div></div><div class="due" id="due"></div></div>
+    <div class="col">
+      <div class="win rv" style="--i:1">
+        <div style="display:flex;justify-content:space-between;align-items:end;flex-wrap:wrap;gap:8px"><div><div class="lbl">// días para el pago</div><div class="big"><span id="dpago">—</span> <span style="font-size:16px;opacity:.7">días</span></div></div><span class="rank"><i id="letter">–</i><span id="rname"></span></span></div>
+        <div class="days" id="days"></div>
+        <div style="display:flex;justify-content:space-between;gap:6px" class="lbl"><span>CORTE</span><span id="dtxt" style="text-align:center"></span><span>PAGO</span></div>
       </div>
-      <div class="card-due-notice" id="card-due-notice">
-        <div class="due-title" id="due-title"></div>
-        <div class="due-sub" id="due-sub"></div>
-      </div>
-    </div>
-
-    <div class="hero-right">
-      <div class="countdown-card" id="countdown-card">
-        <span class="corner tl"></span><span class="corner tr"></span>
-        <span class="corner bl"></span><span class="corner br"></span>
-        <div class="ring-wrap">
-          <svg width="104" height="104" viewBox="0 0 104 104">
-            <circle id="ring-track" cx="52" cy="52" r="46" fill="none" stroke-width="8"/>
-            <g id="ring-ticks" stroke="rgba(255,255,255,.3)" stroke-width="1.5">
-              <line x1="52" y1="4" x2="52" y2="10"/>
-              <line x1="52" y1="94" x2="52" y2="100"/>
-              <line x1="4" y1="52" x2="10" y2="52"/>
-              <line x1="94" y1="52" x2="100" y2="52"/>
-            </g>
-            <circle id="ring-progress" cx="52" cy="52" r="46" fill="none" stroke="var(--brass)" stroke-width="8" stroke-linecap="round" stroke-dasharray="289" stroke-dashoffset="289"/>
-          </svg>
-          <div class="ring-num"><div class="n" id="days-left">—</div><div class="u">días</div></div>
-        </div>
-        <div class="countdown-text">
-          <div class="k">Para la fecha de pago</div>
-          <div class="v" id="countdown-msg">Sin fecha de pago aún</div>
-          <div class="status" id="status-badge" style="background:var(--bg-2); color:var(--text-mid);">Sin definir</div>
-        </div>
-      </div>
-
-      <div class="xp-bar-wrap">
-        <div class="xp-bar-head">
-          <span class="xp-bar-lbl">MARGEN DEL LÍMITE BANCARIO</span>
-          <span class="xp-bar-val" id="xp-bar-val">0%</span>
-        </div>
-        <div class="xp-bar-track">
-          <div class="xp-bar-fill" id="xp-bar-fill" style="width:0%"></div>
-          <div class="xp-bar-ticks"></div>
-        </div>
-      </div>
-
-      <div class="dates-row">
-        <div class="date-edit">
-          <label>Fecha de corte <span class="src" id="src-corte">Sheet</span></label>
-          <input type="date" id="input-corte">
-        </div>
-        <div class="date-edit">
-          <label>Fecha de pago <span class="src" id="src-pago">Sheet</span></label>
-          <input type="date" id="input-pago">
-        </div>
+      <div class="win rv" style="--i:2">
+        <div style="display:flex;justify-content:space-between;align-items:end;flex-wrap:wrap;gap:8px"><div><div class="lbl">// mi límite</div><div class="big"><span id="total">$0.00</span> <span style="font-size:16px;opacity:.7">/ <span id="limtxt"></span></span></div></div><span class="mono" style="font-size:13px;font-weight:700;color:var(--st)" id="limst"></span></div>
+        <div class="limw"><div class="limbar"><i class="ok" id="lok" style="display:block"></i><i class="ov" id="lov" style="display:block"></i></div><div class="limmark" id="lmk"><span>LÍMITE</span></div></div>
+        <div class="lbl" id="limsub"></div>
       </div>
     </div>
   </div>
 
-  <!-- ── Grupo 1: ¿Puedo pagar? ── -->
-  <div class="section-title">¿Puedo pagar este ciclo?</div>
-  <div class="kpi-row">
-    <div class="kpi k1">
-      <div class="lbl">Gastado este ciclo</div>
-      <div class="val figures" id="kpi-total">$0.00</div>
-      <div class="sub" id="kpi-total-sub">— movimientos · col. C</div>
-    </div>
-    <div class="kpi k4">
-      <div class="lbl">Mi límite de pago <input type="number" id="input-limite"></div>
-      <div class="val figures" id="kpi-limite">$0 / $200</div>
-      <div class="bar-track"><div class="bar-fill" id="bar-limite" style="width:0%; background:var(--mint);"></div></div>
-    </div>
-    <div class="kpi k2">
-      <div class="lbl">Ahorro para el pago</div>
-      <div class="val figures" id="kpi-ahorro">$0.00</div>
-      <div class="sub" id="kpi-ahorro-sub">ingresado a la cuenta · col. H</div>
-    </div>
-    <div class="kpi k3">
-      <div class="lbl">Límite del banco</div>
-      <div class="val figures" id="kpi-banco">$0 / $0</div>
-      <div class="bar-track"><div class="bar-fill" id="bar-banco" style="width:0%; background:var(--amber);"></div></div>
-    </div>
+  <div class="g2">
+    <div class="win rv" style="--i:3"><div class="lbl" style="margin-bottom:8px">// presupuesto · cuánto puedo gastar</div>
+      <table class="bt"><tbody id="bt"></tbody></table>
+      <div class="mt">MES PASADO VS ESTE MES</div>
+      <table class="bt"><tbody id="mt"></tbody></table></div>
+    <div class="win rv" style="--i:4"><div class="lbl" style="margin-bottom:6px">// ahorro · ¿alcanza para pagar?</div>
+      <div class="big" style="font-size:30px" id="ahorro">$0.00</div>
+      <div class="cov"><i id="cvf"></i></div><div class="lbl" id="cvt"></div>
+      <div class="sv"><div><span class="lbl">falta para cubrir</span><b id="svf"></b></div><div><span class="lbl">sobra tras pagar</span><b id="svs"></b></div><div><span class="lbl">uso del banco</span><b id="svb"></b></div><div><span class="lbl">límite banco</span><b id="svl"></b></div></div>
+      <div class="cov" style="margin-top:12px"><i id="cbb" style="background:linear-gradient(90deg,var(--acc2),var(--warn));box-shadow:0 0 12px var(--warn)"></i></div>
+      <div class="mt">CUOTAS · COMPROMISOS ACTIVOS</div>
+      <table class="cq"><tbody id="cq"></tbody><tfoot id="cqf"></tfoot></table></div>
   </div>
 
-  <!-- ── Veredicto de ahorro (compacto, sin repetir números de arriba) ── -->
-  <div class="panel hud-focus savings-panel" id="savings-panel" style="margin-bottom:28px;">
-    <span class="corner tl"></span><span class="corner tr"></span>
-    <span class="corner bl"></span><span class="corner br"></span>
-    <div class="savings-check-head">
-      <div class="section-title" style="margin:0; border:none;">¿Tu ahorro alcanza para pagar?</div>
-      <div class="verdict-pill na" id="savings-verdict">Calculando…</div>
-    </div>
-    <div class="bar-track"><div class="bar-fill" id="bar-ahorro" style="width:0%; background:var(--mint);"></div></div>
-    <div class="savings-hint" id="ahorro-hint"></div>
+  <div class="win rv" style="--i:5">
+    <div class="tools"><input id="q" placeholder="> buscar gasto..." autocomplete="off"><button id="csv">⇩ CSV</button></div>
+    <div class="tw" id="tw"><table class="ct"><thead><tr><th data-k="fecha">FECHA</th><th data-k="gasto">GASTO</th><th data-k="cuotas" class="hm">CUOTAS</th><th class="hm">PROGRESO</th><th data-k="monto" style="text-align:right">MONTO</th></tr></thead><tbody id="tb"></tbody></table></div>
+    <div class="mono" style="font-size:10px;color:var(--tx3);margin-top:8px;letter-spacing:.1em">▼ DESLIZA PARA VER REGISTROS ANTERIORES</div>
   </div>
-
-  <!-- ── Mes pasado vs este mes ── -->
-  <div class="panel" style="margin-bottom:28px;">
-    <div class="section-title">¿Gasté más o menos que el mes pasado?</div>
-    <div class="month-compare">
-      <div class="month-col">
-        <div class="lbl" id="month-prev-label">Mes pasado</div>
-        <div class="val figures" id="month-prev-total">$0.00</div>
-      </div>
-      <div class="month-diff">
-        <div class="arrow" id="month-diff-arrow">—</div>
-        <div class="pct" id="month-diff-pct">—</div>
-        <div class="sub" id="month-diff-sub"></div>
-      </div>
-      <div class="month-col">
-        <div class="lbl" id="month-this-label">Este mes</div>
-        <div class="val figures" id="month-this-total">$0.00</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── Grupo 2: Análisis del ciclo ── -->
-  <div class="section-title">Cómo se ve mi ciclo</div>
-  <div class="analytics-row">
-    <div class="metric m1">
-      <div class="lbl">Gasto promedio por compra</div>
-      <div class="val figures" id="kpi-avg">$0.00</div>
-      <div class="sub" id="kpi-max-sub">mayor: —</div>
-    </div>
-    <div class="metric m2">
-      <div class="lbl">Ritmo de gasto semanal</div>
-      <div class="val figures" id="metric-semanal">$0.00</div>
-      <div class="sub">promedio por semana transcurrida</div>
-    </div>
-    <div class="metric m3">
-      <div class="lbl">Compras a cuotas</div>
-      <div class="val figures" id="metric-cuotas">0 SI / 0 NO</div>
-      <div class="sub" id="metric-cuotas-sub">del total de movimientos</div>
-    </div>
-    <div class="metric m1">
-      <div class="lbl">Gasto global (histórico)</div>
-      <div class="val figures" id="metric-global">$0.00</div>
-      <div class="sub" id="metric-global-sub">— movimientos, todo el Sheet</div>
-    </div>
-  </div>
-
-  <!-- ── Tabla ── -->
-  <div class="panel" style="margin-bottom:28px;">
-    <div class="table-toolbar">
-      <div class="section-title">Movimientos del ciclo (en vivo desde Sheets)</div>
-      <button class="btn-theme" id="btn-export-csv" title="Exportar CSV">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      </button>
-      <input type="text" class="input-search" id="input-search" placeholder="Buscar gasto…">
-    </div>
-    <div class="table-wrap" id="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th class="sortable" data-key="fecha">Fecha <span class="arrow">▲</span></th>
-            <th class="sortable" data-key="gasto">Gasto <span class="arrow">▲</span></th>
-            <th class="sortable" data-key="cuotas" style="text-align:center">Cuotas <span class="arrow">▲</span></th>
-            <th style="text-align:center">Progreso</th>
-            <th class="sortable" data-key="monto" style="text-align:right">Monto <span class="arrow">▲</span></th>
-          </tr>
-        </thead>
-        <tbody id="tbl-body"><tr class="empty-row"><td colspan="5">Cargando…</td></tr></tbody>
-      </table>
-    </div>
-    <div class="table-pagination" id="table-pagination">
-      <button class="page-btn" id="btn-page-prev" title="Más recientes">‹</button>
-      <span class="page-indicator" id="page-indicator">Página 1 de 1</span>
-      <button class="page-btn" id="btn-page-next" title="Más antiguos">›</button>
-    </div>
-  </div>
-
-  <div class="bottom-row">
-    <div class="panel tip-card">
-      <span class="corner tl"></span><span class="corner tr"></span>
-      <span class="corner bl"></span><span class="corner br"></span>
-      <div class="tip-card-head">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c77dff" stroke-width="2"><path d="M9 18h6M10 22h4M15 2a6 6 0 0 0-4 10.472V16h2v-2.837A6 6 0 0 0 15 2z"/></svg>
-        <span>CONSEJO DEL SISTEMA</span>
-      </div>
-      <p id="tip-text">Cargando consejo…</p>
-    </div>
-
-    <div class="panel system-log">
-      <span class="corner tl"></span><span class="corner tr"></span>
-      <span class="corner bl"></span><span class="corner br"></span>
-      <div class="tip-card-head">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4ad4ff" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
-        <span>REGISTRO DEL SISTEMA</span>
-      </div>
-      <ul class="system-log-list" id="system-log-list">
-        <li class="system-log-empty">Sin actividad todavía…</li>
-      </ul>
-    </div>
-  </div>
-
+  <div class="foot">hoja activa: <b id="fs"></b> · zona horaria El Salvador</div>
 </main>
 
-<div class="modal-overlay" id="modal-overlay">
-  <div class="modal">
-    <span class="corner tl"></span><span class="corner tr"></span>
-    <span class="corner bl"></span><span class="corner br"></span>
-    <span class="corner corner-inner tl"></span><span class="corner corner-inner tr"></span>
-    <span class="corner corner-inner bl"></span><span class="corner corner-inner br"></span>
-    <div class="modal-terminal-line">&gt; SYSTEM_ALERT :: limite.excedido()</div>
-    <div class="modal-head">
-      <div class="modal-icon">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--rose)" stroke-width="2"><path d="M12 9v4M12 17h.01M10.29 3.86l-8.18 14.18A2 2 0 0 0 3.82 21h16.36a2 2 0 0 0 1.71-2.96L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
-      </div>
-      <h3>Alerta del sistema</h3>
-    </div>
-    <p class="modal-sub">Superaste tu límite de pago</p>
-    <p>Este ciclo llevas <span class="figures" id="modal-total">$0.00</span>, por encima de tu límite mensual de <span class="figures" id="modal-limite">$200.00</span>. ¿Podrás pagar este monto completo?</p>
-    <div class="modal-actions">
-      <button class="btn btn-no" id="btn-answer-no">NO</button>
-      <button class="btn btn-yes" id="btn-answer-yes">SÍ</button>
-    </div>
-  </div>
-</div>
-
-<footer>
-  <div class="footer-grid">
-    <span>Hoja activa: <b id="footer-sheet">TARJETA</b></span>
-    <span>Última sincronización: <b id="footer-sync">—</b></span>
-    <span>Auto-refresco: <b>cada 2 min</b></span>
-    <span>Versión: <b>2.0 · sistema</b></span>
-  </div>
-</footer>
-<div class="toast" id="toast"></div>
-
-<div class="quest-toast" id="quest-toast">
-  <div class="quest-toast-head">
-    <span class="quest-toast-tag">⚠ MISIÓN FALLADA</span>
-    <button class="quest-toast-close" id="quest-toast-close">✕</button>
-  </div>
-  <div class="quest-toast-title">Límite de pago excedido</div>
-  <div class="quest-toast-body" id="quest-toast-body"></div>
-</div>
-
-<div class="quest-toast intrusion-toast" id="intrusion-toast">
-  <div class="quest-toast-head">
-    <span class="quest-toast-tag intrusion-tag">🛡 ANOMALÍA DETECTADA</span>
-    <button class="quest-toast-close" id="intrusion-toast-close">✕</button>
-  </div>
-  <div class="quest-toast-title">Gasto fuera de lo común</div>
-  <div class="quest-toast-body" id="intrusion-toast-body"></div>
-</div>
-
 <script>
-/**
- * ══════════════════════════════════════════════════════════════════════════
- *  CONTROL DE TARJETA — Ledger Personal
- * ──────────────────────────────────────────────────────────────────────────
- *  Dashboard estático (sin backend) que lee en vivo la hoja "TARJETA" de un
- *  Google Sheet público vía la API gviz, y persiste preferencias del usuario
- *  (fechas de corte/pago, límite de pago personal) en localStorage a través
- *  de storage.
- *
- *  Estructura del archivo (de arriba hacia abajo):
- *    1. CONFIG          — constantes de configuración, nunca cambian en runtime
- *    2. STATE           — estado mutable de la aplicación
- *    3. DOM HELPERS     — acceso al DOM
- *    4. FORMATTERS      — number/date → string
- *    5. PARSERS         — string (Sheet) → number/date
- *    6. DATA LAYER      — fetch a la fuente de datos externa (Google Sheets)
- *    7. BUSINESS LOGIC  — cálculos puros (no tocan el DOM)
- *    8. PERSISTENCE     — leer/escribir preferencias del usuario
- *    9. RENDER LAYER    — pintan el estado actual en el DOM
- *   10. ORCHESTRATION   — combina data layer + render layer
- *   11. EVENT BINDINGS  — conectan inputs/botones a sus handlers
- *   12. LIFECYCLE       — orquestación de arranque y refresco periódico
- * ══════════════════════════════════════════════════════════════════════════
- */
-(function () {
-  'use strict';
-
-  // ┌──────────────────────────────────────────────────────────────────────┐
-  // │ 1. CONFIG                                                            │
-  // └──────────────────────────────────────────────────────────────────────┘
-
-  /** Tarjetas configuradas. Agregar una 2ª tarjeta aquí es todo lo que hace
-      falta para que el selector del header y el resto de la app la soporten
-      — cada tarjeta guarda su límite/fechas/notas bajo su propio "id". */
-  const CARDS = [
-    { id: 'cuscatlan', nombre: 'Banco Cuscatlán', sheetId: '1lTFi6NWYgzn_olV4usP4y2aWol_AnN096knpQ2rZ7Hk', sheetName: 'TARJETA' },
-  ];
-
-  /** Cada cuánto se vuelve a consultar el Sheet automáticamente (ms). */
-  const REFRESH_MS = 120000; // 2 minutos
-
-  /** Si el Sheet no responde en este tiempo, se aborta el fetch en vez de colgar la carga para siempre. */
-  const FETCH_TIMEOUT_MS = 15000;
-
-  /** Red de seguridad: si por cualquier motivo el overlay de carga sigue visible después de esto, se fuerza a ocultar. */
-  const LOADING_WATCHDOG_MS = 20000;
-
-  /** Límite de pago personal usado la primera vez que se abre el dashboard. */
-  const DEFAULT_LIMITE = 200;
-
-  /** Día del mes usado para las ventanas fijas de la barra de filtros ("25 a 25"). */
-  const CUTOFF_DAY = 25;
-
-  /** Perímetro (2πr, r=46) del anillo SVG de cuenta regresiva — ver <circle id="ring-progress">. */
-  const RING_CIRCUMFERENCE = 289;
-
-  /** Umbrales de urgencia para el badge de estado de pago (días restantes). */
-  const DUE_SOON_DAYS = 3;
-  const DUE_WARNING_DAYS = 7;
-
-  /** Un gasto se marca "inusual" si supera este monto fijo. */
-  const OUTLIER_THRESHOLD = 100;
-
-  /** Zona horaria fija de El Salvador — todo cálculo de "hoy" pasa por aquí,
-      sin importar en qué huso horario esté configurado el navegador del usuario. */
-  const TIMEZONE = 'America/El_Salvador';
-
-  /** Claves de storage. Cada una se combina con el id de la tarjeta
-      activa (ver skey() en DOM HELPERS) para que cada tarjeta tenga sus
-      propios datos guardados. */
-  const STORAGE_KEYS = {
-    FECHAS_MANUAL: 'tarjeta:fechas-manual',
-    LIMITE: 'tarjeta:limite-pago',
-    VEREDICTO: 'tarjeta:veredicto',
-    THEME: 'tarjeta:theme',
-    NOTAS: 'tarjeta:notas',
-  };
-
-  // ┌──────────────────────────────────────────────────────────────────────┐
-  // │ 2. STATE                                                             │
-  // └──────────────────────────────────────────────────────────────────────┘
-
-  /** Movimientos DEL CICLO ACTUAL únicamente (filtrados por corte, se reinicia solo al pasar de ciclo). */
-  let EXPENSES = [];
-
-  /** Historial COMPLETO tal como viene del Sheet, sin filtrar — para "Gasto global" y el comparativo mensual. */
-  let ALL_EXPENSES = [];
-
-  /** Modo activo de la barra de filtros: 'actual' | 'anterior' | 'todo' | 'rango'. */
-  let FILTER_MODE = 'actual';
-
-  /** Rango manual activo (inputs de calendario "Desde"/"Hasta"), o null si no se está usando. */
-  let RANGO_MANUAL = null;
-
-  /** Metadatos leídos del Sheet (columnas D-F): fecha de corte/pago y límite del banco. */
-  let META = { corte: null, pago: null, limiteBanco: null, ahorro: null };
-
-  /** Última respuesta guardada al modal "¿podrás pagar?". @type {{total:number, answer:boolean}|null} */
-  let VERDICT = null;
-
-  /** Índice de la tarjeta activa dentro de CARDS. */
-  let activeCardIndex = 0;
-
-  /** Notas de texto libre por movimiento, indexadas por una clave derivada del propio movimiento. */
-  let NOTAS = {};
-
-  /** Últimas 3 acciones del sistema, para el mini log del footer. Solo en memoria (no persiste entre visitas). */
-  let SYSTEM_LOG = [];
-
-  /** Evita registrar la misma alerta de límite repetidamente en cada refresco mientras sigue sin respuesta. */
-  let lastAlertLoggedTotal = null;
-
-  /** Consejos financieros — se elige uno al azar por carga de página. */
-  const TIPS = [
-    'Pagar más del mínimo cada ciclo reduce los intereses que se acumulan sobre el saldo.',
-    'Revisa tu gasto promedio cada semana — es más fácil corregir a tiempo que al cierre del ciclo.',
-    'Si una compra es a cuotas, súmala igual a tu límite mensual: el compromiso ya existe, aunque se pague después.',
-    'Separar un ahorro fijo para el pago, aunque sea pequeño, evita sorpresas cerca de la fecha de corte.',
-    'Los gastos "inusuales" (muy por encima de tu promedio) son los primeros candidatos a revisar antes de pagar.',
-    'Comparar el mes actual contra el anterior te dice más sobre tus hábitos que el total de un solo ciclo.',
-    'Una tarjeta con margen amplio no es lo mismo que dinero disponible — el límite del banco no es tu presupuesto real.',
-  ];
-
-  /** Texto actual del buscador de la tabla (case-insensitive, filtra por nombre de gasto). */
-  let TABLE_FILTER = '';
-
-  /** Columna y dirección de orden actual de la tabla de movimientos. */
-  let SORT_STATE = { key: 'fecha', dir: 'desc' };
-
-  /** Página actual de la tabla de movimientos y cuántas filas se muestran por página. */
-  let CURRENT_PAGE = 1;
-  const PAGE_SIZE = 10;
-
-  // ┌──────────────────────────────────────────────────────────────────────┐
-  // │ 3. DOM HELPERS                                                       │
-  // └──────────────────────────────────────────────────────────────────────┘
-
-  /** Atajo para document.getElementById — reduce ruido repetido en todo el archivo. */
-  const $ = (id) => document.getElementById(id);
-
-  /** Lee el límite de pago actual desde el input, con fallback seguro si está vacío/inválido. */
-  const getLimite = () => {
-    const v = parseFloat($('input-limite').value);
-    return Number.isFinite(v) && v > 0 ? v : DEFAULT_LIMITE;
-  };
-
-  /** La tarjeta actualmente seleccionada (ver CARDS en CONFIG). */
-  const activeCard = () => CARDS[activeCardIndex];
-
-  /** Combina una clave base de STORAGE_KEYS con el id de la tarjeta activa,
-      así cada tarjeta guarda su límite/fechas/notas por separado. */
-  const skey = (base) => `${base}:${activeCard().id}`;
-
-  // ┌──────────────────────────────────────────────────────────────────────┐
-  // │ 4. FORMATTERS — number/date → string para mostrar en pantalla        │
-  // └──────────────────────────────────────────────────────────────────────┘
-
-  /** Formatea un número como moneda USD: 1234.5 → "$1,234.50". */
-  const fmt = (n) => '$' + (n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-  /**
-   * "Hoy" en formato ISO YYYY-MM-DD, calculado en la zona horaria de El Salvador
-   * (TIMEZONE), no en la del navegador. Evita que el conteo de días se desincronice
-   * si el usuario abre el dashboard viajando o con el reloj del equipo mal puesto.
-   */
-  const todayInSV = () => new Date().toLocaleDateString('en-CA', { timeZone: TIMEZONE });
-
-  const MESES_LARGO = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
-  const MESES_CORTO = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-
-  /** ISO "YYYY-MM-DD" → "25 AGO 26" (para la tarjeta visual). */
-  const fmtDate = (iso) => {
-    if (!iso) return '—';
-    const [y, m, d] = iso.split('-');
-    return `${d} ${MESES_LARGO[+m - 1]} ${y.slice(2)}`;
-  };
-
-  /** ISO "YYYY-MM-DD" → "25 ago" (para la tabla). */
-  const fmtDateShort = (iso) => {
-    if (!iso) return '—';
-    const [y, m, d] = iso.split('-');
-    return `${d} ${MESES_CORTO[+m - 1]}`;
-  };
-
-  // ┌──────────────────────────────────────────────────────────────────────┐
-  // │ 5. PARSERS — texto crudo del Sheet → tipos utilizables               │
-  // └──────────────────────────────────────────────────────────────────────┘
-
-  /**
-   * Convierte una fecha "DD/MM/YYYY" (formato del Sheet) a ISO "YYYY-MM-DD".
-   * @param {string} str
-   * @returns {string|null} null si el formato no coincide o el valor es vacío.
-   */
-  function parseDMY(str) {
-    if (!str) return null;
-    const match = String(str).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (!match) return null;
-    const [, d, mo, y] = match;
-    return `${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}`;
-  }
-
-  /**
-   * Convierte un valor de celda ("$2.39", 2.39, " $ 2,39 ") a número.
-   * @param {string|number|null} v
-   * @returns {number|null} null si no se pudo interpretar como número.
-   */
-  function parseMoney(v) {
-    if (v === null || v === undefined) return null;
-    if (typeof v === 'number') return v;
-    const cleaned = String(v).replace(/[^0-9.\-]/g, '');
-    const n = parseFloat(cleaned);
-    return isNaN(n) ? null : n;
-  }
-
-  /**
-   * Normaliza la celda "Cuotas" (columna D) a 'SI' / 'NO' / null.
-   * Acepta variantes comunes de tipeo: sí/si/yes/x/1 → SI; no/n/0 → NO.
-   * @param {string|null} v
-   * @returns {'SI'|'NO'|null}
-   */
-  function parseCuotas(v) {
-    if (v === null || v === undefined) return null;
-    const s = String(v).trim().toLowerCase();
-    if (s === '') return null;
-    if (['si', 'sí', 'yes', 'x', '1', 'true'].includes(s)) return 'SI';
-    if (['no', 'n', '0', 'false'].includes(s)) return 'NO';
-    return null;
-  }
-
-  // ┌──────────────────────────────────────────────────────────────────────┐
-  // │ 6. DATA LAYER — comunicación con la fuente externa (Google Sheets)   │
-  // └──────────────────────────────────────────────────────────────────────┘
-
-  /**
-   * Descarga y parsea la hoja "TARJETA" vía la API pública gviz de Google Sheets.
-   * Columnas esperadas A–J: FECHA | GASTOS | $ | Cuotas (SI/NO) | Cuántas cuotas |
-   * Cantidad abonadas | Fecha de Corte | Fecha de Pago | Total de Tarjeta (banco) |
-   * Ingreso a cuenta de ahorro.
-   * Requiere que el Sheet esté compartido como "Cualquiera con el enlace — Lector".
-   * @returns {Promise<{expenses: object[], corte: string|null, pago: string|null, limiteBanco: number|null, ahorro: number|null}>}
-   */
-  async function fetchSheet() {
-    const { sheetId, sheetName } = activeCard();
-    const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}&headers=1&_=${Date.now()}`;
-
-    // AbortController con timeout: sin esto, si Google no responde nunca,
-    // el fetch queda pendiente para siempre y la pantalla de carga se congela.
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-
-    let res;
-    try {
-      res = await fetch(url, { signal: controller.signal });
-    } catch (err) {
-      if (err.name === 'AbortError') {
-        throw new Error(`El Sheet no respondió en ${FETCH_TIMEOUT_MS / 1000}s — revisa tu conexión e intenta de nuevo.`);
-      }
-      throw err;
-    } finally {
-      clearTimeout(timeoutId);
-    }
-
-    if (!res.ok) throw new Error('No se pudo leer la hoja (¿está compartida como "Cualquiera con el enlace"?)');
-
-    const text = await res.text();
-    // La respuesta viene envuelta en "google.visualization.Query.setResponse({...});" — extraemos solo el JSON.
-    const jsonStr = text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1);
-    const rows = JSON.parse(jsonStr).table.rows || [];
-
-    const expenses = [];
-    let corte = null, pago = null, limiteBanco = null, ahorro = null;
-
-    rows.forEach((row, idx) => {
-      const cells = row.c || [];
-      const cell = (i) => (cells[i] ? (cells[i].f ?? cells[i].v ?? null) : null);
-
-      const fecha = parseDMY(cell(0));
-      const gasto = cell(1);
-      const monto = parseMoney(cell(2));
-      const cuotas = parseCuotas(cell(3)); // columna D — por movimiento, no metadato de ciclo
-
-      // Columnas nuevas (E, F) — ligadas a la columna D: solo tienen sentido
-      // cuando ese movimiento es a cuotas ("SI"). Si viene vacío o en 0, se
-      // guarda como null en vez de 0 para poder distinguir "no aplica" de "cero".
-      const cuantasCuotasRaw = parseMoney(cell(4));
-      const cantidadAbonadasRaw = parseMoney(cell(5));
-      const cuantasCuotas = cuotas === 'SI' && cuantasCuotasRaw ? cuantasCuotasRaw : null;
-      const cantidadAbonadas = cuotas === 'SI' && cantidadAbonadasRaw !== null ? cantidadAbonadasRaw : null;
-
-      // Corte/pago/límite/ahorro solo aparecen en la primera fila con dato — tomamos el primero no vacío.
-      if (!corte) corte = parseDMY(cell(6));
-      if (!pago) pago = parseDMY(cell(7));
-      if (!limiteBanco) limiteBanco = parseMoney(cell(8));
-      if (!ahorro) ahorro = parseMoney(cell(9)); // columna J
-
-      if (fecha && gasto && monto !== null) {
-        // idx+2: la fila 1 del Sheet es el encabezado (headers=1), así que la
-        // primera fila de datos (idx 0) corresponde a la fila 2 real del Sheet.
-        expenses.push({ fecha, gasto: String(gasto).trim(), monto, cuotas, cuantasCuotas, cantidadAbonadas, fila: idx + 2 });
-      }
-    });
-
-    expenses.sort((a, b) => a.fecha.localeCompare(b.fecha));
-    return { expenses, corte, pago, limiteBanco, ahorro };
-  }
-
-  // ┌──────────────────────────────────────────────────────────────────────┐
-  // │ 7. BUSINESS LOGIC — cálculos puros, sin efectos sobre el DOM         │
-  // └──────────────────────────────────────────────────────────────────────┘
-
-  /** Suma el total gastado en el ciclo actual. */
-  const totalTarjeta = () => EXPENSES.reduce((sum, e) => sum + e.monto, 0);
-
-  /**
-   * Aplica TABLE_FILTER (búsqueda por nombre) y SORT_STATE (columna + dirección)
-   * sobre EXPENSES, sin mutar el arreglo original. Pura: no toca el DOM.
-   * @returns {object[]}
-   */
-  function getVisibleExpenses() {
-    const query = TABLE_FILTER.trim().toLowerCase();
-    const filtered = query ? EXPENSES.filter((e) => e.gasto.toLowerCase().includes(query)) : EXPENSES.slice();
-
-    const { key, dir } = SORT_STATE;
-    const factor = dir === 'asc' ? 1 : -1;
-    filtered.sort((a, b) => {
-      if (key === 'monto') return (a.monto - b.monto) * factor;
-      if (key === 'cuotas') return (a.cuotas || '').localeCompare(b.cuotas || '') * factor;
-      return a[key].localeCompare(b[key]) * factor;
-    });
-    return filtered;
-  }
-
-  /** Diferencia en días completos entre dos fechas ISO (b - a). */
-  function daysBetween(a, b) {
-    const d1 = new Date(a + 'T00:00:00');
-    const d2 = new Date(b + 'T00:00:00');
-    return Math.round((d2 - d1) / 86400000);
-  }
-
-  /** Suma (o resta, si n es negativo) días a una fecha ISO "YYYY-MM-DD". */
-  function addDays(iso, n) {
-    const d = new Date(iso + 'T00:00:00');
-    d.setDate(d.getDate() + n);
-    return d.toISOString().slice(0, 10);
-  }
-
-  /**
-   * Motor de la barra de filtros: ventanas fijas de calendario "25 → 25",
-   * calculadas siempre desde HOY — sin depender del valor de corte que haya
-   * en el Sheet (esa dependencia era frágil: si el corte real no coincidía
-   * con las fechas de los gastos, o si un valor viejo quedaba guardado en el
-   * navegador, la pantalla se quedaba vacía). offset 0 = "desde el 25 del
-   * mes pasado hasta el 25 de este mes"; offset 1 = un ciclo antes; etc.
-   */
-  function shiftMonth(y, m, delta) {
-    const idx = y * 12 + (m - 1) + delta;
-    return { y: Math.floor(idx / 12), m: (idx % 12 + 12) % 12 + 1 };
-  }
-
-  function clampDay(y, m, day) {
-    const diasDelMes = new Date(y, m, 0).getDate();
-    return Math.min(day, diasDelMes);
-  }
-
-  function isoDate(y, m, d) {
-    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-  }
-
-  /**
-   * Ventana [inicio, fin] del ciclo `offset` (0 = actual) usando siempre el
-   * día CUTOFF_DAY del calendario, sin importar si ya pasó ese día este mes.
-   */
-  function fixedCycleWindow(offset) {
-    const hoy = todayInSV();
-    let [y, m] = hoy.split('-').map(Number);
-    ({ y, m } = shiftMonth(y, m, -offset));
-    const fin = isoDate(y, m, clampDay(y, m, CUTOFF_DAY));
-    const prev = shiftMonth(y, m, -1);
-    const inicio = isoDate(prev.y, prev.m, clampDay(prev.y, prev.m, CUTOFF_DAY));
-    return { inicio, fin };
-  }
-
-  /**
-   * Devuelve el subconjunto de ALL_EXPENSES correspondiente al modo de la
-   * barra de filtros, o a un rango manual si se pasa uno explícito
-   * (los inputs de calendario "Desde"/"Hasta").
-   */
-  function computeQuickFilter(mode, rangoManual) {
-    if (rangoManual) {
-      const { inicio, fin } = rangoManual;
-      return ALL_EXPENSES.filter((e) => (!inicio || e.fecha >= inicio) && (!fin || e.fecha <= fin));
-    }
-    if (mode === 'todo') return ALL_EXPENSES;
-
-    const offset = mode === 'anterior' ? 1 : 0; // 'actual' = 0
-    const { inicio, fin } = fixedCycleWindow(offset);
-    return ALL_EXPENSES.filter((e) => e.fecha > inicio && e.fecha <= fin);
-  }
-
-  /** Un gasto es "inusual" si supera OUTLIER_THRESHOLD ($100). */
-  function isOutlier(monto) {
-    return monto > OUTLIER_THRESHOLD;
-  }
-
-  /** HTML de la pastilla SI/NO/— para la columna Cuotas de la tabla. Si es "SI" y hay datos de cuántas cuotas/abonadas, lo muestra en el tooltip. */
-  function cuotasBadge(cuotas, cuantasCuotas, cantidadAbonadas) {
-    if (cuotas === 'SI') {
-      const detalle = cuantasCuotas
-        ? ` title="${cantidadAbonadas ?? 0} de ${cuantasCuotas} cuotas abonadas"`
-        : '';
-      return `<span class="tag-cuotas si"${detalle}>SI</span>`;
-    }
-    if (cuotas === 'NO') return '<span class="tag-cuotas no">NO</span>';
-    return '<span class="tag-cuotas na">—</span>';
-  }
-
-  /**
-   * Texto de la columna "Progreso" en la tabla: "abonadas/cuántas cuotas"
-   * (ej. "2/6") para movimientos a cuotas con ese dato — un guion para todo
-   * lo demás, así la columna no se ve "sucia" de ceros en cada fila que no aplica.
-   */
-  function progresoCuotasCelda(e) {
-    if (e.cuotas !== 'SI' || !e.cuantasCuotas) return '<span style="color:var(--text-dim)">—</span>';
-    return `${e.cantidadAbonadas ?? 0}/${e.cuantasCuotas}`;
-  }
-
-  /** Cuenta cuántos movimientos del ciclo son a cuotas (SI) y cuántos no (NO). */
-  function contarCuotas() {
-    let si = 0, no = 0;
-    EXPENSES.forEach((e) => {
-      if (e.cuotas === 'SI') si += 1;
-      else if (e.cuotas === 'NO') no += 1;
-    });
-    return { si, no };
-  }
-
-  /**
-   * Progreso agregado de las compras a cuotas del ciclo — suma cuántas
-   * cuotas totales hay comprometidas vs. cuántas ya se abonaron, entre
-   * todos los movimientos marcados "SI" que traen ese dato (columnas E/F).
-   */
-  function progresoCuotas() {
-    let totalCuotas = 0, totalAbonadas = 0, movimientosConDato = 0;
-    EXPENSES.forEach((e) => {
-      if (e.cuotas === 'SI' && e.cuantasCuotas) {
-        totalCuotas += e.cuantasCuotas;
-        totalAbonadas += e.cantidadAbonadas || 0;
-        movimientosConDato += 1;
-      }
-    });
-    return { totalCuotas, totalAbonadas, movimientosConDato };
-  }
-
-  /** Nombres de mes en español, para las etiquetas "Junio" / "Julio" del comparativo. */
-  const MESES_COMPLETO = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-
-  /** "YYYY-MM" desplazado n meses (n negativo = hacia atrás). Ej: addMonths('2026-01', -1) → '2025-12'. */
-  function addMonths(ym, n) {
-    let [y, m] = ym.split('-').map(Number);
-    m += n;
-    while (m < 1) { m += 12; y -= 1; }
-    while (m > 12) { m -= 12; y += 1; }
-    return `${y}-${String(m).padStart(2, '0')}`;
-  }
-
-  /** Suma el gasto de todos los movimientos (historial completo, no solo el ciclo) cuyo mes-año coincide con el dado. */
-  function totalDelMes(ym) {
-    return ALL_EXPENSES.filter((e) => e.fecha.slice(0, 7) === ym).reduce((sum, e) => sum + e.monto, 0);
-  }
-
-  /** Suma total histórica, sin filtrar por ciclo — es el "gasto global" de toda la vida del Sheet. */
-  const totalGlobal = () => ALL_EXPENSES.reduce((sum, e) => sum + e.monto, 0);
-
-  /**
-   * Promedio de gasto por semana transcurrida del ciclo (no por movimiento).
-   * Usa la fecha de corte si existe; si no, la fecha del primer gasto.
-   */
-  function weeklyAverage() {
-    if (EXPENSES.length === 0) return 0;
-    const start = $('input-corte').value || EXPENSES[0].fecha;
-    const today = todayInSV();
-    const diasTranscurridos = Math.max(daysBetween(start, today) + 1, 1);
-    const semanas = Math.max(diasTranscurridos / 7, 1);
-    return totalTarjeta() / semanas;
-  }
-
-  // ┌──────────────────────────────────────────────────────────────────────┐
-  // │ 8. PERSISTENCE — preferencias del usuario en localStorage             │
-  // └──────────────────────────────────────────────────────────────────────┘
-
-  /**
-   * Envoltura sobre localStorage con la misma forma (get/set async) que tenía
-   * window.storage, para no tener que tocar el resto del código.
-   *
-   * window.storage es una API que SOLO existe dentro de la vista previa de
-   * artifacts de Claude — no es una API estándar del navegador. Una vez el
-   * sitio queda desplegado de verdad (Vercel, GitHub Pages, lo que sea),
-   * `window.storage` es `undefined`, así que cada llamada fallaba en
-   * silencio (los try/catch lo tapaban) y todo caía siempre a sus valores
-   * por defecto. Con el límite de pago no se notaba porque el valor por
-   * defecto ($200) coincidía con lo que la mayoría dejaba configurado; con
-   * las notas sí se notaba, porque no hay "nota por defecto" a la que caer.
-   * localStorage es una API real del navegador — funciona en cualquier sitio.
-   */
-  const storage = {
-    async get(key) {
-      const value = localStorage.getItem(key);
-      return value === null ? null : { key, value };
-    },
-    async set(key, value) {
-      localStorage.setItem(key, value);
-      return { key, value };
-    },
-  };
-
-  /**
-   * Carga el límite de pago guardado por el usuario. Si nunca lo definió,
-   * usa DEFAULT_LIMITE — así el campo nunca aparece vacío ni se resetea solo.
-   */
-  async function loadLimite() {
-    let limite = DEFAULT_LIMITE;
-    try {
-      const saved = await storage.get(skey(STORAGE_KEYS.LIMITE));
-      if (saved && saved.value) limite = parseFloat(saved.value) || DEFAULT_LIMITE;
-    } catch (e) { /* primera visita: no hay valor guardado todavía */ }
-    $('input-limite').value = limite;
-  }
-
-  /** Persiste el límite de pago cada vez que el usuario lo edita. */
-  async function saveLimite() {
-    const limite = getLimite();
-    try {
-      await storage.set(skey(STORAGE_KEYS.LIMITE), String(limite));
-      showToast('💾 Límite de pago guardado');
-    } catch (e) {
-      showToast('⚠️ No se pudo guardar el límite');
-    }
-  }
-
-  /**
-   * Resuelve fecha de corte/pago con prioridad: Sheet > guardado manual en el navegador.
-   * Actualiza también los badges "Sheet"/"Manual" junto a cada campo.
-   */
-  async function resolveDates() {
-    let localCorte = null, localPago = null;
-    try {
-      const saved = await storage.get(skey(STORAGE_KEYS.FECHAS_MANUAL));
-      if (saved && saved.value) {
-        const d = JSON.parse(saved.value);
-        localCorte = d.corte;
-        localPago = d.pago;
-      }
-    } catch (e) { /* sin fechas manuales guardadas todavía */ }
-
-    const corte = META.corte || localCorte;
-    const pago = META.pago || localPago;
-
-    $('input-corte').value = corte || '';
-    $('input-pago').value = pago || '';
-
-    $('src-corte').textContent = META.corte ? 'Sheet' : 'Manual';
-    $('src-corte').className = 'src' + (META.corte ? '' : ' local');
-    $('src-pago').textContent = META.pago ? 'Sheet' : 'Manual';
-    $('src-pago').className = 'src' + (META.pago ? '' : ' local');
-  }
-
-  /** Persiste las fechas de corte/pago cuando el Sheet aún no las trae. */
-  async function saveManualDates(silent = false) {
-    const corte = $('input-corte').value;
-    const pago = $('input-pago').value;
-    try {
-      await storage.set(skey(STORAGE_KEYS.FECHAS_MANUAL), JSON.stringify({ corte, pago }));
-    } catch (e) { /* falla silenciosa: no es crítico, el usuario puede reintentar */ }
-    updateCountdown();
-    if (!silent) showToast('💾 Fecha guardada localmente');
-  }
-
-  /** Carga la última respuesta guardada al modal "¿podrás pagar?". */
-  async function loadVerdict() {
-    try {
-      const saved = await storage.get(skey(STORAGE_KEYS.VEREDICTO));
-      VERDICT = saved && saved.value ? JSON.parse(saved.value) : null;
-    } catch (e) {
-      VERDICT = null;
-    }
-  }
-
-  /** Persiste la respuesta del usuario al modal "¿podrás pagar?". */
-  async function saveVerdict(v) {
-    VERDICT = v;
-    try {
-      await storage.set(skey(STORAGE_KEYS.VEREDICTO), JSON.stringify(v));
-    } catch (e) { /* falla silenciosa */ }
-  }
-
-  /** Carga las notas de texto libre guardadas por movimiento. */
-  async function loadNotas() {
-    try {
-      const saved = await storage.get(skey(STORAGE_KEYS.NOTAS));
-      NOTAS = saved && saved.value ? JSON.parse(saved.value) : {};
-    } catch (e) {
-      NOTAS = {};
-    }
-  }
-
-  /** Persiste (o borra, si el texto queda vacío) la nota de un movimiento. */
-  async function saveNota(key, texto) {
-    if (texto && texto.trim()) NOTAS[key] = texto.trim();
-    else delete NOTAS[key];
-    try {
-      await storage.set(skey(STORAGE_KEYS.NOTAS), JSON.stringify(NOTAS));
-    } catch (e) { /* falla silenciosa */ }
-  }
-
-  /** Carga el tema guardado (default: oscuro) y lo aplica antes del primer render. */
-  async function loadTheme() {
-    let theme = 'dark';
-    try {
-      const saved = await storage.get(STORAGE_KEYS.THEME);
-      if (saved && saved.value) theme = saved.value;
-    } catch (e) { /* primera visita: usa el tema oscuro por defecto */ }
-    applyTheme(theme);
-  }
-
-  /** Aplica un tema al documento y actualiza el ícono del botón (sol/luna). */
-  function applyTheme(theme) {
-    document.documentElement.setAttribute('data-theme', theme);
-    $('theme-icon').innerHTML = theme === 'light'
-      ? '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>' // sol
-      : '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>'; // luna
-    // Nombres de rango en vez de "oscuro/claro", coherente con el resto del tema.
-    $('btn-theme').title = theme === 'light' ? 'Modo Civil (claro)' : 'Modo Cazador (oscuro)';
-  }
-
-  /** Alterna entre tema oscuro y claro, y persiste la elección. */
-  async function toggleTheme() {
-    const current = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
-    const next = current === 'light' ? 'dark' : 'light';
-    applyTheme(next);
-    try { await storage.set(STORAGE_KEYS.THEME, next); } catch (e) { /* falla silenciosa */ }
-  }
-
-  /** Abre/cierra el desplegable del HUD en mobile (reemplaza al viejo botón de modo compacto). */
-  function toggleHudDropdown() {
-    $('hud-dropdown').classList.toggle('show');
-  }
-
-  // ┌──────────────────────────────────────────────────────────────────────┐
-  // │ 9. RENDER LAYER — pintan el STATE actual en el DOM                   │
-  // └──────────────────────────────────────────────────────────────────────┘
-
-  /** Pinta la tabla de movimientos, aplicando filtro, orden y la página actual (10 filas). */
-  function renderTable() {
-    const body = $('tbl-body');
-    const allRows = getVisibleExpenses();
-
-    const totalPages = Math.max(Math.ceil(allRows.length / PAGE_SIZE), 1);
-    CURRENT_PAGE = Math.min(Math.max(CURRENT_PAGE, 1), totalPages);
-    const start = (CURRENT_PAGE - 1) * PAGE_SIZE;
-    const rows = allRows.slice(start, start + PAGE_SIZE);
-
-    if (allRows.length === 0) {
-      const msg = TABLE_FILTER ? 'Sin resultados para tu búsqueda' : 'Sin movimientos registrados en este ciclo';
-      body.innerHTML = `<tr class="empty-row"><td colspan="5">${msg}</td></tr>`;
-    } else {
-      body.innerHTML = rows.map((e, i) => {
-        const key = notaKey(e);
-        const nota = NOTAS[key];
-        return `
-          <tr class="row-unlock" style="animation-delay:${Math.min(i * 45, 400)}ms">
-            <td class="figures">${fmtDateShort(e.fecha)}</td>
-            <td>
-              <span>${e.gasto}</span>
-              ${isOutlier(e.monto) ? '<span class="tag-warn" title="Mayor a $100">⚠ inusual</span>' : ''}
-              <button class="note-btn" data-notakey="${key}" title="${nota ? 'Editar nota' : 'Agregar nota'}">${nota ? '🗒️' : '➕'}</button>
-              ${nota ? `<div class="note-text">${nota}</div>` : ''}
-            </td>
-            <td style="text-align:center">${cuotasBadge(e.cuotas, e.cuantasCuotas, e.cantidadAbonadas)}</td>
-            <td class="figures" style="text-align:center">${progresoCuotasCelda(e)}</td>
-            <td class="amt">${fmt(e.monto)}</td>
-          </tr>`;
-      }).join('');
-    }
-
-    renderSortIndicators();
-    renderPagination(totalPages, allRows.length);
-  }
-
-  /** Pinta el indicador "Página X de Y" y habilita/deshabilita las flechas según corresponda. */
-  function renderPagination(totalPages, totalRows) {
-    $('page-indicator').textContent = totalRows === 0 ? 'Sin movimientos' : `Página ${CURRENT_PAGE} de ${totalPages}`;
-    $('btn-page-prev').disabled = CURRENT_PAGE <= 1;
-    $('btn-page-next').disabled = CURRENT_PAGE >= totalPages;
-  }
-
-  /** Cambia de página (delta: -1 anterior, +1 siguiente) y repinta la tabla. */
-  function goToPage(delta) {
-    CURRENT_PAGE += delta;
-    renderTable();
-  }
-
-  /**
-   * Clave estable para guardar la nota de un movimiento. El Sheet no tiene un
-   * ID único por fila, así que se compone con fecha+gasto+monto — suficiente
-   * en la práctica salvo dos movimientos idénticos el mismo día (caso raro).
-   */
-  const notaKey = (e) => `${e.fecha}|${e.gasto}|${e.monto}`;
-
-  /** Marca en el encabezado de la tabla qué columna está activa y en qué dirección. */
-  function renderSortIndicators() {
-    document.querySelectorAll('thead th.sortable').forEach((th) => {
-      const isActive = th.dataset.key === SORT_STATE.key;
-      th.classList.toggle('active', isActive);
-      th.querySelector('.arrow').textContent = isActive && SORT_STATE.dir === 'desc' ? '▼' : '▲';
-    });
-  }
-
-  /** Pinta el header de la tarjeta visual + el anillo de cuenta regresiva de pago. */
-  function updateCountdown() {
-    updateCardDueNotice();
-
-    const corte = $('input-corte').value;
-    const pago = $('input-pago').value;
-
-    $('card-corte-val').textContent = corte ? fmtDate(corte) : '— — —';
-    $('card-pago-val').textContent = pago ? fmtDate(pago) : '— — —';
-
-    const card = $('countdown-card');
-    const ring = $('ring-progress');
-    const daysLeftEl = $('days-left');
-    const msgEl = $('countdown-msg');
-    const badge = $('status-badge');
-
-    /** Aplica la clase de estado a la card (para el brillo/pulso) y anima el número si cambió. */
-    const setDays = (texto, estado) => {
-      card.classList.remove('ok', 'warning', 'urgent');
-      if (estado) card.classList.add(estado);
-      if (daysLeftEl.textContent !== String(texto)) {
-        daysLeftEl.textContent = texto;
-        daysLeftEl.classList.remove('pop');
-        void daysLeftEl.offsetWidth; // fuerza reflow para poder re-disparar la animación
-        daysLeftEl.classList.add('pop');
-      }
-    };
-
-    if (!pago) {
-      setDays('—', null);
-      msgEl.textContent = 'Sin fecha de pago aún';
-      badge.textContent = 'Sin definir';
-      badge.style.background = 'var(--bg-2)';
-      badge.style.color = 'var(--text-mid)';
-      ring.style.strokeDashoffset = RING_CIRCUMFERENCE;
-      ring.style.stroke = 'var(--brass)';
-      ring.style.filter = 'none';
-      return;
-    }
-
-    const today = todayInSV();
-    const diff = daysBetween(today, pago);
-
-    const cicloTotal = corte ? Math.max(daysBetween(corte, pago), 1) : 30;
-    const pct = Math.min(Math.max(diff / cicloTotal, 0), 1);
-    ring.style.strokeDashoffset = RING_CIRCUMFERENCE - RING_CIRCUMFERENCE * pct;
-
-    if (diff < 0) {
-      setDays('0', 'urgent');
-      msgEl.textContent = 'Fecha de pago vencida';
-      badge.textContent = '⚠ Vencido'; badge.style.background = 'var(--rose-soft)'; badge.style.color = 'var(--rose)';
-      ring.style.stroke = 'var(--rose)'; ring.style.filter = 'drop-shadow(0 0 6px var(--rose))';
-    } else if (diff <= DUE_SOON_DAYS) {
-      setDays(diff, 'urgent');
-      msgEl.textContent = `Vence el ${fmtDate(pago)}`;
-      badge.textContent = '🔴 Pago próximo'; badge.style.background = 'var(--rose-soft)'; badge.style.color = 'var(--rose)';
-      ring.style.stroke = 'var(--rose)'; ring.style.filter = 'drop-shadow(0 0 6px var(--rose))';
-    } else if (diff <= DUE_WARNING_DAYS) {
-      setDays(diff, 'warning');
-      msgEl.textContent = `Vence el ${fmtDate(pago)}`;
-      badge.textContent = '🟡 Se acerca'; badge.style.background = 'var(--amber-soft)'; badge.style.color = 'var(--amber)';
-      ring.style.stroke = 'var(--amber)'; ring.style.filter = 'drop-shadow(0 0 5px var(--amber))';
-    } else {
-      setDays(diff, 'ok');
-      msgEl.textContent = `Vence el ${fmtDate(pago)}`;
-      badge.textContent = '🟢 Al día'; badge.style.background = 'var(--mint-soft)'; badge.style.color = 'var(--mint)';
-      ring.style.stroke = 'var(--mint)'; ring.style.filter = 'drop-shadow(0 0 5px var(--mint))';
-    }
-  }
-
-  /** Reemplaza cada dígito de un texto ya formateado por uno aleatorio — mantiene signos, puntos y el símbolo $ intactos. */
-  function scrambleDigits(str) {
-    return str.replace(/[0-9]/g, () => Math.floor(Math.random() * 10));
-  }
-
-  /**
-   * Anima el texto de un elemento desde su valor numérico actual hasta uno
-   * nuevo. Tiene 2 fases, ambas de duración FIJA (nunca infinitas):
-   *   1. "Data stream" (~140ms): dígitos aleatorios, mismo formato/longitud
-   *      que el valor final — efecto de "descifrado" cyberpunk.
-   *   2. Conteo real, con ease-out cúbico, hasta asentarse en el valor exacto.
-   * Puramente cosmético — no afecta ningún cálculo.
-   */
-  function animateValue(el, to, formatFn = fmt, duration = 450) {
-    const from = parseFloat(el.dataset.rawValue || '0') || 0;
-    if (Math.abs(to - from) < 0.005) { el.textContent = formatFn(to); el.dataset.rawValue = to; return; }
-
-    const start = performance.now();
-    const scrambleMs = Math.min(140, duration * 0.35);
-    const textoFinal = formatFn(to);
-
-    function tick(now) {
-      const elapsed = now - start;
-
-      if (elapsed < scrambleMs) {
-        el.textContent = scrambleDigits(textoFinal);
-        requestAnimationFrame(tick);
-        return;
-      }
-
-      const progress = Math.min((elapsed - scrambleMs) / Math.max(duration - scrambleMs, 1), 1);
-      const eased = 1 - Math.pow(1 - progress, 3); // ease-out cúbico
-      const current = from + (to - from) * eased;
-      el.textContent = formatFn(current);
-      if (progress < 1) requestAnimationFrame(tick);
-      else el.dataset.rawValue = to;
-    }
-    requestAnimationFrame(tick);
-  }
-
-  /** Pinta las 4 tarjetas KPI (total, límite personal, límite banco, promedio). */
-  function renderKpis() {
-    const total = totalTarjeta();
-    const limite = getLimite();
-
-    animateValue($('kpi-total'), total);
-    $('kpi-total-sub').textContent = `${EXPENSES.length} movimientos · col. C`;
-
-    $('kpi-limite').textContent = `${fmt(total)} / ${fmt(limite)}`;
-    const pctLim = Math.min((total / limite) * 100, 100);
-    const barLim = $('bar-limite');
-    barLim.style.width = pctLim + '%';
-    barLim.style.background = total > limite ? 'var(--rose)' : pctLim > 75 ? 'var(--amber)' : 'var(--mint)';
-
-    const ahorro = META.ahorro;
-    animateValue($('kpi-ahorro'), ahorro ?? 0);
-    $('kpi-ahorro-sub').textContent = ahorro === null ? 'sin dato en col. H' : 'ingresado para pagar';
-
-    const limiteBanco = META.limiteBanco || 0;
-    $('kpi-banco').textContent = `${fmt(total)} / ${fmt(limiteBanco)}`;
-    const pctBanco = limiteBanco > 0 ? Math.min((total / limiteBanco) * 100, 100) : 0;
-    $('bar-banco').style.width = pctBanco + '%';
-
-    // Barra "margen del límite bancario": empieza en 100% y BAJA conforme se
-    // acumulan gastos — representa cuánto margen te queda contra el límite
-    // que puso el banco (columna G), no contra tu límite personal.
-    const xpFill = $('xp-bar-fill');
-    if (limiteBanco > 0) {
-      const margenPct = Math.max(Math.round(100 - pctBanco), 0);
-      xpFill.style.width = margenPct + '%';
-      $('xp-bar-val').textContent = margenPct + '%';
-      xpFill.style.background = margenPct <= 15
-        ? 'linear-gradient(90deg, #7a1f33, var(--rose))'
-        : margenPct <= 35
-          ? 'linear-gradient(90deg, #7a5a1f, var(--amber))'
-          : 'linear-gradient(90deg, #6a3dbf, #c77dff, #4ad4ff)';
-    } else {
-      xpFill.style.width = '0%';
-      $('xp-bar-val').textContent = '—';
-    }
-
-    if (EXPENSES.length) {
-      animateValue($('kpi-avg'), total / EXPENSES.length);
-      const max = EXPENSES.reduce((a, b) => (b.monto > a.monto ? b : a));
-      $('kpi-max-sub').textContent = 'mayor: ' + max.gasto;
-    } else {
-      animateValue($('kpi-avg'), 0);
-      $('kpi-max-sub').textContent = 'mayor: —';
-    }
-
-    updateCardEmblem();
-    updateCardDueNotice();
-  }
-
-  /**
-   * Único punto de verdad para el estado de la tarjeta — lo usan tanto el
-   * emblema/corrupción como la cinta de aviso de fecha de pago, así nunca
-   * pueden mostrar mensajes contradictorios entre sí.
-   *   - ok: dentro del límite.
-   *   - warn: excedido pero el usuario confirmó "sí puedo pagarlo".
-   *   - critical: excedido y dijo "no" (o no ha respondido aún).
-   */
-  function computeCardState() {
-    const total = totalTarjeta();
-    const limite = getLimite();
-    if (total <= limite) return 'ok';
-    const respondioSi = VERDICT && Math.abs(VERDICT.total - total) < 0.01 && VERDICT.answer === true;
-    return respondioSi ? 'warn' : 'critical';
-  }
-
-  /**
-   * Aplica el estado visual de la tarjeta:
-   *   - ok: brillo verde tranquilo, "estás bien".
-   *   - warn: alarma ámbar suave, sin glitch ni grietas.
-   *   - critical: corrupción roja intensa — grietas, glitch, tarjeta "destrozada".
-   * Solo dispara el shake una vez, al entrar a "critical", no en cada refresco.
-   */
-  let lastCardState = 'ok';
-  function updateCardEmblem() {
-    const card = $('card-visual');
-    const state = computeCardState();
-
-    card.classList.toggle('card-ok', state === 'ok');
-    card.classList.toggle('card-warn', state === 'warn');
-    card.classList.toggle('over-limit', state === 'critical');
-
-    if (state === 'critical' && lastCardState !== 'critical') {
-      card.classList.remove('over-limit');
-      void card.offsetWidth; // fuerza reflow para poder re-disparar el shake
-      card.classList.add('over-limit');
-    }
-    lastCardState = state;
-  }
-
-  /** ISO "YYYY-MM-DD" → "DD/MM/YYYY", para el texto del aviso de pago. */
-  const fmtDMY = (iso) => iso.split('-').reverse().join('/');
-
-  /**
-   * Muestra en la tarjeta un aviso cuando la fecha de pago está a 3 días o
-   * menos (incluye el día mismo). El mensaje es dinámico: usa el mismo
-   * computeCardState() que el resto de la tarjeta para decir si se podrá
-   * pagar, se podrá con cuidado, o no se podrá y hay que buscar alternativas.
-   */
-  function updateCardDueNotice() {
-    const notice = $('card-due-notice');
-    const pago = $('input-pago').value;
-
-    if (!pago) { notice.classList.remove('show'); return; }
-
-    const daysLeft = daysBetween(todayInSV(), pago);
-    if (daysLeft < 0 || daysLeft > DUE_SOON_DAYS) { notice.classList.remove('show'); return; }
-
-    const state = computeCardState();
-    const subtextos = {
-      ok: '✅ Podrás pagar sin problema',
-      warn: '🟠 Podrás pagar — cuida tus gastos',
-      critical: '🔴 No podrás pagar — busca alternativas',
-    };
-
-    $('due-title').textContent = daysLeft === 0
-      ? `⚠ TU PAGO VENCE HOY — ${fmtDMY(pago)}`
-      : `⚠ SE ACERCA FECHA DE PAGO — ${fmtDMY(pago)}`;
-    $('due-sub').textContent = subtextos[state];
-
-    notice.className = `card-due-notice show ${state}`;
-  }
-
-  /**
-   * Pinta el veredicto "ahorro vs. pago" como una alerta dinámica de 3 estados:
-   *   - alcanza: ahorro cubre el total completo.
-   *   - cerca: ahorro cubre 85% o más del total, pero no todo — avisa que está cerca.
-   *   - no alcanza: ahorro por debajo del 85% del total.
-   * El monto que falta (o sobra) siempre se muestra, sin importar el estado —
-   * es el dato que más le sirve al usuario para decidir qué hacer.
-   */
-  function renderSavingsCheck() {
-    const total = totalTarjeta();
-    const ahorro = META.ahorro;
-    const pill = $('savings-verdict');
-    const bar = $('bar-ahorro');
-    const panel = $('savings-panel');
-
-    panel.classList.remove('state-ok', 'state-close', 'state-bad');
-
-    if (ahorro === null) {
-      pill.textContent = 'Sin datos';
-      pill.className = 'verdict-pill na';
-      bar.style.width = '0%';
-      $('ahorro-hint').textContent = 'Agrega el monto ingresado a tu cuenta de ahorro en la columna G de la hoja.';
-      return;
-    }
-
-    const pct = total > 0 ? Math.min((ahorro / total) * 100, 100) : 100;
-    bar.style.width = pct + '%';
-
-    const CERCA_THRESHOLD = 0.85; // 85% o más del total = "cerca de alcanzar"
-
-    if (ahorro >= total) {
-      const sobrante = ahorro - total;
-      panel.classList.add('state-ok');
-      bar.style.background = 'var(--mint)';
-      pill.textContent = '✅ Alcanza';
-      pill.className = 'verdict-pill ok';
-      $('ahorro-hint').textContent = sobrante > 0
-        ? `Te sobran ${fmt(sobrante)} después de cubrir el pago completo.`
-        : 'Cubre exactamente el total del ciclo.';
-    } else {
-      const faltante = total - ahorro;
-      const cerca = total > 0 && ahorro / total >= CERCA_THRESHOLD;
-
-      panel.classList.add(cerca ? 'state-close' : 'state-bad');
-      bar.style.background = cerca ? 'var(--amber)' : 'var(--rose)';
-      pill.textContent = cerca ? '🟡 Está cerca' : '⚠ No alcanza';
-      pill.className = 'verdict-pill ' + (cerca ? 'warn' : 'bad');
-      $('ahorro-hint').textContent = cerca
-        ? `Estás cerca — te faltan solo ${fmt(faltante)} para cubrir el total de este ciclo.`
-        : `Te faltan ${fmt(faltante)} para cubrir el total de este ciclo.`;
-    }
-  }
-
-  /** Pinta las métricas de analítica: promedio semanal y desglose de compras a cuotas. */
-  function renderAnalytics() {
-    animateValue($('metric-semanal'), weeklyAverage());
-
-    const { si, no } = contarCuotas();
-    $('metric-cuotas').innerHTML =
-      `<span class="n">${si}</span> <span class="tag-si">SI</span> / <span class="n">${no}</span> <span class="tag-no">NO</span>`;
-    const totalConDato = si + no;
-    const { totalCuotas: cuotasComprometidas, totalAbonadas, movimientosConDato } = progresoCuotas();
-    $('metric-cuotas-sub').textContent = totalConDato === 0
-      ? 'sin datos en columna D'
-      : movimientosConDato
-        ? `${((si / totalConDato) * 100).toFixed(0)}% del ciclo es a cuotas · abonadas ${totalAbonadas}/${cuotasComprometidas}`
-        : `${((si / totalConDato) * 100).toFixed(0)}% del ciclo es a cuotas`;
-
-    // "Gasto global": suma TODO el historial del Sheet, sin filtrar por ciclo —
-    // sirve de referencia y evita que la pantalla se sienta "vacía" cuando
-    // el ciclo recién se reinició.
-    animateValue($('metric-global'), totalGlobal());
-    $('metric-global-sub').textContent = `${ALL_EXPENSES.length} movimientos, todo el Sheet`;
-
-    renderSideHud(si, no);
-  }
-
-  /**
-   * HUD lateral: solo actualiza color/estado de 2 iconos fijos — nada de
-   * DOM que se reconstruya, así que es prácticamente gratis de repintar.
-   * También rellena el desplegable mobile (mismos datos, un solo cálculo).
-   */
-  function renderSideHud(cuotasSi, cuotasNo) {
-    const estadoLimite = computeCardState(); // reutiliza el mismo cálculo que ya usa la tarjeta
-    const iconoLimite = $('side-hud-limite');
-    iconoLimite.className = 'side-hud-item state-' + (estadoLimite === 'critical' ? 'bad' : estadoLimite);
-
-    const totalCuotas = cuotasSi + cuotasNo;
-    const pctCuotas = totalCuotas > 0 ? cuotasSi / totalCuotas : 0;
-    const estadoCuotas = totalCuotas === 0 ? '' : pctCuotas > 0.5 ? 'state-bad' : pctCuotas > 0 ? 'state-warn' : 'state-ok';
-    $('side-hud-cuotas').className = 'side-hud-item ' + estadoCuotas;
-
-    // Si el panel de detalle está abierto, se actualiza con los datos frescos
-    // en vez de quedarse con el snapshot del momento en que se abrió.
-    if (sideHudActivePanel) renderSideHudPanelContent(sideHudActivePanel);
-
-    // Desplegable mobile — mismos números, sin recalcular nada aparte.
-    const total = totalTarjeta();
-    const limite = getLimite();
-    const pctLimite = limite > 0 ? Math.min((total / limite) * 100, 100) : 0;
-    $('hud-dropdown-limite').innerHTML = `
-      <div class="row"><span>Gastado</span><b>${fmt(total)}</b></div>
-      <div class="row"><span>Límite</span><b>${fmt(limite)}</b></div>
-      <div class="row"><span>Usado</span><b>${pctLimite.toFixed(0)}%</b></div>
-    `;
-    $('hud-dropdown-cuotas').innerHTML = `
-      <div class="row"><span>A cuotas (SI)</span><b>${cuotasSi}</b></div>
-      <div class="row"><span>De contado (NO)</span><b>${cuotasNo}</b></div>
-      <div class="row"><span>% a cuotas</span><b>${totalCuotas ? ((cuotasSi / totalCuotas) * 100).toFixed(0) : 0}%</b></div>
-      ${(() => {
-        const { totalCuotas: cuotasComprometidas, totalAbonadas, movimientosConDato } = progresoCuotas();
-        return movimientosConDato
-          ? `<div class="row"><span>Cuotas abonadas</span><b>${totalAbonadas} de ${cuotasComprometidas}</b></div>`
-          : '';
-      })()}
-    `;
-  }
-
-  /** Cuál panel del HUD lateral está abierto ('limite' | 'cuotas' | null). */
-  let sideHudActivePanel = null;
-
-  /** Arma el contenido del panel según qué ítem se abrió — reutiliza los cálculos que ya existen, no duplica nada. */
-  function renderSideHudPanelContent(panel) {
-    const title = $('side-hud-panel-title');
-    const body = $('side-hud-panel-body');
-
-    if (panel === 'limite') {
-      const total = totalTarjeta();
-      const limite = getLimite();
-      const pct = limite > 0 ? Math.min((total / limite) * 100, 100) : 0;
-      title.textContent = 'Mi límite de pago';
-      body.innerHTML = `
-        <div class="row"><span>Gastado</span><b>${fmt(total)}</b></div>
-        <div class="row"><span>Límite</span><b>${fmt(limite)}</b></div>
-        <div class="row"><span>Usado</span><b>${pct.toFixed(0)}%</b></div>
-      `;
-    } else if (panel === 'cuotas') {
-      const { si, no } = contarCuotas();
-      const totalC = si + no;
-      const { totalCuotas, totalAbonadas, movimientosConDato } = progresoCuotas();
-      title.textContent = 'Compras a cuotas';
-      body.innerHTML = `
-        <div class="row"><span>A cuotas (SI)</span><b>${si}</b></div>
-        <div class="row"><span>De contado (NO)</span><b>${no}</b></div>
-        <div class="row"><span>% a cuotas</span><b>${totalC ? ((si / totalC) * 100).toFixed(0) : 0}%</b></div>
-        ${movimientosConDato ? `<div class="row"><span>Cuotas abonadas</span><b>${totalAbonadas} de ${totalCuotas}</b></div>` : ''}
-      `;
-    }
-  }
-
-  /** Abre/cierra el panel de detalle del HUD lateral al hacer click en un ítem. */
-  function toggleSideHudPanel(panel, btn) {
-    const panelEl = $('side-hud-panel');
-
-    if (sideHudActivePanel === panel) {
-      // Click en el mismo ítem que ya está abierto → cierra.
-      sideHudActivePanel = null;
-      panelEl.classList.remove('show');
-      document.querySelectorAll('.side-hud-item').forEach((b) => b.classList.remove('active'));
-      return;
-    }
-
-    sideHudActivePanel = panel;
-    document.querySelectorAll('.side-hud-item').forEach((b) => b.classList.toggle('active', b === btn));
-    panelEl.style.top = btn.getBoundingClientRect().top + btn.offsetHeight / 2 + 'px';
-    panelEl.style.transform = 'translateY(-50%) translateX(-8px)';
-    renderSideHudPanelContent(panel);
-    panelEl.classList.add('show');
-  }
-
-  /**
-   * Rango del ciclo (E a S), según qué tan disciplinado va el gasto contra
-   * el límite personal — entre menos porcentaje del límite se ha usado,
-   * mejor el rango. Es solo un indicador visual, no afecta ningún cálculo.
-   */
-  function renderRankBadge() {
-    const total = totalTarjeta();
-    const limite = getLimite();
-    const usado = limite > 0 ? total / limite : 0;
-
-    let letra, etiqueta;
-    if (usado <= 0.3) { letra = 'S'; etiqueta = 'impecable'; }
-    else if (usado <= 0.5) { letra = 'A'; etiqueta = 'muy bien'; }
-    else if (usado <= 0.7) { letra = 'B'; etiqueta = 'bien'; }
-    else if (usado <= 0.85) { letra = 'C'; etiqueta = 'atención'; }
-    else if (usado <= 1.0) { letra = 'D'; etiqueta = 'al límite'; }
-    else { letra = 'E'; etiqueta = 'excedido'; }
-
-    const badge = $('rank-badge');
-    badge.className = 'rank-badge rank-' + letra;
-    badge.title = `Rango ${letra} (${etiqueta}) — has usado ${(usado * 100).toFixed(0)}% de tu límite personal`;
-    $('rank-letter').textContent = letra;
-    $('rank-pct').textContent = Math.round(usado * 100) + '%';
-    $('rank-label').textContent = etiqueta;
-  }
-
-  /** Descarga los movimientos del ciclo actual como archivo .csv. */
-  function exportCSV() {
-    if (EXPENSES.length === 0) {
-      showToast('⚠️ No hay movimientos que exportar');
-      return;
-    }
-    const filas = [['Fecha', 'Gasto', 'Cuotas', 'Monto']];
-    getVisibleExpenses().forEach((e) => filas.push([e.fecha, e.gasto, e.cuotas || '—', e.monto.toFixed(2)]));
-
-    const csv = filas.map((f) => f.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `movimientos-${todayInSV()}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-    logEvent('CSV exportado — ' + getVisibleExpenses().length + ' filas');
-    showToast('⬇️ CSV descargado');
-  }
-
-  /** Pinta el comparativo "mes pasado vs. este mes", agrupando EXPENSES por mes calendario real. */
-  function renderMonthCompare() {
-    const thisYM = todayInSV().slice(0, 7);
-    const prevYM = addMonths(thisYM, -1);
-
-    const thisTotal = totalDelMes(thisYM);
-    const prevTotal = totalDelMes(prevYM);
-    const diff = thisTotal - prevTotal;
-    const pct = prevTotal > 0 ? (diff / prevTotal) * 100 : (thisTotal > 0 ? 100 : 0);
-
-    $('month-prev-label').textContent = MESES_COMPLETO[+prevYM.slice(5, 7) - 1];
-    $('month-this-label').textContent = MESES_COMPLETO[+thisYM.slice(5, 7) - 1];
-    animateValue($('month-prev-total'), prevTotal);
-    animateValue($('month-this-total'), thisTotal);
-
-    const arrowEl = $('month-diff-arrow');
-    const pctEl = $('month-diff-pct');
-    const subEl = $('month-diff-sub');
-
-    if (prevTotal === 0 && thisTotal === 0) {
-      arrowEl.textContent = '—'; arrowEl.style.color = '';
-      pctEl.textContent = '—'; pctEl.className = 'pct';
-      subEl.textContent = 'sin gastos en ninguno de los dos meses';
-      return;
-    }
-
-    arrowEl.textContent = diff > 0 ? '▲' : diff < 0 ? '▼' : '＝';
-    arrowEl.style.color = diff > 0 ? 'var(--rose)' : diff < 0 ? 'var(--mint)' : 'var(--text-mid)';
-    pctEl.textContent = `${diff >= 0 ? '+' : ''}${pct.toFixed(0)}%`;
-    pctEl.className = 'pct ' + (diff > 0 ? 'up' : diff < 0 ? 'down' : '');
-    subEl.textContent = `${diff >= 0 ? '+' : ''}${fmt(diff)} vs. mes pasado`;
-  }
-
-  /**
-   * Compara el total gastado contra el límite personal y decide qué mostrar:
-   * nada (si vas bien), el banner con la última respuesta guardada, o el
-   * modal preguntando si podrás pagar (solo la primera vez que se cruza el límite).
-   */
-  function checkLimitAndPrompt() {
-    const total = totalTarjeta();
-    const limite = getLimite();
-
-    if (total <= limite) {
-      $('verdict-banner').classList.remove('show');
-      $('modal-overlay').classList.remove('show');
-      return;
-    }
-
-    // Ya respondió para este mismo total exacto → solo mostrar el banner, no volver a preguntar.
-    if (VERDICT && Math.abs(VERDICT.total - total) < 0.01) {
-      showVerdictBanner(VERDICT.answer, total, limite);
-      return;
-    }
-
-    // Nuevo exceso (o el total cambió desde la última respuesta) → preguntar de nuevo.
-    $('modal-total').textContent = fmt(total);
-    $('modal-limite').textContent = fmt(limite);
-    $('modal-overlay').classList.add('show');
-    if (lastAlertLoggedTotal !== total) {
-      logEvent('⚠ Alerta de límite mostrada');
-      lastAlertLoggedTotal = total;
-      showQuestToast(total, limite);
-    }
-  }
-
-  /**
-   * Notificación "misión fallada" — desliza desde la derecha, se cierra
-   * sola a los 6s (o al hacer click en la X). Un solo setTimeout, sin
-   * animación continua: cero costo una vez que desaparece del DOM visual.
-   */
-  let questToastTimer = null;
-  function showQuestToast(total, limite) {
-    $('quest-toast-body').textContent = `Llevas ${fmt(total)} de tu límite de ${fmt(limite)}. Revisa tus gastos antes del pago.`;
-    const el = $('quest-toast');
-    el.classList.add('show');
-    clearTimeout(questToastTimer);
-    questToastTimer = setTimeout(() => el.classList.remove('show'), 6000);
-  }
-
-  /** Gastos ya avisados como anomalía en esta sesión — para no repetir la alerta en cada refresco. */
-  const ANOMALIAS_AVISADAS = new Set();
-  let intrusionToastTimer = null;
-
-  /**
-   * Revisa si algún gasto del ciclo es "mucho más alto que el promedio" —
-   * no un umbral fijo, sino relativo a los propios gastos del ciclo — y
-   * avisa UNA vez por gasto (se guarda su clave para no repetir en cada
-   * refresco). Necesita al menos 3 movimientos para que un "promedio"
-   * tenga sentido; si no, no evalúa nada.
-   */
-  function detectarAnomalia() {
-    if (EXPENSES.length < 3) return;
-
-    const promedio = totalTarjeta() / EXPENSES.length;
-    const UMBRAL_RELATIVO = 2.5; // "mucho más alto" = 2.5x el promedio del ciclo
-    const PISO_MINIMO = 20; // evita marcar anomalía en ciclos con montos muy chicos
-
-    const anomalo = EXPENSES.find((e) => {
-      const key = notaKey(e);
-      return e.monto > promedio * UMBRAL_RELATIVO && e.monto > PISO_MINIMO && !ANOMALIAS_AVISADAS.has(key);
-    });
-    if (!anomalo) return;
-
-    ANOMALIAS_AVISADAS.add(notaKey(anomalo));
-    showIntrusionToast(anomalo, promedio);
-  }
-
-  /** Notificación de seguridad para un gasto anómalo — mismo patrón que showQuestToast, paleta ámbar. */
-  function showIntrusionToast(gasto, promedio) {
-    $('intrusion-toast-body').innerHTML =
-      `<b>${fmt(gasto.monto)}</b> en "${gasto.gasto}" — muy por encima de tu promedio del ciclo (${fmt(promedio)}).`;
-    const el = $('intrusion-toast');
-    el.classList.add('show');
-    clearTimeout(intrusionToastTimer);
-    intrusionToastTimer = setTimeout(() => el.classList.remove('show'), 6000);
-  }
-
-  /** Handler de los botones Sí/No del modal "¿podrás pagar?". */
-  function answerVerdict(canPay) {
-    const total = totalTarjeta();
-    saveVerdict({ total, answer: canPay });
-    $('modal-overlay').classList.remove('show');
-    showVerdictBanner(canPay, total, getLimite());
-    updateCardEmblem();
-    updateCardDueNotice();
-    logEvent(canPay ? 'Veredicto: sí podrás pagar' : 'Veredicto: no podrás pagar');
-    if (!canPay) {
-      triggerCorruptHit();
-      showToast('💡 Revisa tus gastos del mes para cuadrar el pago');
-    }
-  }
-
-  /**
-   * Dispara el golpe de corrupción de un solo tiro sobre la tarjeta —
-   * pensado para el instante exacto en que el usuario confirma "No puedo
-   * pagar". Se quita sola al terminar; el estado .over-limit (ya aplicado
-   * por updateCardEmblem) se queda como se ve normalmente después.
-   */
-  function triggerCorruptHit() {
-    const card = $('card-visual');
-    card.classList.remove('corrupt-hit');
-    void card.offsetWidth; // fuerza reflow, por si se dispara dos veces seguidas
-    card.classList.add('corrupt-hit');
-    setTimeout(() => card.classList.remove('corrupt-hit'), 900);
-  }
-
-  /** Pinta el banner verde/rojo con el resultado de la última respuesta al modal. */
-  function showVerdictBanner(canPay, total, limite) {
-    const banner = $('verdict-banner');
-    banner.classList.add('show', canPay ? 'yes' : 'no');
-    banner.classList.remove(canPay ? 'no' : 'yes');
-    $('verdict-icon').textContent = canPay ? '✅' : '⚠️';
-    $('verdict-text').innerHTML = canPay
-      ? `Confirmaste que <b>sí puedes pagar</b> los ${fmt(total)} de este ciclo (límite: ${fmt(limite)}).`
-      : `Marcaste que <b>no podrás pagar</b> los ${fmt(total)} completos este ciclo. Ajusta tus gastos de este mes para cubrir la diferencia.`;
-  }
-
-  /** Botón "Volver a preguntar" del banner de veredicto: borra la respuesta guardada. */
-  function resetVerdict() {
-    saveVerdict(null);
-    $('verdict-banner').classList.remove('show');
-    updateCardEmblem();
-    updateCardDueNotice();
-    checkLimitAndPrompt();
-  }
-
-  /**
-   * Efecto de "terminal escribiendo" para el texto de arranque del overlay
-   * de carga. Es un setTimeout encadenado, finito (se detiene solo al
-   * llegar al final del texto) — nunca un loop infinito, así que no hay
-   * riesgo de dejar nada corriendo de fondo si el overlay se cierra antes.
-   */
-  function typeBootLine(texto) {
-    const el = document.getElementById('boot-line');
-    if (!el) return;
-    let i = 0;
-    el.textContent = '';
-    el.classList.remove('done');
-    (function tick() {
-      if (i >= texto.length) {
-        el.classList.add('done');
-        return;
-      }
-      el.textContent += texto[i];
-      i++;
-      setTimeout(tick, 28);
-    })();
-  }
-
-  function showToast(msg) {
-    const t = $('toast');
-    t.textContent = msg;
-    t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 3200);
-  }
-
-  /**
-   * Registra una acción en el mini log del sistema (footer). Guarda solo las
-   * últimas 3 — es un registro de sesión, no persiste entre visitas.
-   */
-  function logEvent(msg) {
-    const hora = new Date().toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit', timeZone: TIMEZONE });
-    SYSTEM_LOG.unshift({ hora, msg });
-    SYSTEM_LOG = SYSTEM_LOG.slice(0, 3);
-    renderSystemLog();
-  }
-
-  /** Pinta el mini log del sistema en el footer. */
-  function renderSystemLog() {
-    const list = $('system-log-list');
-    if (SYSTEM_LOG.length === 0) {
-      list.innerHTML = '<li class="system-log-empty">Sin actividad todavía…</li>';
-      return;
-    }
-    list.innerHTML = SYSTEM_LOG.map((e) => `<li><span class="log-time">${e.hora}</span> ${e.msg}</li>`).join('');
-  }
-
-  /**
-   * Aplica un modo de la barra de filtros (o límpialo si se pasa un rango
-   * manual): recalcula EXPENSES a partir de ALL_EXPENSES, actualiza qué
-   * botón se ve activo, el contador de registros, y repinta todo lo que
-   * depende de EXPENSES (tabla, KPIs, gráfica, análisis, veredictos...).
-   * @param {'actual'|'anterior'|'todo'} mode
-   */
-  function applyFilterMode(mode) {
-    FILTER_MODE = mode;
-    RANGO_MANUAL = null;
-    EXPENSES = computeQuickFilter(mode);
-
-    document.querySelectorAll('.filter-btn').forEach((btn) => {
-      btn.classList.toggle('active', btn.dataset.mode === mode);
-    });
-
-    // Los inputs de calendario reflejan la ventana del modo elegido, para
-    // que el usuario vea exactamente qué rango está viendo y pueda ajustarlo.
-    if (mode !== 'todo') {
-      const offset = mode === 'anterior' ? 1 : 0;
-      const { inicio, fin } = fixedCycleWindow(offset);
-      $('filter-desde').value = addDays(inicio, 1);
-      $('filter-hasta').value = fin;
-    }
-
-    $('filter-count').textContent = `${EXPENSES.length} registro${EXPENSES.length === 1 ? '' : 's'}`;
-
-    renderTable();
-    renderKpis();
-    renderSavingsCheck();
-    renderMonthCompare();
-    updateCountdown();
-
-    renderAnalytics();
-    renderRankBadge();
-
-    checkLimitAndPrompt();
-    detectarAnomalia();
-  }
-
-  /** Aplica el rango manual de los inputs de calendario ("Desde"/"Hasta"), sin depender de los botones rápidos. */
-  function applyManualRange() {
-    const inicio = $('filter-desde').value || null;
-    const fin = $('filter-hasta').value || null;
-    RANGO_MANUAL = { inicio, fin };
-    FILTER_MODE = 'rango';
-    EXPENSES = computeQuickFilter(null, RANGO_MANUAL);
-
-    document.querySelectorAll('.filter-btn').forEach((btn) => btn.classList.remove('active'));
-    $('filter-count').textContent = `${EXPENSES.length} registro${EXPENSES.length === 1 ? '' : 's'}`;
-
-    renderTable();
-    renderKpis();
-    renderSavingsCheck();
-    renderMonthCompare();
-    updateCountdown();
-
-    renderAnalytics();
-    renderRankBadge();
-
-    checkLimitAndPrompt();
-    detectarAnomalia();
-  }
-
-  // ┌──────────────────────────────────────────────────────────────────────┐
-  // │ 10. ORCHESTRATION — combina data layer + render layer                │
-  // └──────────────────────────────────────────────────────────────────────┘
-
-  /**
-   * Ciclo completo de actualización: trae datos frescos del Sheet y repinta
-   * todo el dashboard. Se llama al cargar la página, cada REFRESH_MS, y al
-   * presionar "Actualizar".
-   * @param {boolean} showSpinner — true si el refresco fue manual (anima el botón).
-   */
-
-  async function loadData(showSpinner) {
-    const btn = $('btn-refresh');
-    if (showSpinner) btn.classList.add('spin');
-
-    try {
-      const { expenses, corte, pago, limiteBanco, ahorro } = await fetchSheet();
-      ALL_EXPENSES = expenses;
-      META = { corte, pago, limiteBanco, ahorro };
-
-      // Primero se resuelven las fuentes de verdad (Sheet > manual) para que
-      // los inputs ya tengan su valor final antes de pintar cualquier KPI.
-      await resolveDates();
-
-      // Se respeta lo que el usuario tenga activo en la barra de filtros —
-      // un rango manual (calendario) o uno de los botones rápidos.
-      if (FILTER_MODE === 'rango' && RANGO_MANUAL) {
-        EXPENSES = computeQuickFilter(null, RANGO_MANUAL);
-        $('filter-count').textContent = `${EXPENSES.length} registro${EXPENSES.length === 1 ? '' : 's'}`;
-        renderTable(); renderKpis(); renderSavingsCheck(); renderMonthCompare(); updateCountdown();
-        renderAnalytics(); renderRankBadge(); checkLimitAndPrompt(); detectarAnomalia();
-      } else {
-        applyFilterMode(FILTER_MODE);
-      }
-
-      const horaSync = new Date().toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit', timeZone: TIMEZONE });
-      $('last-update').textContent = 'Actualizado ' + horaSync;
-      $('footer-sync').textContent = horaSync;
-      $('footer-sheet').textContent = activeCard().sheetName || 'TARJETA';
-      logEvent('Sheet sincronizado — ' + EXPENSES.length + ' movimientos mostrados');
-    } catch (err) {
-      console.error(err);
-      $('last-update').textContent = 'Error de conexión';
-      showToast('⚠️ No se pudo leer el Sheet — revisa que esté compartido como "Cualquiera con el enlace"');
-      logEvent('⚠ Error al sincronizar con el Sheet');
-      throw err; // se re-lanza para que el llamador (init) pueda mostrar el panel de error
-    } finally {
-      if (showSpinner) setTimeout(() => btn.classList.remove('spin'), 500);
-    }
-  }
-
-  /** Handler del botón "Actualizar": fuerza un refresco inmediato con feedback visual. */
-  function manualRefresh() {
-    loadData(true).then(() => showToast('🔄 Datos actualizados'));
-  }
-
-  /**
-   * Cambia la tarjeta activa y recarga todo su estado — cada tarjeta tiene su
-   * propio límite, fechas manuales, veredicto, historial y notas (namespaced
-   * por skey()), así que no hay que limpiar nada manualmente: simplemente se
-   * vuelve a cargar todo desde storage bajo el nuevo id.
-   */
-  async function switchCard(idx) {
-    activeCardIndex = idx;
-    EXPENSES = [];
-    ALL_EXPENSES = [];
-    FILTER_MODE = 'actual';
-    RANGO_MANUAL = null;
-    NOTAS = {};
-    await loadLimite();
-    await loadVerdict();
-    await loadNotas();
-    loadData(true).then(() => showToast(`💳 Cambiado a ${activeCard().nombre}`));
-  }
-
-  // ┌──────────────────────────────────────────────────────────────────────┐
-  // │ 11. EVENT BINDINGS — conecta el DOM a los handlers de arriba         │
-  // └──────────────────────────────────────────────────────────────────────┘
-
-  /** Registra todos los listeners de la app en un solo lugar (nada de onclick inline en el HTML). */
-  function bindEvents() {
-    $('btn-refresh').addEventListener('click', manualRefresh);
-    $('btn-theme').addEventListener('click', toggleTheme);
-    $('btn-hud-menu').addEventListener('click', (e) => { e.stopPropagation(); toggleHudDropdown(); });
-    $('quest-toast-close').addEventListener('click', () => $('quest-toast').classList.remove('show'));
-    $('intrusion-toast-close').addEventListener('click', () => $('intrusion-toast').classList.remove('show'));
-
-    // HUD lateral: click en un ítem abre/cierra su panel de detalle.
-    document.querySelectorAll('.side-hud-item[data-panel]').forEach((btn) => {
-      btn.addEventListener('click', () => toggleSideHudPanel(btn.dataset.panel, btn));
-    });
-    // Click fuera del HUD/panel/desplegable → cierra, para que no se quede pegado estorbando.
-    document.addEventListener('click', (e) => {
-      if (sideHudActivePanel && !e.target.closest('.side-hud') && !e.target.closest('.side-hud-panel')) {
-        sideHudActivePanel = null;
-        $('side-hud-panel').classList.remove('show');
-        document.querySelectorAll('.side-hud-item').forEach((b) => b.classList.remove('active'));
-      }
-      if ($('hud-dropdown').classList.contains('show') && !e.target.closest('.hud-dropdown') && !e.target.closest('.btn-hud-menu')) {
-        $('hud-dropdown').classList.remove('show');
-      }
-    });
-
-    // Barra de filtros por ciclo: cada botón rápido recalcula EXPENSES sin volver a pedirle nada al Sheet.
-    document.querySelectorAll('.filter-btn[data-mode]').forEach((btn) => {
-      btn.addEventListener('click', () => applyFilterMode(btn.dataset.mode));
-    });
-    $('filter-apply').addEventListener('click', applyManualRange);
-    $('btn-export-csv').addEventListener('click', exportCSV);
-    $('btn-reset-verdict').addEventListener('click', resetVerdict);
-    $('btn-answer-no').addEventListener('click', () => answerVerdict(false));
-    $('btn-answer-yes').addEventListener('click', () => answerVerdict(true));
-
-    $('input-corte').addEventListener('change', () => saveManualDates());
-    $('input-pago').addEventListener('change', () => saveManualDates());
-
-    $('input-limite').addEventListener('change', () => {
-      saveLimite();
-      renderKpis();
-      checkLimitAndPrompt();
-    });
-
-    // Búsqueda en vivo: filtra la tabla en cada tecla, sin esperar submit.
-    $('input-search').addEventListener('input', (e) => {
-      TABLE_FILTER = e.target.value;
-      CURRENT_PAGE = 1;
-      renderTable();
-    });
-
-    // Orden de tabla: click en un encabezado ordenable alterna asc/desc,
-    // o cambia de columna (reinicia a ascendente) si se hace click en otra.
-    document.querySelectorAll('thead th.sortable').forEach((th) => {
-      th.addEventListener('click', () => {
-        const key = th.dataset.key;
-        if (SORT_STATE.key === key) {
-          SORT_STATE.dir = SORT_STATE.dir === 'asc' ? 'desc' : 'asc';
-        } else {
-          SORT_STATE = { key, dir: 'asc' };
-        }
-        CURRENT_PAGE = 1;
-        renderTable();
-      });
-    });
-
-    // Paginación: flechas + deslizar (swipe) en móvil/trackpad.
-    $('btn-page-prev').addEventListener('click', () => goToPage(-1));
-    $('btn-page-next').addEventListener('click', () => goToPage(1));
-
-    let swipeStartX = null;
-    const tableWrap = $('table-wrap');
-    tableWrap.addEventListener('touchstart', (e) => { swipeStartX = e.touches[0].clientX; }, { passive: true });
-    tableWrap.addEventListener('touchend', (e) => {
-      if (swipeStartX === null) return;
-      const delta = e.changedTouches[0].clientX - swipeStartX;
-      const SWIPE_THRESHOLD = 50;
-      if (delta > SWIPE_THRESHOLD) goToPage(-1);       // deslizar a la derecha → página anterior
-      else if (delta < -SWIPE_THRESHOLD) goToPage(1);  // deslizar a la izquierda → página siguiente
-      swipeStartX = null;
-    }, { passive: true });
-
-    // Notas por movimiento: delegado en el tbody porque las filas se
-    // reconstruyen en cada render (los listeners individuales se perderían).
-    $('tbl-body').addEventListener('click', (e) => {
-      const btn = e.target.closest('.note-btn');
-      if (!btn) return;
-      const key = btn.dataset.notakey;
-      const actual = NOTAS[key] || '';
-      const texto = window.prompt('Nota para este movimiento:', actual);
-      if (texto === null) return; // usuario canceló el prompt
-      saveNota(key, texto).then(renderTable);
-    });
-
-    // Selector de tarjeta (solo visible si hay más de una configurada en CARDS).
-    $('card-select').addEventListener('change', (e) => switchCard(Number(e.target.value)));
-  }
-
-  // ┌──────────────────────────────────────────────────────────────────────┐
-  // │ 12. LIFECYCLE — arranque de la aplicación                            │
-  // └──────────────────────────────────────────────────────────────────────┘
-
-  /** Punto de entrada: carga preferencias guardadas, conecta eventos, trae datos, arranca el polling. */
-  /**
-   * Punto de entrada. Todo el arranque vive dentro de un único try/finally:
-   * así, sin importar QUÉ falle (bindEvents, un id faltante, el fetch al
-   * Sheet, storage bloqueado, lo que sea), el overlay de carga siempre se
-   * termina de ocultar — nunca se queda congelado en "Conectando…".
-   */
-  async function init() {
-    let hadError = false;
-
-    // Texto de arranque tipeado — puramente decorativo, corre EN PARALELO
-    // con la carga real (no la bloquea ni depende de ella). Vive dentro del
-    // mismo overlay ya auditado: si algo falla, el overlay se sigue
-    // cerrando igual por las rutas normales.
-    typeBootLine('INICIANDO SISTEMA...');
-
-    try {
-      bindEvents();
-
-      // Consejo del sistema: uno al azar por carga, no cambia durante la sesión.
-      $('tip-text').textContent = TIPS[Math.floor(Math.random() * TIPS.length)];
-
-      // Selector de tarjeta: solo se muestra si hay más de una configurada en CARDS.
-      if (CARDS.length > 1) {
-        $('card-select').innerHTML = CARDS.map((c, i) => `<option value="${i}">${c.nombre}</option>`).join('');
-        $('card-select').style.display = 'block';
-      }
-
-      // El tema se aplica primero para evitar cualquier parpadeo de color al cargar.
-      await loadTheme();
-
-      // Preferencias del usuario primero — así los inputs ya tienen su valor
-      // guardado antes del primer render con datos del Sheet.
-      await loadLimite();
-      await loadVerdict();
-      await loadNotas();
-
-      await loadData(false);
-    } catch (err) {
-      hadError = true;
-      console.error('Error de inicialización:', err);
-      $('loading-spinner').style.display = 'none';
-      $('loading-msg').style.display = 'none';
-      $('sheet-error').style.display = 'block';
-      $('sheet-error').textContent = err && err.message
-        ? err.message
-        : 'No se pudo conectar con la hoja "TARJETA". Verifica que el archivo de Google Sheets esté compartido como "Cualquiera con el enlace — Lector".';
-      $('btn-retry-load').style.display = 'inline-block';
-    } finally {
-      // Solo se cierra el overlay si todo salió bien. Si hubo error, se queda
-      // visible CON el mensaje — antes se borraba solo a los 500ms y el
-      // usuario nunca llegaba a leer por qué falló.
-      if (!hadError) hideLoadingOverlay();
-    }
-
-    setInterval(() => loadData(false).catch((err) => console.error('Error en refresco automático:', err)), REFRESH_MS);
-  }
-
-  /** Oculta (con fade) y elimina el overlay de carga. Segura de llamar más de una vez. */
-  function hideLoadingOverlay() {
-    const overlay = $('loading-overlay');
-    if (!overlay) return; // ya se quitó antes (ej. el watchdog se disparó primero)
-    overlay.classList.add('fade-out');
-    setTimeout(() => overlay.remove(), 500);
-  }
-
-  window.addEventListener('DOMContentLoaded', init);
-  window.addEventListener('DOMContentLoaded', () => {
-    $('btn-retry-load').addEventListener('click', () => window.location.reload());
-  });
-
-  // Red de seguridad final: si por cualquier razón init() nunca llega a su
-  // finally (ej. un bug futuro que cuelgue el hilo antes del try), esto
-  // garantiza que la pantalla de carga no se quede congelada indefinidamente.
-  window.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => {
-      const overlay = document.getElementById('loading-overlay');
-      if (overlay && !overlay.classList.contains('fade-out') && $('sheet-error').style.display !== 'block') {
-        console.warn('Watchdog: el overlay de carga seguía visible tras', LOADING_WATCHDOG_MS, 'ms — se fuerza a ocultar.');
-        overlay.classList.add('fade-out');
-        setTimeout(() => overlay.remove(), 500);
-      }
-    }, LOADING_WATCHDOG_MS);
-  });
+(() => {
+'use strict';
+const CARD = {"id": "cuscatlan", "nombre": "Banco Cuscatl\u00e1n", "sheetId": "1lTFi6NWYgzn_olV4usP4y2aWol_AnN096knpQ2rZ7Hk", "sheetName": "TARJETA", "startDay": 15, "endDay": 16};
+const TZ='America/El_Salvador', DEFAULT_LIMITE=200, FETCH_TIMEOUT=15000, WATCHDOG=20000, OUTLIER=100;
+const $=id=>document.getElementById(id);
+const $$=s=>[...document.querySelectorAll(s)];
+const sk=b=>b+':'+CARD.id;
+const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+const K={LIM:'tarjeta:limite-pago',VER:'tarjeta:veredicto',NOTAS:'tarjeta:notas',THEME:'tarjeta:theme'};
+const todayISO=()=>new Date().toLocaleDateString('en-CA',{timeZone:TZ});
+const MES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+const fmt=n=>'$'+n.toFixed(2);
+const fd=i=>{if(!i)return '—';const [y,m,d]=i.split('-');return d+' '+MES[+m-1]};
+const fdl=i=>{if(!i)return '—';const [y,m,d]=i.split('-');return d+' '+MES[+m-1].toUpperCase()+' '+y.slice(2)};
+const fdn=i=>{if(!i)return '';const [y,m,d]=i.split('-');return d+'/'+m+'/'+y};
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const daysBetween=(a,b)=>Math.round((new Date(b+'T00:00:00')-new Date(a+'T00:00:00'))/864e5);
+const addDays=(iso,n)=>{const d=new Date(iso+'T00:00:00');d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)};
+/* ---------- parsers ---------- */
+function parseDMY(s){if(!s)return null;const m=String(s).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);if(!m)return null;return m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0')}
+function parseMoney(v){if(v===null||v===undefined)return null;if(typeof v==='number')return v;const n=parseFloat(String(v).replace(/[^0-9.\-]/g,''));return isNaN(n)?null:n}
+function parseCuotas(v){if(v===null||v===undefined)return null;const s=String(v).trim().toLowerCase();if(!s)return null;if(['si','sí','yes','x','1','true'].includes(s))return 'SI';if(['no','n','0','false'].includes(s))return 'NO';return null}
+async function fetchSheet(){
+  const url=`https://docs.google.com/spreadsheets/d/${CARD.sheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(CARD.sheetName)}&headers=1&_=${Date.now()}`;
+  const ctl=new AbortController(),t=setTimeout(()=>ctl.abort(),FETCH_TIMEOUT);let res;
+  try{res=await fetch(url,{signal:ctl.signal})}catch(e){if(e.name==='AbortError')throw new Error('El Sheet no respondió en '+FETCH_TIMEOUT/1000+'s. Revisa tu conexión.');throw e}finally{clearTimeout(t)}
+  if(!res.ok)throw new Error('No se pudo leer la hoja "'+CARD.sheetName+'". ¿Está compartida como "Cualquiera con el enlace"?');
+  const text=await res.text();
+  let rows;try{rows=JSON.parse(text.substring(text.indexOf('{'),text.lastIndexOf('}')+1)).table.rows||[]}catch(e){throw new Error('La hoja "'+CARD.sheetName+'" no existe o no es pública.')}
+  const ex=[];let corte=null,pago=null,banco=null,ahorro=null;
+  rows.forEach((row,idx)=>{const c=row.c||[],cell=i=>c[i]?(c[i].f??c[i].v??null):null;
+    const fecha=parseDMY(cell(0)),gasto=cell(1),monto=parseMoney(cell(2)),cuotas=parseCuotas(cell(3));
+    const nr=parseMoney(cell(4)),ar=parseMoney(cell(5));
+    const n=cuotas==='SI'&&nr?nr:null,k=cuotas==='SI'&&ar!==null?ar:null;
+    if(!corte)corte=parseDMY(cell(6));if(!pago)pago=parseDMY(cell(7));if(!banco)banco=parseMoney(cell(8));if(!ahorro)ahorro=parseMoney(cell(9));
+    if(fecha&&gasto&&monto!==null)ex.push({fecha,gasto:String(gasto).trim(),monto,cuotas,n,k,fila:idx+2});});
+  ex.sort((a,b)=>a.fecha.localeCompare(b.fecha));
+  return {ex,corte,pago,banco,ahorro};
+}
+/* ---------- estado ---------- */
+let ALL=[],META={corte:null,pago:null,banco:null,ahorro:null},PL=DEFAULT_LIMITE,VER=null,NOTAS={};
+let R1=null,R2=null,RQ='cur',Q='',SKEY='fecha',SD=-1,OPEN=null,lastL=null,lastBad=false,S={};
+try{PL=parseFloat(store.get(sk(K.LIM)))||DEFAULT_LIMITE}catch(e){}
+try{VER=JSON.parse(store.get(sk(K.VER))||'null')}catch(e){VER=null}
+try{NOTAS=JSON.parse(store.get(sk(K.NOTAS))||'{}')}catch(e){NOTAS={}}
+const F=()=>ALL.filter(x=>(!R1||x.fecha>=R1)&&(!R2||x.fecha<=R2));
+/* ---------- ciclos (Cuscatlán 15→16, BAC 8→9) ---------- */
+const shift=(y,m,d)=>{const i=y*12+(m-1)+d;return{y:Math.floor(i/12),m:((i%12)+12)%12+1}};
+const iso=(y,m,d)=>y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+const cl=(y,m,d)=>Math.min(d,new Date(y,m,0).getDate());
+function cycle(off){const [y,m,d]=todayISO().split('-').map(Number);let s=d>=CARD.startDay?{y,m}:shift(y,m,-1);s=shift(s.y,s.m,-off);const e=shift(s.y,s.m,1);
+  return [iso(s.y,s.m,cl(s.y,s.m,CARD.startDay)),iso(e.y,e.m,cl(e.y,e.m,CARD.endDay))]}
+function setRange(k,a,b){RQ=k;if(k==='cur'){[R1,R2]=cycle(0)}else if(k==='prev'){[R1,R2]=cycle(1)}else if(k==='7'){R2=todayISO();R1=addDays(R2,-6)}else if(k==='all'){R1=null;R2=null}else{R1=a;R2=b}
+  $('d1').value=R1||'';$('d2').value=R2||'';OPEN=null;render();$('tw').scrollTop=0}
+/* ---------- util UI ---------- */
+function toast(h,b){const e=document.createElement('div');e.className='toast';e.innerHTML='<b>'+h+'</b>'+b;$('toasts').appendChild(e);setTimeout(()=>e.remove(),3900)}
+function count(el,to,f,ms=1000){const from=parseFloat(el.dataset.v||0);el.dataset.v=to;const t0=performance.now();(function s(t){const k=Math.min(1,(t-t0)/ms),e=1-Math.pow(1-k,3);el.textContent=f(from+(to-from)*e);if(k<1)requestAnimationFrame(s)})(t0)}
+function hit(){const c=$('card');c.classList.remove('hit');c.offsetHeight;c.classList.add('hit');setTimeout(()=>c.classList.remove('hit'),950);const g=$('gl');g.classList.remove('go');g.offsetHeight;g.classList.add('go')}
+function typeBoot(txt){const el=$('boot');el.textContent='';let i=0;(function k(){if(i<=txt.length&&!$('load').classList.contains('out')){el.textContent=txt.slice(0,i++);setTimeout(k,22)}})()}
+/* ---------- cálculo ---------- */
+function calc(){
+  const rows=F(),tot=rows.reduce((a,x)=>a+x.monto,0),u=tot/PL,pct=Math.round(u*100);
+  const today=todayISO();
+  const dp=META.pago?daysBetween(today,META.pago):null,dc=META.corte?daysBetween(today,META.corte):null;
+  const over=tot>PL+0.005,answered=VER&&Math.abs(VER.total-tot)<0.01;
+  let st=u<=.7?'ok':!over?'warn':answered&&VER.answer?'warn':'bad';
+  const kind=!over?'':answered?(VER.answer?'yes':'no'):'ask';
+  const [L,R]=u<=.3?['S','CLIENTE ÉLITE']:u<=.5?['A','PLATINO']:u<=.7?['B','ORO']:u<=.85?['C','ALERTA ROJA']:u<=1?['D','LÍMITE']:['E','EXCEDIDO'];
+  S={rows,tot,u,pct,dp,dc,over,kind,st,L,R,avail:Math.max(0,PL-tot),exceso:Math.max(0,tot-PL)};
+}
+function render(){
+  calc();const s=S;
+  document.body.classList.remove('ok','warn','bad');document.body.classList.add(s.st);
+  document.documentElement.style.setProperty('--st',s.st=='ok'?'var(--ok)':s.st=='warn'?'var(--warn)':'var(--bad)');
+  // aviso
+  const nt=$('notice');nt.className='notice '+s.st;nt.style.animation='none';nt.offsetHeight;nt.style.animation='';
+  const nb=$('nb');nb.innerHTML='';let m;
+  if(!s.over){m=s.st=='ok'?'[SISTEMA] Estás bien en el rango de gastos.':'[SISTEMA] Cerca del límite. Quedan '+fmt(s.avail)+'.'}
+  else if(s.kind=='ask'){m='[SISTEMA] Superaste tu límite por '+fmt(s.exceso)+'. ¿Podrás pagar los '+fmt(s.tot)+' de este ciclo?';nb.innerHTML='<button class="y" data-v="yes"><span>SÍ, PUEDO PAGARLO</span></button><button class="n" data-v="no"><span>NO, CUIDADO</span></button>'}
+  else if(s.kind=='yes'){m='[SISTEMA] Confirmado: sí podrás pagar los '+fmt(s.tot)+'. Alarma suave.';nb.innerHTML='<button data-v="reset"><span>CAMBIAR</span></button>'}
+  else{m='[SISTEMA] No se podrá pagar los '+fmt(s.tot)+'. Busca alternativas.';nb.innerHTML='<button data-v="reset"><span>CAMBIAR</span></button>'}
+  $('msg').textContent=m;
+  // tarjeta
+  $('cCorte').textContent=fdl(META.corte);$('cPago').textContent=fdl(META.pago);
+  const due=$('due');
+  if(s.dp!==null&&s.dp<=3&&s.dp>=0){due.className='due show';due.innerHTML='SE ACERCA FECHA DE PAGO, '+fdn(META.pago)+'<br>'+(s.over&&s.kind!='yes'?'NO SE PODRÁ PAGAR, BUSCA ALTERNATIVAS':'SE PODRÁ PAGAR');due.style.color=(s.over&&s.kind!='yes')?'var(--bad)':'var(--ok)';due.style.borderColor=due.style.color}
+  else due.className='due';
+  // totales
+  count($('total'),s.tot,fmt);$('limtxt').textContent=fmt(PL);
+  const sc=Math.max(1,s.tot/PL);$('lok').style.width=Math.min(s.tot,PL)/(PL*sc)*100+'%';$('lov').style.width=s.exceso/(PL*sc)*100+'%';$('lmk').style.left=(100/sc)+'%';
+  const col=s.st=='ok'?'var(--ok)':s.st=='warn'?'var(--warn)':'var(--bad)';
+  const ls=$('limst');ls.textContent=s.over?'+'+fmt(s.exceso)+' SOBRE EL LÍMITE':s.pct+'% USADO';ls.style.color=col;
+  const dd=s.dp!==null&&s.dp>0?s.dp:30;
+  $('limsub').textContent=s.over?(s.kind=='yes'?'Excedido, pero confirmaste que puedes pagar.':'Excedido. No se podrá pagar, busca alternativas.'):'Disponible: '+fmt(s.avail)+' · ritmo seguro: '+fmt(s.avail/Math.max(1,dd))+' / día';
+  // días para el pago
+  const dpe=$('dpago');dpe.textContent=s.dp===null?'—':s.dp<0?'0':s.dp;
+  const dcol=s.dp!==null&&s.dp<=3?'var(--bad)':s.dp!==null&&s.dp<=7?'var(--warn)':'var(--acc)',el=s.dp===null?0:Math.max(0,Math.min(30,30-Math.max(0,s.dp)));
+  $('days').innerHTML=[...Array(30)].map((_,i)=>`<i class="${i<el?'on':''} ${i==el&&s.dp!==null?'now':''}" style="--i:${i};--dc:${dcol}"></i>`).join('');
+  const dt=$('dtxt');dt.textContent=s.dp===null?'SIN FECHA DE PAGO':s.dp<0?'PAGO VENCIDO':s.dp==0?'HOY SE PAGA':s.dp<=3?'⚠ SE ACERCA EL PAGO':'FALTAN '+s.dp+' DÍAS';dt.style.color=dcol;
+  // rango
+  const li=$('letter');li.textContent=s.L;li.classList.remove('pop');li.offsetHeight;li.classList.add('pop');$('rname').textContent=s.R;
+  if(lastL!==null&&s.L!==lastL)toast('[ RANGO ]',lastL+' → '+s.L+' · '+s.R);lastL=s.L;
+  // presupuesto
+  const spentDay=s.tot/Math.max(1,30-Math.max(0,s.dp===null?0:s.dp)),dayly=PL/30;
+  const brow=[['Límite personal','<input id="lin" type="number" inputmode="decimal" min="1" value="'+PL+'">'],['Gastado (rango)','<b>'+fmt(s.tot)+'</b>'],['Disponible','<b style="color:'+col+'">'+fmt(s.avail)+'</b>'],['Puedo gastar por día',fmt(s.avail/Math.max(1,dd))],['Puedo gastar por semana',fmt(s.avail/Math.max(1,dd)*7)],['Ritmo real por día',fmt(spentDay)+(spentDay>dayly?' <span class="up">▲</span>':' <span class="dn">▼</span>')],['Límite del banco',META.banco?fmt(META.banco):'—'],['Mayor gasto',s.rows.length?fmt(Math.max(...s.rows.map(x=>x.monto))):'—']];
+  $('bt').innerHTML=brow.map(r=>`<tr><td>${r[0]}</td><td class="m">${r[1]}</td></tr>`).join('');
+  $('lin').onchange=e=>{PL=Math.max(1,parseFloat(e.target.value)||DEFAULT_LIMITE);store.set(sk(K.LIM),String(PL));toast('[ GUARDADO ]','Límite de pago: '+fmt(PL));render()};
+  // mes pasado vs este mes (historial completo)
+  const [ty,tm]=todayISO().split('-').map(Number),pm=shift(ty,tm,-1),kT=ty+'-'+String(tm).padStart(2,'0'),kP=pm.y+'-'+String(pm.m).padStart(2,'0');
+  const sumM=k=>ALL.filter(x=>x.fecha.startsWith(k)).reduce((a,x)=>a+x.monto,0),mt=sumM(kT),mp=sumM(kP),df=mt-mp;
+  $('mt').innerHTML=[['Mes pasado',fmt(mp)],['Este mes',fmt(mt)],['Diferencia',mp>0?`<span class="${df>0?'up':'dn'}">${df>0?'▲':'▼'} ${fmt(Math.abs(df))} (${Math.abs(df/mp*100).toFixed(0)}%)</span>`:'—']].map(r=>`<tr><td>${r[0]}</td><td class="m">${r[1]}</td></tr>`).join('');
+  // ahorro / banco / cuotas
+  const ah=META.ahorro||0,cov=s.tot>0?ah/s.tot:1,falta=Math.max(0,s.tot-ah),sobra=Math.max(0,ah-s.tot);
+  count($('ahorro'),ah,fmt);$('cvf').style.width=Math.min(100,cov*100)+'%';
+  const cv=$('cvt');cv.textContent=s.tot==0?'SIN GASTOS EN EL RANGO':cov>=1?'✔ EL AHORRO CUBRE EL PAGO ('+Math.round(cov*100)+'%)':'⚠ EL AHORRO CUBRE '+Math.round(cov*100)+'% DEL PAGO';cv.style.color=cov>=1?'var(--ok)':cov>=.5?'var(--warn)':'var(--bad)';
+  $('svf').textContent=fmt(falta);$('svs').textContent=fmt(sobra);
+  $('svb').textContent=META.banco?Math.round(s.tot/META.banco*100)+'%':'—';$('svl').textContent=META.banco?fmt(META.banco):'—';$('cbb').style.width=META.banco?Math.min(100,s.tot/META.banco*100)+'%':'0%';
+  const cu=s.rows.filter(x=>x.cuotas==='SI'&&x.n),men=cu.reduce((a,x)=>a+x.monto/x.n,0),pend=cu.reduce((a,x)=>a+x.monto/x.n*Math.max(0,x.n-(x.k||0)),0),mx=Math.max(0,...cu.map(x=>x.n-(x.k||0)));
+  $('cq').innerHTML=cu.map(x=>`<tr><td>${esc(x.gasto)}</td><td class="mono">${fmt(x.monto/x.n)}/mes</td><td><div class="mini"><i data-w="${Math.min(100,(x.k||0)/x.n*100)}"></i></div></td><td class="mono" style="text-align:right">${x.k||0}/${x.n}</td></tr>`).join('')||'<tr><td colspan="4" class="empty" style="padding:10px">Sin cuotas activas</td></tr>';
+  $('cqf').innerHTML=`<tr><td>TOTAL</td><td class="mono">${fmt(men)}/mes</td><td class="mono" colspan="2" style="text-align:right">pendiente ${fmt(pend)} · libre en ${mx} m</td></tr>`;
+  setTimeout(()=>$$('.cq [data-w]').forEach(e=>e.style.width=e.dataset.w+'%'),60);
+  // resumen + indicador
+  $('sum').textContent=s.rows.length+' REG · '+fmt(s.tot);const sm=$('sum');sm.classList.remove('pulse');sm.offsetHeight;sm.classList.add('pulse');
+  $$('#rq .chp').forEach(c=>c.classList.toggle('on',c.dataset.r==RQ));moveInd();
+  table();
+  // glitch: al pasar a estado malo
+  const bad=s.st=='bad';if(bad&&!lastBad)hit();if(bad&&!lastBad&&s.kind=='ask')toast('[ ALERTA ]','Límite superado por '+fmt(s.exceso));lastBad=bad;
+}
+function moveInd(){const on=document.querySelector('#rq .chp.on'),ind=$('ind');if(on){ind.style.opacity=1;ind.style.left=on.offsetLeft+'px';ind.style.width=on.offsetWidth+'px'}else ind.style.opacity=0}
+function table(){
+  const tw=$('tw'),stp=tw.scrollTop;
+  let rs=S.rows.filter(x=>x.gasto.toLowerCase().includes(Q.toLowerCase()));
+  rs.sort((a,b)=>{let r;if(SKEY==='monto')r=a.monto-b.monto;else if(SKEY==='cuotas')r=(a.cuotas||'').localeCompare(b.cuotas||'');else r=String(a[SKEY]).localeCompare(String(b[SKEY]));return r*SD||a.fila-b.fila});
+  $('tb').innerHTML=rs.map((x,i)=>{const key=x.fecha+'|'+x.gasto+'|'+x.monto+'|'+x.fila,op=OPEN===key;
+    return `<tr class="r ${x.monto>OUTLIER?'hi':''}" style="--i:${Math.min(i,14)}" data-k="${esc(key)}"><td class="mono">${fd(x.fecha)}</td><td>${esc(x.gasto)}${x.cuotas==='SI'?`<br><span class="tag mtag">${x.n?'CUOTAS '+(x.k||0)+'/'+x.n:'CUOTAS'}</span>`:''}</td><td class="hm"><span class="tag ${x.cuotas==='SI'?'':'no'}">${x.cuotas==='SI'?'SI'+(x.n?' · '+x.n:''):'NO'}</span></td><td class="hm">${x.cuotas==='SI'&&x.n?`<div class="mini"><i data-w="${Math.min(100,(x.k||0)/x.n*100)}"></i></div><small class="mono" style="color:var(--tx3)">${x.k||0}/${x.n}</small>`:'—'}</td><td class="m">${fmt(x.monto)}</td></tr>`+
+    (op?`<tr class="det"><td colspan="5"><div class="dd"><div class="rw"><span>Fila en Sheet: <b>${x.fila}</b></span><span>% del rango: <b>${S.tot?(x.monto/S.tot*100).toFixed(1):0}%</b></span>${x.cuotas==='SI'&&x.n?`<span>Cuota mensual: <b>${fmt(x.monto/x.n)}</b></span>`:''}${x.monto>OUTLIER?'<span style="color:var(--warn)">⚠ Gasto inusual</span>':''}</div><textarea data-n="${esc(key)}" placeholder="Nota...">${esc(NOTAS[key]||'')}</textarea></div></td></tr>`:'');
+  }).join('')||'<tr><td colspan="5" class="empty">Sin registros en este rango</td></tr>';
+  tw.scrollTop=stp;
+  setTimeout(()=>$$('#tb .mini [data-w]').forEach(e=>e.style.width=e.dataset.w+'%'),60);
+  $$('#tb tr.r').forEach(r=>r.onclick=()=>{OPEN=OPEN===r.dataset.k?null:r.dataset.k;table()});
+  $$('#tb textarea').forEach(t=>{t.onclick=e=>e.stopPropagation();t.onchange=e=>{const v=e.target.value.trim();if(v)NOTAS[t.dataset.n]=v;else delete NOTAS[t.dataset.n];store.set(sk(K.NOTAS),JSON.stringify(NOTAS));toast('[ NOTA ]','Guardada')}});
+  $$('th[data-k]').forEach(t=>{t.classList.toggle('s',t.dataset.k==SKEY);t.dataset.d=SD>0?'▲':'▼'});
+}
+/* ---------- eventos ---------- */
+$('nb').onclick=e=>{const b=e.target.closest('button');if(!b)return;const v=b.dataset.v;
+  if(v==='reset'){VER=null;store.set(sk(K.VER),'null');lastBad=false}
+  else{VER={total:S.tot,answer:v==='yes'};store.set(sk(K.VER),JSON.stringify(VER));lastBad=false;if(v==='no'){render();hit();return}}
+  render()};
+$$('#rq .chp').forEach(c=>c.onclick=()=>setRange(c.dataset.r));
+$('d1').onchange=e=>{RQ='';R1=e.target.value||null;OPEN=null;render()};
+$('d2').onchange=e=>{RQ='';R2=e.target.value||null;OPEN=null;render()};
+$('dclr').onclick=()=>setRange('cur');
+$('q').oninput=e=>{Q=e.target.value;table()};
+$$('th[data-k]').forEach(t=>t.onclick=()=>{if(SKEY==t.dataset.k)SD*=-1;else{SKEY=t.dataset.k;SD=-1}table()});
+$('csv').onclick=()=>{const q=v=>'"'+String(v).replace(/"/g,'""')+'"',L=['Fecha,Gasto,Monto,Cuotas,Cuantas,Abonadas',...S.rows.map(x=>[x.fecha,q(x.gasto),x.monto,x.cuotas||'',x.n||'',x.k??''].join(','))];
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([L.join('\n')],{type:'text/csv'}));a.download='movimientos-'+CARD.id+'.csv';a.click()};
+$('th').onclick=()=>{const l=document.documentElement.dataset.theme==='light'?'':'light';if(l)document.documentElement.dataset.theme='light';else delete document.documentElement.dataset.theme;store.set(K.THEME,l||'dark')};
+if(store.get(K.THEME)==='light')document.documentElement.dataset.theme='light';
+$('rf').onclick=()=>{const b=$('rf');b.classList.remove('sp');b.offsetHeight;b.classList.add('sp');load(false)};
+window.addEventListener('resize',moveInd);
+if(matchMedia('(hover:hover) and (pointer:fine)').matches){
+  const sc=$('scene'),c=$('card');sc.onmousemove=e=>{const r=c.getBoundingClientRect(),x=(e.clientX-r.left)/r.width,y=(e.clientY-r.top)/r.height;c.style.transform=`rotateY(${(x-.5)*14}deg) rotateX(${(.5-y)*14}deg)`;c.style.setProperty('--mx',x*100+'%');c.style.setProperty('--my',y*100+'%')};sc.onmouseleave=()=>c.style.transform=''}
+/* ---------- carga ---------- */
+let wd=null;
+function showErr(msg){const l=$('load');l.classList.remove('out');l.classList.add('err');$('lerrm').textContent=msg;$('boot').textContent='> ERROR DE SINCRONIZACIÓN'}
+async function load(first){
+  const l=$('load');if(first||l.classList.contains('err')){l.classList.remove('out','err');typeBoot('> SISTEMA EN LÍNEA · SINCRONIZANDO HOJA "'+CARD.sheetName+'"...')}
+  clearTimeout(wd);wd=setTimeout(()=>showErr('La carga tardó demasiado. Revisa tu conexión.'),WATCHDOG);
+  try{const d=await fetchSheet();ALL=d.ex;META={corte:d.corte,pago:d.pago,banco:d.banco,ahorro:d.ahorro};
+    if(first||!RQ||RQ==='cur'||RQ==='prev'||RQ==='7'||RQ==='all')setRange(RQ||'cur');else render();
+    clearTimeout(wd);l.classList.add('out');if(!first)toast('[ SINCRONIZADO ]',ALL.length+' movimientos')}
+  catch(e){clearTimeout(wd);showErr(e.message||'Error desconocido')}
+}
+$('lretry').onclick=()=>load(true);
+$('fs').textContent=CARD.sheetName;
+setRange('cur');
+load(true);
 })();
 </script>
-</body>
-</html>
+</body></html>
